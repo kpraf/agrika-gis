@@ -1,0 +1,130 @@
+# ============================================================
+#  AgriKA-GIS - one-shot database setup
+#  Run in PowerShell:  .\backend\db\setup_db.ps1
+#
+#  It will:
+#    1. Find your PostgreSQL 18 install
+#    2. Ask for your 'postgres' password (set at install time)
+#    3. Check whether PostGIS is available (optional)
+#    4. Create the 'agrika_gis' database
+#    5. Load the schema + seed data
+#    6. Write backend/.env with the connection settings
+#
+#  You do NOT need to know any PostgreSQL. Just run it and type
+#  your password when prompted.
+# ============================================================
+
+# NOTE: keep this "Continue", not "Stop". psql writes informational NOTICEs to
+# stderr (e.g. "table ... does not exist, skipping" from DROP IF EXISTS), and under
+# "Stop" PowerShell 5.1 treats any native-command stderr as a fatal error. We rely
+# on $LASTEXITCODE after each psql call to detect real failures instead.
+$ErrorActionPreference = "Continue"
+$scriptDir  = $PSScriptRoot
+$backendDir = Split-Path $scriptDir -Parent
+
+Write-Host ""
+Write-Host "=== AgriKA-GIS database setup ===" -ForegroundColor Green
+Write-Host ""
+
+# --- 1. Locate psql ---
+$psql = Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\psql.exe" -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+if (-not $psql) {
+    Write-Host "Could not find psql.exe under C:\Program Files\PostgreSQL." -ForegroundColor Red
+    Write-Host "Is PostgreSQL installed? If it is elsewhere, tell Claude the path." -ForegroundColor Red
+    exit 1
+}
+Write-Host "Found PostgreSQL:" (Split-Path (Split-Path $psql -Parent) -Parent)
+
+# --- 2. Ask for the postgres password ---
+Write-Host ""
+Write-Host "Enter the password for the 'postgres' user (set when you installed PostgreSQL)."
+$sec  = Read-Host "postgres password" -AsSecureString
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
+$pgpass = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+[Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+$env:PGPASSWORD = $pgpass
+
+# --- Test the connection ---
+Write-Host ""
+Write-Host "Testing connection..." -NoNewline
+& $psql -U postgres -h localhost -p 5432 -d postgres -tAc "SELECT 1" *> $null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host " FAILED" -ForegroundColor Red
+    Write-Host "Could not connect. The password is probably wrong. Run the script again." -ForegroundColor Red
+    exit 1
+}
+Write-Host " OK" -ForegroundColor Green
+
+# --- 3. Check PostGIS availability (optional - only needed for map boundaries) ---
+Write-Host "Checking PostGIS..." -NoNewline
+$postgisRaw = & $psql -U postgres -h localhost -d postgres -tAc "SELECT 1 FROM pg_available_extensions WHERE name='postgis'"
+$hasPostgis = ("$postgisRaw").Trim() -eq "1"
+if ($hasPostgis) {
+    Write-Host " available" -ForegroundColor Green
+} else {
+    Write-Host " not installed (that is fine - login and data work without it)" -ForegroundColor Yellow
+}
+
+# --- 4. Create the database (ignore 'already exists') ---
+Write-Host "Creating database 'agrika_gis'..." -NoNewline
+$create = & $psql -U postgres -h localhost -d postgres -c "CREATE DATABASE agrika_gis" 2>&1
+if ($LASTEXITCODE -ne 0 -and "$create" -notmatch "already exists") {
+    Write-Host " FAILED" -ForegroundColor Red
+    Write-Host $create -ForegroundColor Red
+    exit 1
+}
+Write-Host " OK" -ForegroundColor Green
+
+# --- 5. Load schema + seed ---
+Write-Host "Loading schema..." -NoNewline
+& $psql -U postgres -h localhost -d agrika_gis -v ON_ERROR_STOP=1 -f "$scriptDir\schema.sql" *> "$scriptDir\_setup.log"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host " FAILED" -ForegroundColor Red
+    Write-Host "See backend\db\_setup.log for details." -ForegroundColor Red
+    exit 1
+}
+Write-Host " OK" -ForegroundColor Green
+
+Write-Host "Loading seed data..." -NoNewline
+& $psql -U postgres -h localhost -d agrika_gis -v ON_ERROR_STOP=1 -f "$scriptDir\seed.sql" *>> "$scriptDir\_setup.log"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host " FAILED" -ForegroundColor Red
+    Write-Host "See backend\db\_setup.log for details." -ForegroundColor Red
+    exit 1
+}
+Write-Host " OK" -ForegroundColor Green
+
+# --- 5b. If PostGIS is available, add the geometry columns too ---
+if ($hasPostgis) {
+    Write-Host "Adding PostGIS geometry columns..." -NoNewline
+    & $psql -U postgres -h localhost -d agrika_gis -v ON_ERROR_STOP=1 -f "$scriptDir\schema_geometry.sql" *>> "$scriptDir\_setup.log"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host " FAILED" -ForegroundColor Red
+        Write-Host "See backend\db\_setup.log for details." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host " OK" -ForegroundColor Green
+}
+
+# --- 6. Write backend/.env ---
+Write-Host "Writing backend\.env..." -NoNewline
+$encPass = [uri]::EscapeDataString($pgpass)
+$jwt = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 48 | ForEach-Object { [char]$_ })
+$envContent = @"
+# Local dev config - gitignored. Generated by setup_db.ps1.
+DATABASE_URL=postgresql+psycopg://postgres:$encPass@localhost:5432/agrika_gis
+JWT_SECRET_KEY=$jwt
+CORS_ORIGINS=http://localhost:5173
+"@
+Set-Content -Path (Join-Path $backendDir ".env") -Value $envContent -Encoding utf8
+Write-Host " OK" -ForegroundColor Green
+
+$env:PGPASSWORD = ""
+Write-Host ""
+Write-Host "=== Database is ready! ===" -ForegroundColor Green
+if (-not $hasPostgis) {
+    Write-Host "(PostGIS not installed - map boundaries come later; login and data work now.)" -ForegroundColor Yellow
+}
+Write-Host "Now tell Claude 'the database is set up' and we will create your login." -ForegroundColor Green
+Write-Host ""

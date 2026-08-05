@@ -1,44 +1,31 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import MapControls from "../layout/MapControls";
+import Navbar from "../layout/Navbar";
+import { useAuth } from "../../context/AuthContext";
+import { boundariesApi } from "../../lib/api";
 
 const DEFAULT_CENTER = [14.2117, 121.1653];
 const DEFAULT_ZOOM = 12;
 
-const ZONE_MARKER = { name: "Brgy. San Isidro, Calamba", position: DEFAULT_CENTER, status: "Above Expected" };
-
-const markerIcon = L.divIcon({
-  className: "",
-  html: `
-    <span class="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2">
-      <span class="absolute w-8 h-8 rounded-full bg-[#1B3315]/20"></span>
-      <span class="w-4 h-4 rounded-full bg-[#1B3315] border-2 border-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]"></span>
-    </span>
-  `,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+// Basemap options (both free, no API key). "map" = clean light map; "satellite" = aerial imagery.
+const BASEMAPS = {
+  map: {
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  satellite: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Tiles &copy; Esri, Maxar, Earthstar Geographics",
+  },
+};
 
 const CITY_FILTERS = ["All Cities", "Calamba", "Los Baños"];
-
-const EFFICIENCY_BADGES = [
-  { label: "Moderate", bg: "bg-[#FACC15]/50", text: "text-[#241A00]" },
-  { label: "High Yield", bg: "bg-[#3B9E1C]/50", text: "text-[#002204]" },
-  { label: "Underused", bg: "bg-[#E1E3DE]", text: "text-[#434840]" },
-];
-
-const YIELD_VS_EXPECTED = [
-  { label: "Corn", percent: 85, value: "85%", color: "#1B6D24" },
-  { label: "Rice", percent: 65, value: "65%", color: "#CDA722" },
-];
-
-const LEGEND_LABELS = ["Low Yield", "Expected", "High Yield"];
-
-const ACTIVE_LAYERS = ["Yield Points", "Boundaries"];
 
 function ToggleSwitch({ checked, onChange, icon, label }) {
   return (
@@ -75,11 +62,100 @@ function Card({ title, children }) {
 
 export default function SpatialGIS() {
   const { city } = useParams();
+  const { isAuthenticated, loading } = useAuth();
+  // Chrome is decided by WHO is viewing, not the URL:
+  //   logged in  -> portal side nav
+  //   public     -> top nav only
+  const isPublic = !isAuthenticated;
   const mapRef = useRef(null);
   const [viewType, setViewType] = useState("heatmap");
   const [season, setSeason] = useState("wet");
   const [cityFilter, setCityFilter] = useState("All Cities");
   const [layers, setLayers] = useState({ yieldPoints: true, landUse: false, boundaries: true });
+  const [muniGeo, setMuniGeo] = useState(null);
+  const [basemap, setBasemap] = useState("map");
+  const [provinceBounds, setProvinceBounds] = useState(null);
+
+  const [selectedMuni, setSelectedMuni] = useState(null); // { id, name } when drilled into a city
+  const [barangayGeo, setBarangayGeo] = useState(null);
+
+  // Fetch municipality boundaries (GeoJSON) from PostGIS once.
+  useEffect(() => {
+    let active = true;
+    boundariesApi
+      .municipalities()
+      .then((fc) => {
+        if (!active) return;
+        setMuniGeo(fc);
+        // Compute the whole-province extent and frame the map to it on first load.
+        try {
+          const b = L.geoJSON(fc).getBounds();
+          if (b.isValid()) {
+            setProvinceBounds(b);
+            mapRef.current?.fitBounds(b, { padding: [20, 20] });
+          }
+        } catch {
+          /* ignore */
+        }
+      })
+      .catch(() => {
+        /* boundaries just won't draw if the API is down */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Boundary colours adapt to the basemap: green on the light map, bright yellow
+  // (outline only) on satellite so they stay visible over green farmland.
+  const sat = basemap === "satellite";
+  const muniStyle = sat
+    ? { color: "#FACC15", weight: 2, fillColor: "#FACC15", fillOpacity: 0 }
+    : { color: "#1F6306", weight: 1.5, fillColor: "#3B9E1C", fillOpacity: 0.08 };
+  const brgyStyle = sat
+    ? { color: "#FDE047", weight: 1.2, fillColor: "#FDE047", fillOpacity: 0 }
+    : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
+
+  // Drill into a municipality: load its barangays and zoom to its bounds.
+  const drillInto = (feature, layer) => {
+    setSelectedMuni({ id: feature.properties.municipality_id, name: feature.properties.name });
+    setBarangayGeo(null);
+    boundariesApi
+      .barangays(feature.properties.municipality_id)
+      .then((fc) => setBarangayGeo(fc))
+      .catch(() => {});
+    if (mapRef.current && layer.getBounds) {
+      mapRef.current.fitBounds(layer.getBounds(), { padding: [24, 24] });
+    }
+  };
+
+  const backToProvince = () => {
+    setSelectedMuni(null);
+    setBarangayGeo(null);
+    // Return to the whole-province view, not the default pin location.
+    if (provinceBounds) {
+      mapRef.current?.fitBounds(provinceBounds, { padding: [20, 20] });
+    } else {
+      mapRef.current?.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    }
+  };
+
+  const onEachMunicipality = (feature, layer) => {
+    layer.on({
+      click: () => drillInto(feature, layer),
+      mouseover: () => layer.setStyle({ weight: muniStyle.weight + 1.5, fillOpacity: muniStyle.fillOpacity + 0.2 }),
+      mouseout: () => layer.setStyle(muniStyle),
+    });
+    if (feature.properties?.name) layer.bindTooltip(feature.properties.name, { sticky: true });
+  };
+
+  const onEachBarangay = (feature, layer) => {
+    layer.on({
+      mouseover: () => layer.setStyle({ weight: brgyStyle.weight + 1, fillOpacity: brgyStyle.fillOpacity + 0.24 }),
+      mouseout: () => layer.setStyle(brgyStyle),
+    });
+    if (feature.properties?.name) layer.bindTooltip(feature.properties.name, { sticky: true });
+  };
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
@@ -88,18 +164,35 @@ export default function SpatialGIS() {
 
   const toggleLayer = (key) => setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  // While the session is being restored, don't render either chrome (avoids a
+  // public->portal flash for a logged-in user refreshing on /yield-map).
+  if (loading) {
+    return (
+      <div className="w-full h-screen flex items-center justify-center bg-[#F8FAF5] text-[#6B7280]">
+        Loading…
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full h-screen bg-[#F8FAF5] font-sans" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-      <DashboardSidebar active="map" city={city} />
+      {!isPublic && <DashboardSidebar active="map" city={city} />}
 
       <div className="flex flex-col flex-1 min-w-0">
-        {/* Top Header */}
-        <header className="flex items-center justify-between px-10 h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
-          <h1 className="text-2xl font-bold text-[#1F2937] tracking-[-0.6px]">
-            Spatial GIS Visualization and Analysis
-          </h1>
-          <span className="text-sm font-medium text-[#6B7280]">{cityLabel}</span>
-        </header>
+        {isPublic ? (
+          /* Public view: use the public site navigation bar (dark band keeps its white text legible) */
+          <div className="shrink-0 bg-[#0B2005]">
+            <Navbar active="Yield Map" />
+          </div>
+        ) : (
+          /* Portal view: dashboard header */
+          <header className="flex items-center justify-between px-10 h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+            <h1 className="text-2xl font-bold text-[#1F2937] tracking-[-0.6px]">
+              Spatial GIS Visualization and Analysis
+            </h1>
+            <span className="text-sm font-medium text-[#6B7280]">{cityLabel}</span>
+          </header>
+        )}
 
         <div className="flex flex-1 min-h-0">
           {/* Left Panel — Map Controls */}
@@ -253,17 +346,25 @@ export default function SpatialGIS() {
               zoomControl={false}
               style={{ height: "100%", width: "100%" }}
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <Marker position={ZONE_MARKER.position} icon={markerIcon}>
-                <Popup>
-                  <strong>{ZONE_MARKER.name}</strong>
-                  <br />
-                  Yield status: {ZONE_MARKER.status}
-                </Popup>
-              </Marker>
+              <TileLayer key={basemap} attribution={BASEMAPS[basemap].attribution} url={BASEMAPS[basemap].url} />
+              {/* Municipality outlines (click one to drill into its barangays) */}
+              {layers.boundaries && !selectedMuni && muniGeo && (
+                <GeoJSON
+                  key={`municipalities-${basemap}`}
+                  data={muniGeo}
+                  style={muniStyle}
+                  onEachFeature={onEachMunicipality}
+                />
+              )}
+              {/* Barangay outlines for the selected municipality */}
+              {layers.boundaries && selectedMuni && barangayGeo && (
+                <GeoJSON
+                  key={`barangays-${selectedMuni.id}-${basemap}`}
+                  data={barangayGeo}
+                  style={brgyStyle}
+                  onEachFeature={onEachBarangay}
+                />
+              )}
             </MapContainer>
 
             <div className="absolute left-6 right-6 top-6 z-[500] flex justify-center pointer-events-none">
@@ -282,87 +383,101 @@ export default function SpatialGIS() {
               </div>
             </div>
 
+            {/* Back-to-province button, shown when drilled into a municipality */}
+            {selectedMuni && (
+              <button
+                type="button"
+                onClick={backToProvince}
+                className="absolute left-6 top-20 z-[600] flex items-center gap-2 px-4 py-2 rounded-lg bg-white shadow-md text-sm font-semibold text-[#1F6306] hover:bg-[#F0FDF4]"
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {selectedMuni.name} — back to all
+              </button>
+            )}
+
+            {/* Basemap switcher */}
+            <div className="absolute left-6 bottom-6 z-[500] flex rounded-lg overflow-hidden shadow-md bg-white text-sm font-medium">
+              {[
+                { key: "map", label: "Map" },
+                { key: "satellite", label: "Satellite" },
+              ].map((b) => (
+                <button
+                  key={b.key}
+                  type="button"
+                  onClick={() => setBasemap(b.key)}
+                  className={`px-3 py-1.5 transition-colors ${
+                    basemap === b.key ? "bg-[#1F6306] text-white" : "text-[#374151] hover:bg-[#F3F4F6]"
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+
             <MapControls
               onZoomIn={() => mapRef.current?.zoomIn()}
               onZoomOut={() => mapRef.current?.zoomOut()}
-              onRecenter={() => mapRef.current?.setView(DEFAULT_CENTER, DEFAULT_ZOOM)}
+              onRecenter={() =>
+                provinceBounds
+                  ? mapRef.current?.fitBounds(provinceBounds, { padding: [20, 20] })
+                  : mapRef.current?.setView(DEFAULT_CENTER, DEFAULT_ZOOM)
+              }
             />
           </section>
 
-          {/* Right Panel — Context Cards */}
+          {/* Right Panel — Context */}
           <section className="w-[460px] shrink-0 h-full overflow-y-auto bg-white">
             <div className="flex flex-col gap-6 p-6">
-              {/* 1. Selected Zone Detail */}
-              <div className="flex flex-col gap-3 p-6 bg-[#F8FAF5] border border-[#C3C8BD] rounded-xl w-full">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg text-[#061E04]">{ZONE_MARKER.name}</h3>
-                  <svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="#74796F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 9l6 6 6-6" />
-                  </svg>
-                </div>
-                <p className="text-sm leading-5 text-[#434840]">
-                  Primary agricultural zone focusing on organic rice and corn production. Current soil health is
-                  optimal.
-                </p>
+              {/* Selected area (reflects the drill-down state) */}
+              <div className="flex flex-col gap-2 p-6 bg-[#F8FAF5] border border-[#C3C8BD] rounded-xl w-full">
+                <span className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Selected Area</span>
+                {selectedMuni ? (
+                  <>
+                    <h3 className="text-lg font-bold text-[#061E04]">{selectedMuni.name}</h3>
+                    <p className="text-sm leading-5 text-[#434840]">
+                      {barangayGeo ? `${barangayGeo.features.length} barangays` : "Loading barangays…"}. Hover a
+                      barangay on the map to see its name.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-bold text-[#061E04]">Laguna Province</h3>
+                    <p className="text-sm leading-5 text-[#434840]">
+                      {muniGeo ? `${muniGeo.features.length} municipalities mapped.` : "Loading boundaries…"} Click a
+                      municipality to explore its barangays.
+                    </p>
+                  </>
+                )}
               </div>
 
-              {/* 2. City Status Badges */}
-              <Card title="Efficiency Ratings">
-                <div className="flex flex-wrap gap-2">
-                  {EFFICIENCY_BADGES.map((badge) => (
-                    <span
-                      key={badge.label}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs ${badge.bg} ${badge.text}`}
-                    >
-                      <span className="w-2 h-2 rounded-full bg-current" />
-                      {badge.label}
-                    </span>
-                  ))}
-                </div>
-              </Card>
-
-              {/* 3. Yield vs Expected */}
-              <Card title="Yield vs Expected">
-                <div className="flex flex-col gap-3">
-                  {YIELD_VS_EXPECTED.map((row) => (
-                    <div key={row.label} className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-[#191C1A]">{row.label}</span>
-                        <span className="text-[#061E04]">{row.value}</span>
-                      </div>
-                      <div className="relative h-2 bg-[#E1E3DE] rounded-full overflow-hidden">
-                        <div
-                          className="absolute inset-y-0 left-0 rounded-full"
-                          style={{ width: `${row.percent}%`, background: row.color }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* 4. Yield Heatmap Legend */}
-              <Card title="Yield Heatmap Legend">
-                <div className="flex flex-col gap-1">
-                  <div className="h-4 rounded-full bg-gradient-to-r from-[#FECACA] via-[#FDE047] to-[#16A34A]" />
-                  <div className="flex justify-between text-xs text-[#434840]">
-                    {LEGEND_LABELS.map((label) => (
-                      <span key={label}>{label}</span>
-                    ))}
-                  </div>
-                </div>
-              </Card>
-
-              {/* 5. Active Layers Summary */}
+              {/* Active layers — reflects the real toggles */}
               <Card title="Active Layers">
                 <div className="flex flex-col gap-1.5">
-                  {ACTIVE_LAYERS.map((layer) => (
-                    <div key={layer} className="flex items-center gap-3">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-[#1B6D24]" />
-                      <span className="text-sm text-[#191C1A]">{layer}</span>
-                    </div>
-                  ))}
+                  {[
+                    ["yieldPoints", "Yield Points"],
+                    ["landUse", "Land use"],
+                    ["boundaries", "Boundaries"],
+                  ]
+                    .filter(([key]) => layers[key])
+                    .map(([key, label]) => (
+                      <div key={key} className="flex items-center gap-3">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-[#1B6D24]" />
+                        <span className="text-sm text-[#191C1A]">{label}</span>
+                      </div>
+                    ))}
+                  {!Object.values(layers).some(Boolean) && (
+                    <span className="text-sm text-[#9CA3AF]">No layers active.</span>
+                  )}
                 </div>
+              </Card>
+
+              {/* Rice yield — honest pending state (no fabricated numbers) */}
+              <Card title="Rice Yield">
+                <p className="text-sm leading-5 text-[#6B7280]">
+                  Rice yield metrics for the selected area will appear here once prediction data is available.
+                </p>
               </Card>
             </div>
           </section>

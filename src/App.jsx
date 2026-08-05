@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Home from "./components/Home";
 import About from "./components/About";
 import FAQ from "./components/FAQ";
@@ -10,18 +11,6 @@ import SpatialGIS from "./components/gis/SpatialGIS";
 import RiceYieldAnalytics from "./components/analytics/RiceYieldAnalytics";
 import ReportsExport from "./components/reports/ReportsExport";
 import UserAccessManagement from "./components/admin/UserAccessManagement";
-
-/**
- * TEMPORARY auth stub.
- * Replace this with real auth state once the Flask API + session/token handling is wired up.
- * role: "administrator" | "agriculturist" | "rice_technician" | "guest" | null (not logged in)
- */
-function useAuth() {
-  return {
-    isAuthenticated: false,
-    role: null,
-  };
-}
 
 // Simple placeholder so routes are navigable before each module is built
 function Placeholder({ title }) {
@@ -37,8 +26,16 @@ function Placeholder({ title }) {
 
 // Guards a route by role. Administrator always passes (province-wide access).
 function RequireRole({ allowedRoles, children }) {
-  const { isAuthenticated, role } = useAuth();
+  const { isAuthenticated, role, loading } = useAuth();
 
+  // While the session is being restored (token check on refresh), don't redirect yet.
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F3F4F6] text-[#6B7280]">
+        Loading…
+      </div>
+    );
+  }
   if (!isAuthenticated) {
     return <Navigate to="/portal-access" replace />;
   }
@@ -56,8 +53,9 @@ function MunicipalityDashboard({ moduleTitle }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
         {/* Public */}
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
@@ -76,7 +74,8 @@ export default function App() {
           }
         />
 
-        {/* Module 3 — Spatial GIS Visualization and Analysis (all roles, Guest gets read-only public view) */}
+        {/* Module 3 — Spatial GIS Visualization and Analysis */}
+        {/* Yield map. SpatialGIS itself decides chrome by auth state: logged in = side nav, public = top nav. */}
         <Route path="/yield-map" element={<SpatialGIS />} />
         <Route
           path="/yield-map/:city"
@@ -119,7 +118,8 @@ export default function App() {
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

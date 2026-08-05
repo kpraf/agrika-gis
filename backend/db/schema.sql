@@ -1,0 +1,112 @@
+-- ============================================================
+--  AgriKA-GIS — PostgreSQL schema (core tables)
+--  Built directly from the project ERD.
+--  Target: PostgreSQL 18
+--
+--  NOTE: barangays.boundary_geometry (the PostGIS geometry column) is
+--  NOT created here — it's added by schema_geometry.sql once PostGIS is
+--  installed (see the GeoJSON import step). Everything else, including
+--  login, works without PostGIS.
+--
+--  Load order: this file creates the tables. Run seed.sql afterwards.
+-- ============================================================
+
+-- Drop in reverse-dependency order so the script is re-runnable during dev.
+DROP TABLE IF EXISTS residuals      CASCADE;
+DROP TABLE IF EXISTS predictions    CASCADE;
+DROP TABLE IF EXISTS yield_records  CASCADE;
+DROP TABLE IF EXISTS barangays      CASCADE;
+DROP TABLE IF EXISTS seasons        CASCADE;
+DROP TABLE IF EXISTS users          CASCADE;
+DROP TABLE IF EXISTS municipalities CASCADE;
+DROP TABLE IF EXISTS roles          CASCADE;
+
+-- ------------------------------------------------------------
+--  ROLES  (administrator | agriculturist | rice_technician)
+-- ------------------------------------------------------------
+CREATE TABLE roles (
+    role_id   SERIAL PRIMARY KEY,
+    role_name VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- ------------------------------------------------------------
+--  MUNICIPALITIES
+-- ------------------------------------------------------------
+CREATE TABLE municipalities (
+    municipality_id   SERIAL PRIMARY KEY,
+    municipality_name VARCHAR(100) NOT NULL UNIQUE
+);
+
+-- ------------------------------------------------------------
+--  USERS
+--  municipality_id is nullable: the provincial administrator
+--  is not scoped to a single municipality.
+-- ------------------------------------------------------------
+CREATE TABLE users (
+    user_id         SERIAL PRIMARY KEY,
+    username        VARCHAR(100) NOT NULL UNIQUE,
+    password_hash   VARCHAR(255) NOT NULL,
+    full_name       VARCHAR(150),
+    status          VARCHAR(20) NOT NULL DEFAULT 'Active',
+    role_id         INTEGER NOT NULL REFERENCES roles(role_id),
+    municipality_id INTEGER     REFERENCES municipalities(municipality_id)
+);
+
+-- ------------------------------------------------------------
+--  BARANGAYS
+--  boundary_geometry (PostGIS) is added later by schema_geometry.sql.
+-- ------------------------------------------------------------
+CREATE TABLE barangays (
+    barangay_id       SERIAL PRIMARY KEY,
+    barangay_name     VARCHAR(100) NOT NULL,
+    municipality_id   INTEGER NOT NULL REFERENCES municipalities(municipality_id)
+);
+
+-- ------------------------------------------------------------
+--  SEASONS  (season_type = 'Wet' | 'Dry', plus the year)
+-- ------------------------------------------------------------
+CREATE TABLE seasons (
+    season_id   SERIAL PRIMARY KEY,
+    season_type VARCHAR(20) NOT NULL,
+    year        INTEGER NOT NULL,
+    UNIQUE (season_type, year)
+);
+
+-- ------------------------------------------------------------
+--  PREDICTIONS  (CNN-LSTM model output, per barangay per season)
+-- ------------------------------------------------------------
+CREATE TABLE predictions (
+    prediction_id   SERIAL PRIMARY KEY,
+    predicted_yield DOUBLE PRECISION NOT NULL,
+    barangay_id     INTEGER NOT NULL REFERENCES barangays(barangay_id),
+    season_id       INTEGER NOT NULL REFERENCES seasons(season_id)
+);
+
+-- ------------------------------------------------------------
+--  YIELD_RECORDS  (actual observed yields, per barangay per season)
+-- ------------------------------------------------------------
+CREATE TABLE yield_records (
+    yield_id       SERIAL PRIMARY KEY,
+    observed_yield DOUBLE PRECISION NOT NULL,
+    barangay_id    INTEGER NOT NULL REFERENCES barangays(barangay_id),
+    season_id      INTEGER NOT NULL REFERENCES seasons(season_id)
+);
+
+-- ------------------------------------------------------------
+--  RESIDUALS  (observed - predicted; ties a prediction to its actual)
+-- ------------------------------------------------------------
+CREATE TABLE residuals (
+    residual_id    SERIAL PRIMARY KEY,
+    residual_value DOUBLE PRECISION NOT NULL,
+    prediction_id  INTEGER NOT NULL REFERENCES predictions(prediction_id),
+    yield_id       INTEGER NOT NULL REFERENCES yield_records(yield_id)
+);
+
+-- Helpful lookup indexes on the foreign keys used most in queries.
+CREATE INDEX idx_users_role            ON users(role_id);
+CREATE INDEX idx_users_municipality    ON users(municipality_id);
+CREATE INDEX idx_barangays_municipality ON barangays(municipality_id);
+CREATE INDEX idx_predictions_barangay  ON predictions(barangay_id);
+CREATE INDEX idx_predictions_season    ON predictions(season_id);
+CREATE INDEX idx_yield_barangay        ON yield_records(barangay_id);
+CREATE INDEX idx_yield_season          ON yield_records(season_id);

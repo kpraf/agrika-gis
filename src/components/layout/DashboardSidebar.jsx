@@ -1,5 +1,6 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 const ICONS = {
   monitoring: (
@@ -55,7 +56,15 @@ function NavItem({ to, icon, label, active }) {
 }
 
 export default function DashboardSidebar({ active, city }) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const base = city ? `/${city}` : "";
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/portal-access", { replace: true });
+  };
+
   const NAV = [
     { key: "monitoring", label: "Monitor", to: `/monitoring${base}` },
     { key: "map", label: "Map", to: `/yield-map${base}` },
@@ -84,6 +93,7 @@ export default function DashboardSidebar({ active, city }) {
         </div>
         <button
           type="button"
+          onClick={handleLogout}
           className="flex flex-col items-center gap-1 w-10 text-white/50 hover:text-white/80"
         >
           {ICONS.logout}

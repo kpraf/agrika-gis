@@ -1,7 +1,42 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+
+const slugify = (name) => (name || "").toLowerCase().trim().replace(/\s+/g, "-");
+
+// Where each role lands right after signing in.
+function landingPathFor(user) {
+  if (user.role === "administrator") return "/admin/users";
+  const city = slugify(user.municipality);
+  return city ? `/monitoring/${city}` : "/yield-map";
+}
 
 export default function PortalAccess() {
   const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!username.trim() || !password) {
+      setError("Enter your username and password.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const user = await login(username.trim(), password);
+      navigate(landingPathFor(user), { replace: true });
+    } catch (err) {
+      setError(err.message || "Sign in failed.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="relative w-full min-h-screen flex items-center justify-center bg-white px-8 py-24 overflow-hidden">
@@ -64,12 +99,21 @@ export default function PortalAccess() {
           </div>
 
           {/* Form */}
-          <form className="flex flex-col gap-5">
+          <form className="flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
+            {error && (
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-[#1B3315]">Your email</label>
+              <label className="text-sm font-semibold text-[#1B3315]">Username</label>
               <input
-                type="email"
-                placeholder="example@agrika-gis.com"
+                type="text"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="e.g. kester"
                 className="w-full px-4 py-3.5 border border-[#E5E7EB] rounded-xl text-sm text-[#1B3315] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1F6306]/30"
               />
             </div>
@@ -79,6 +123,9 @@ export default function PortalAccess() {
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full px-4 py-3.5 border border-[#E5E7EB] rounded-xl text-sm text-[#1B3315] placeholder-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1F6306]/30"
                 />
@@ -102,9 +149,10 @@ export default function PortalAccess() {
 
             <button
               type="submit"
-              className="w-full py-3.5 rounded-xl bg-[#1F6306] text-white font-semibold text-base shadow-[0px_10px_20px_-5px_rgba(45,90,39,0.3)] hover:bg-[#286A11] transition-colors"
+              disabled={submitting}
+              className="w-full py-3.5 rounded-xl bg-[#1F6306] text-white font-semibold text-base shadow-[0px_10px_20px_-5px_rgba(45,90,39,0.3)] hover:bg-[#286A11] transition-colors disabled:opacity-60"
             >
-              Sign In
+              {submitting ? "Signing in…" : "Sign In"}
             </button>
           </form>
 

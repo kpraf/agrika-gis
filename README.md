@@ -61,12 +61,14 @@ Because `isAuthenticated` is always `false`, every guarded route currently redir
 
 ### Roles
 
+There are exactly **three portal roles**. The general public does **not** log in — they simply browse the public pages and the read-only `/yield-map`. "Public" is just the not-logged-in state (`null`), not a role.
+
 | Role | Access |
 |---|---|
-| `administrator` | Everything, all municipalities |
+| `administrator` (provincial) | Everything, all municipalities |
 | `agriculturist` | Monitoring, Analytics, Reports — scoped to their own city |
 | `rice_technician` | Monitoring, Reports — scoped to their own city |
-| `guest` / `null` | Public pages + read-only `/yield-map` only |
+| Public (not logged in) | Public pages (Home, About, FAQ, Contact) + read-only `/yield-map` only — no Portal Access |
 
 ### What the backend needs to provide
 
