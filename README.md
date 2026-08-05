@@ -1,95 +1,83 @@
-# Official AgriKA-GIS System
+# AgriKA-GIS
 
-AI-powered rice yield forecasting and spatial (GIS) monitoring platform for Laguna, built on satellite imagery, weather data, and a CNN-LSTM prediction model.
+AgriKA-GIS is a web-based rice yield forecasting and spatial (GIS) monitoring platform for the
+province of Laguna. It combines satellite imagery, weather data, and a CNN-LSTM deep-learning
+model to estimate rice yields, and presents them on interactive maps and dashboards for local
+government units and agriculturists.
+
+## Features
+
+**Public site** (no login needed)
+- Landing, About, FAQ, and Contact pages
+- Public **Yield Map** — a read-only interactive map of Laguna's rice-producing areas
+
+**Portal** (login required)
+- **Yield Monitoring** — real-time and historical rice yield views by municipality
+- **Spatial GIS Visualization** — interactive Laguna map with real municipality and barangay
+  boundaries (from PostGIS); click a municipality to drill into its barangays, switch between
+  a clean map and satellite imagery, toggle layers
+- **Rice Yield Analytics & Comparison** — compare yields across municipalities and seasons
+- **Reports & Data Import/Export** — generate reports, import CSV data, export to CSV/PDF
+- **User Access Management** — admins create and manage portal accounts and roles
 
 ## Tech Stack
 
-**Frontend:** React 19 + Vite · Tailwind CSS v4 · react-router-dom v7 · Leaflet/react-leaflet (maps) · Recharts (charts)
+**Frontend:** React 19 + Vite · Tailwind CSS v4 · react-router-dom · Leaflet / react-leaflet
+(maps) · Recharts (charts)
 
-**Backend:** Flask (Python) · PostgreSQL 18 + PostGIS · SQLAlchemy · JWT auth
+**Backend:** Flask (Python) · PostgreSQL 18 + PostGIS · SQLAlchemy · JWT authentication
 
 ## Getting Started
 
-👉 **New to the project? Follow [SETUP.md](SETUP.md)** — a step-by-step guide (what to install,
-setting up the database, and running the backend + frontend on your laptop).
-
-Quick version once everything's installed:
+See **[SETUP.md](SETUP.md)** for the full, step-by-step setup (installing prerequisites, setting
+up the database, and running the app). In short, once everything is installed:
 
 ```bash
-# backend (terminal 1)
-cd backend && .\venv\Scripts\python.exe app.py
+# Backend — terminal 1
+cd backend && .\venv\Scripts\python.exe app.py    # http://localhost:5000
 
-# frontend (terminal 2, from project root)
-npm run dev
+# Frontend — terminal 2 (from the project root)
+npm run dev                                        # http://localhost:5173
 ```
 
-Then open http://localhost:5173.
+Then open **http://localhost:5173** and sign in through **Portal Access**.
 
-## Current Status
+## Roles & Access
 
-Frontend-only so far — there is no backend yet, and no real authentication. All 6 modules plus the public pages now have working UIs against mock/local data; everything below describes the current (stubbed) state so backend work can plug in against it.
-
-| Page / Module | Route | Status |
-|---|---|---|
-| Home | `/` | Built |
-| About | `/about` | Built |
-| FAQ | `/faq` | Built |
-| Contact | `/contact` | Built, form validates + persists via `localStorage`, **not wired to any API** (no email actually sent) |
-| Portal Access (login) | `/portal-access` | UI built, **not wired to any API** |
-| Module 2 — Real-Time & Historical Yield Monitoring | `/monitoring/:city` | Built, static/mock data, map uses free OpenStreetMap tiles |
-| Module 3 — Spatial GIS Visualization | `/yield-map` (public), `/yield-map/:city` (guarded) | Built, static/mock data, map uses free OpenStreetMap tiles |
-| Module 4 — Rice Yield Analytics & Comparison | `/analytics/:city` | Built, static/mock data, fully interactive comparison chart (Recharts) |
-| Module 5 — Reports Generation & Data Import/Export | `/reports/:city` | Built, static/mock data, real CSV import/export and print-to-PDF |
-| Module 6 — User Access Management & System Config | `/admin/users` | Built, static/mock data, full CRUD-lite user table (search, sort, filter, add/edit, bulk activate/deactivate/delete) |
-
-## Access Control (important for backend integration)
-
-Every module route except Home, About, and the public `/yield-map` overview sits behind a login wall. Right now that wall is a **hardcoded stub** in [`src/App.jsx`](src/App.jsx):
-
-```js
-function useAuth() {
-  return {
-    isAuthenticated: false, // always logged out for now
-    role: null,
-  };
-}
-```
-
-Because `isAuthenticated` is always `false`, every guarded route currently redirects straight to `/portal-access`. That's expected — there's no real session yet, not a bug.
-
-`RequireRole` (also in `App.jsx`) wraps each guarded route and checks the role against an allow-list, e.g.:
-
-```jsx
-<RequireRole allowedRoles={["agriculturist", "rice_technician"]}>
-  <YieldMonitoring />
-</RequireRole>
-```
-
-`administrator` always passes every guard (province-wide access), regardless of the route's allow-list.
-
-### Roles
-
-There are exactly **three portal roles**. The general public does **not** log in — they simply browse the public pages and the read-only `/yield-map`. "Public" is just the not-logged-in state (`null`), not a role.
+There are three portal roles. The general public does not log in — they browse the public pages
+and the read-only yield map.
 
 | Role | Access |
 |---|---|
-| `administrator` (provincial) | Everything, all municipalities |
-| `agriculturist` | Monitoring, Analytics, Reports — scoped to their own city |
-| `rice_technician` | Monitoring, Reports — scoped to their own city |
-| Public (not logged in) | Public pages (Home, About, FAQ, Contact) + read-only `/yield-map` only — no Portal Access |
+| **Administrator** (provincial) | Full access to every module, all municipalities |
+| **Agriculturist** | Monitoring, Analytics, and Reports — scoped to their assigned municipality |
+| **Rice Technician** | Monitoring and Reports — scoped to their assigned municipality |
+| **Public** (not logged in) | Public pages + read-only yield map only |
 
-### What the backend needs to provide
+## Project Structure
 
-1. A login endpoint that accepts the email + password collected by the form in [`src/components/PortalAccess.jsx`](src/components/PortalAccess.jsx) (currently UI-only, not wired up) and returns a session/token plus the user's role.
-2. A way for the frontend to check "am I logged in, and what's my role" on load/refresh — session cookie or token, whichever the backend prefers. `useAuth()` will be replaced with a real hook that calls this.
-3. Once that exists, `useAuth()` in `App.jsx` swaps to the real implementation and every route above starts enforcing login for real — no other frontend changes should be needed.
+```
+agrika-gis/
+├─ src/                       # Frontend (React)
+│  ├─ components/             # Pages and UI components
+│  ├─ context/                # Auth context
+│  └─ lib/                    # API client
+├─ backend/                   # Backend (Flask API)
+│  ├─ app.py                  # API entry point
+│  ├─ auth.py / users.py / boundaries.py   # API routes
+│  ├─ models.py               # Database models
+│  ├─ db/                     # SQL schema, seed data, and Laguna GeoJSON boundaries
+│  └─ scripts/                # Setup helpers (DB, boundary import, user creation)
+├─ SETUP.md                   # Local setup guide
+└─ README.md
+```
 
-Municipality-scoped routes (`/monitoring/:city`, `/analytics/:city`, `/reports/:city`) take the city as a URL param; for `agriculturist`/`rice_technician` roles the backend should also confirm that the logged-in user is actually assigned to that city (the frontend doesn't currently enforce this — it just reads the param).
+## Data
 
-### Module 5 data shape
+Administrative boundaries (province, 30 municipalities/cities, 682 barangays) are official
+Philippine Statistics Authority (PSA) data, prepared in QGIS and stored as PostGIS geometry.
 
-[`ReportsExport.jsx`](src/components/reports/ReportsExport.jsx) works against an in-memory record shape of `{ municipality, year, season, yield, status }` — currently seeded with mock data and mutable client-side via CSV import. Once there's a real endpoint for yield records, swap `DEFAULT_RECORDS` for a fetch and the rest (filters, stats, chart, export) keeps working unchanged. Note the CSV parser was hand-written as a plain character-by-character state machine specifically to avoid regex-based parsing on user-uploaded files (some popular CSV/Excel libraries have known ReDoS vulnerabilities) — keep that in mind if this gets replaced with a library later.
+## Team
 
-### Module 6 data shape
-
-[`UserAccessManagement.jsx`](src/components/admin/UserAccessManagement.jsx) works against `{ id, name, handle, email, role, municipality, status, lastActive }`, seeded locally and mutated client-side (add/edit/status-toggle/delete all currently just update React state, nothing persists on refresh). This is the one page where the backend contract matters most: it needs real user CRUD endpoints (create/list/update/delete) plus whatever enforces that `agriculturist`/`rice_technician` accounts are actually scoped to their assigned `municipality` server-side — this page only edits that field client-side, it doesn't enforce it.
+Developed as an undergraduate thesis project. See the **About** page in the app for the
+research team and collaborators.
