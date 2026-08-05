@@ -55,23 +55,36 @@ function NavItem({ to, icon, label, active }) {
   );
 }
 
-export default function DashboardSidebar({ active, city }) {
-  const { logout } = useAuth();
+// Which modules each role may open (matches the route guards in App.jsx).
+const NAV_BY_ROLE = {
+  administrator: ["monitoring", "map", "compare", "reports", "settings"],
+  agriculturist: ["monitoring", "map", "compare", "reports"],
+  rice_technician: ["monitoring", "map", "reports"],
+};
+
+export default function DashboardSidebar({ active }) {
+  const { role, municipality, logout } = useAuth();
   const navigate = useNavigate();
-  const base = city ? `/${city}` : "";
 
   const handleLogout = async () => {
     await logout();
     navigate("/portal-access", { replace: true });
   };
 
-  const NAV = [
-    { key: "monitoring", label: "Monitor", to: `/monitoring${base}` },
-    { key: "map", label: "Map", to: `/yield-map${base}` },
-    { key: "compare", label: "Compare", to: `/analytics${base}` },
-    { key: "reports", label: "Reports", to: `/reports${base}` },
-    { key: "settings", label: "Settings", to: "/admin/users" },
-  ];
+  // Admin is province-wide (no city in the path); scoped roles use their municipality slug.
+  const slug = (municipality || "").toLowerCase().trim().replace(/\s+/g, "-");
+  const base = role === "administrator" || !slug ? "" : `/${slug}`;
+
+  const ITEMS = {
+    monitoring: { label: "Monitor", to: `/monitoring${base}` },
+    map: { label: "Map", to: `/yield-map${base}` },
+    compare: { label: "Compare", to: `/analytics${base}` },
+    reports: { label: "Reports", to: `/reports${base}` },
+    settings: { label: "Settings", to: "/admin/users" },
+  };
+
+  const keys = NAV_BY_ROLE[role] || ["monitoring", "map", "compare", "reports"];
+  const NAV = keys.map((key) => ({ key, ...ITEMS[key] }));
 
   return (
     <aside className="flex flex-col items-center justify-between py-6 w-[70px] shrink-0 h-full bg-[#1F6306] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] z-10">

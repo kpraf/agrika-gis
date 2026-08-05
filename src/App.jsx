@@ -73,6 +73,15 @@ export default function App() {
             </RequireRole>
           }
         />
+        {/* Province-wide view (administrator only, no city scope) */}
+        <Route
+          path="/monitoring"
+          element={
+            <RequireRole allowedRoles={[]}>
+              <YieldMonitoring />
+            </RequireRole>
+          }
+        />
 
         {/* Module 3 — Spatial GIS Visualization and Analysis */}
         {/* Yield map. SpatialGIS itself decides chrome by auth state: logged in = side nav, public = top nav. */}
@@ -95,12 +104,28 @@ export default function App() {
             </RequireRole>
           }
         />
+        <Route
+          path="/analytics"
+          element={
+            <RequireRole allowedRoles={[]}>
+              <RiceYieldAnalytics />
+            </RequireRole>
+          }
+        />
 
         {/* Module 5 — Reports Generation and Data Import/Export (Agriculturist, Rice Technician, Admin) */}
         <Route
           path="/reports/:city"
           element={
             <RequireRole allowedRoles={["agriculturist", "rice_technician"]}>
+              <ReportsExport />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <RequireRole allowedRoles={[]}>
               <ReportsExport />
             </RequireRole>
           }
