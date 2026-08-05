@@ -4,18 +4,26 @@ AI-powered rice yield forecasting and spatial (GIS) monitoring platform for Lagu
 
 ## Tech Stack
 
-- React 19 + Vite
-- Tailwind CSS v4
-- react-router-dom v7
-- Leaflet + react-leaflet (interactive maps)
-- Recharts (comparison charts)
+**Frontend:** React 19 + Vite · Tailwind CSS v4 · react-router-dom v7 · Leaflet/react-leaflet (maps) · Recharts (charts)
+
+**Backend:** Flask (Python) · PostgreSQL 18 + PostGIS · SQLAlchemy · JWT auth
 
 ## Getting Started
 
+👉 **New to the project? Follow [SETUP.md](SETUP.md)** — a step-by-step guide (what to install,
+setting up the database, and running the backend + frontend on your laptop).
+
+Quick version once everything's installed:
+
 ```bash
-npm install
+# backend (terminal 1)
+cd backend && .\venv\Scripts\python.exe app.py
+
+# frontend (terminal 2, from project root)
 npm run dev
 ```
+
+Then open http://localhost:5173.
 
 ## Current Status
 

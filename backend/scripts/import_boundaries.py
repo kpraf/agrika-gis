@@ -23,7 +23,8 @@ from sqlalchemy import text  # noqa: E402
 from app import create_app  # noqa: E402
 from extensions import db  # noqa: E402
 
-GEOJSON_DIR = r"C:\QGIS Projects"
+# GeoJSON ships with the repo under backend/db/geojson/ so setup is reproducible.
+GEOJSON_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "db", "geojson"))
 MUNI_FILE = "Laguna_Municipalities.geojson"
 BRGY_FILE = "Laguna_Barangays.geojson"
 
