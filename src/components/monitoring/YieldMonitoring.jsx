@@ -1,34 +1,7 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import DashboardSidebar from "../layout/DashboardSidebar";
-import MapControls from "../layout/MapControls";
-
-const DEFAULT_CENTER = [14.2, 121.28];
-const DEFAULT_ZOOM = 11;
-
-const MUNICIPALITIES = [
-  { name: "Calamba", position: [14.2117, 121.1653], yield: "5.1 MT/ha" },
-  { name: "Los Baños", position: [14.1651, 121.2413], yield: "4.8 MT/ha" },
-  { name: "Bay", position: [14.1819, 121.2892], yield: "4.3 MT/ha" },
-  { name: "Cabuyao", position: [14.2726, 121.1282], yield: "5.4 MT/ha" },
-  { name: "Santa Rosa", position: [14.3122, 121.1114], yield: "4.6 MT/ha" },
-  { name: "Pila", position: [14.2333, 121.3667], yield: "4.0 MT/ha" },
-];
-
-const markerIcon = L.divIcon({
-  className: "",
-  html: `
-    <span class="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2">
-      <span class="absolute w-8 h-8 rounded-full bg-[#1B3315]/20"></span>
-      <span class="w-4 h-4 rounded-full bg-[#1B3315] border-2 border-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]"></span>
-    </span>
-  `,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+import LagunaMap from "../gis/LagunaMap";
 
 const HARVEST_BARS = [
   { label: "Calamba", value: 80, color: "#3B9E1C" },
@@ -59,7 +32,6 @@ function SectionHeading({ title }) {
 
 export default function YieldMonitoring() {
   const { city } = useParams();
-  const mapRef = useRef(null);
   const [scope, setScope] = useState("province");
   const [activeFilter, setActiveFilter] = useState("Monthly");
   const maxBar = Math.max(...HARVEST_BARS.map((b) => b.value));
@@ -157,52 +129,8 @@ export default function YieldMonitoring() {
             </div>
           </section>
 
-          {/* Center — Map */}
-          <section className="relative flex-1 min-w-0 h-full bg-[#E5E7EB]">
-            <MapContainer
-              ref={mapRef}
-              center={DEFAULT_CENTER}
-              zoom={DEFAULT_ZOOM}
-              zoomControl={false}
-              style={{ height: "100%", width: "100%" }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {MUNICIPALITIES.map((m) => (
-                <Marker key={m.name} position={m.position} icon={markerIcon}>
-                  <Popup>
-                    <strong>{m.name}</strong>
-                    <br />
-                    Avg. yield: {m.yield}
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
-
-            <div className="absolute left-6 right-6 top-6 z-[500] flex justify-center pointer-events-none">
-              <div className="w-full max-w-[473px] bg-white/90 backdrop-blur-sm shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] rounded-lg pointer-events-auto">
-                <div className="relative flex items-center">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="absolute left-4 text-[#9CA3AF]">
-                    <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Search municipalities, crops, or indicators..."
-                    className="w-full pl-11 pr-4 py-3.5 text-sm text-[#374151] bg-transparent outline-none placeholder:text-[#6B7280]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <MapControls
-              onZoomIn={() => mapRef.current?.zoomIn()}
-              onZoomOut={() => mapRef.current?.zoomOut()}
-              onRecenter={() => mapRef.current?.setView(DEFAULT_CENTER, DEFAULT_ZOOM)}
-            />
-          </section>
+          {/* Center — shared map */}
+          <LagunaMap />
 
           {/* Right Panel — Historical Yield View */}
           <section className="w-[450px] shrink-0 h-full overflow-y-auto bg-white shadow-[-2px_0_10px_rgba(0,0,0,0.02)]">
