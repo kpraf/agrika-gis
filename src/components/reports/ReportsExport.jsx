@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   ResponsiveContainer,
@@ -10,19 +10,7 @@ import {
   Tooltip,
 } from "recharts";
 import DashboardSidebar from "../layout/DashboardSidebar";
-
-const DEFAULT_RECORDS = [
-  { municipality: "Calamba", year: 2024, season: "Wet", yield: 5.1 },
-  { municipality: "Calamba", year: 2023, season: "Dry", yield: 4.6 },
-  { municipality: "San Pablo", year: 2024, season: "Wet", yield: 4.6 },
-  { municipality: "San Pablo", year: 2023, season: "Dry", yield: 4.1 },
-  { municipality: "Malolos", year: 2024, season: "Wet", yield: 4.7 },
-  { municipality: "Malolos", year: 2023, season: "Dry", yield: 4.0 },
-  { municipality: "Cabuyao", year: 2024, season: "Wet", yield: 5.4 },
-  { municipality: "Cabuyao", year: 2023, season: "Dry", yield: 4.8 },
-  { municipality: "Los Baños", year: 2024, season: "Wet", yield: 4.4 },
-  { municipality: "Santa Rosa", year: 2024, season: "Dry", yield: 3.6 },
-].map((r) => ({ ...r, status: deriveStatus(r.yield) }));
+import { yieldApi } from "../../lib/api";
 
 function deriveStatus(yieldValue) {
   if (yieldValue >= 5) return "Good";
@@ -164,16 +152,44 @@ function printAsPDF(title, rows, columns) {
 export default function ReportsExport() {
   const { city } = useParams();
   const fileInputRef = useRef(null);
-  const [records, setRecords] = useState(DEFAULT_RECORDS);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [importLog, setImportLog] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [reportType, setReportType] = useState("summary");
   const [season, setSeason] = useState("All");
-  const years = useMemo(() => records.map((r) => r.year), [records]);
-  const [fromYear, setFromYear] = useState(() => Math.min(...years));
-  const [toYear, setToYear] = useState(() => Math.max(...years));
+  const [fromYear, setFromYear] = useState(null);
+  const [toYear, setToYear] = useState(null);
   const [exportFormat, setExportFormat] = useState("csv");
   const [chartGroupBy, setChartGroupBy] = useState("municipality");
+
+  // Load the real observed-yield dataset and frame the year range around it.
+  useEffect(() => {
+    let active = true;
+    yieldApi
+      .records()
+      .then((r) => {
+        if (!active) return;
+        const mapped = (r.records || []).map((x) => ({
+          municipality: x.municipality,
+          year: x.year,
+          season: x.season,
+          yield: x.yield,
+          status: deriveStatus(x.yield),
+        }));
+        setRecords(mapped);
+        const ys = mapped.map((m) => m.year);
+        if (ys.length) {
+          setFromYear(Math.min(...ys));
+          setToYear(Math.max(...ys));
+        }
+      })
+      .catch(() => active && setRecords([]))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
@@ -185,7 +201,10 @@ export default function ReportsExport() {
   const filtered = useMemo(
     () =>
       records.filter(
-        (r) => (season === "All" || r.season === season) && r.year >= fromYear && r.year <= toYear
+        (r) =>
+          (season === "All" || r.season === season) &&
+          (fromYear == null || r.year >= fromYear) &&
+          (toYear == null || r.year <= toYear)
       ),
     [records, season, fromYear, toYear]
   );
@@ -474,7 +493,7 @@ export default function ReportsExport() {
                       {!filtered.length && (
                         <tr>
                           <td colSpan={5} className="px-6 py-8 text-center text-sm text-[#9CA3AF]">
-                            No records match the current filters.
+                            {loading ? "Loading records…" : "No records match the current filters."}
                           </td>
                         </tr>
                       )}
@@ -516,7 +535,7 @@ export default function ReportsExport() {
                   <label className="text-xs font-medium text-[#6B7280]">Time Period</label>
                   <div className="flex gap-2">
                     <select
-                      value={fromYear}
+                      value={fromYear ?? ""}
                       onChange={(e) => setFromYear(Number(e.target.value))}
                       className="flex-1 px-3 py-2 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
                     >
@@ -527,7 +546,7 @@ export default function ReportsExport() {
                       ))}
                     </select>
                     <select
-                      value={toYear}
+                      value={toYear ?? ""}
                       onChange={(e) => setToYear(Number(e.target.value))}
                       className="flex-1 px-3 py-2 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
                     >

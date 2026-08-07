@@ -88,6 +88,37 @@ def municipalities():
     return jsonify({"year": year, "season": season, "stats": stats, "records": records})
 
 
+@yields_bp.get("/records")
+def records():
+    """Flat list of every observed municipality yield — for the Reports page.
+
+    One row per municipality-year-season: { municipality, year, season, yield,
+    is_proxy }. Small enough (a few hundred rows) to return in one call.
+    """
+    rows = db.session.execute(
+        text(
+            "SELECT m.municipality_name, s.year, s.season_type, "
+            "r.observed_yield, r.is_proxy "
+            "FROM municipality_yield_records r "
+            "JOIN municipalities m ON m.municipality_id = r.municipality_id "
+            "JOIN seasons s ON s.season_id = r.season_id "
+            "ORDER BY s.year, s.season_type, m.municipality_name"
+        )
+    ).all()
+    return jsonify({
+        "records": [
+            {
+                "municipality": r.municipality_name,
+                "year": r.year,
+                "season": r.season_type,
+                "yield": round(r.observed_yield, 3),
+                "is_proxy": r.is_proxy,
+            }
+            for r in rows
+        ]
+    })
+
+
 @yields_bp.get("/trend")
 def trend():
     """Year-over-year yield for a season.

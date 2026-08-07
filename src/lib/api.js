@@ -57,6 +57,7 @@ export const yieldApi = {
         municipalityId ? `&municipality_id=${municipalityId}` : ""
       }`
     ),
+  records: () => request("/yield/records"),
 };
 
 export const usersApi = {
