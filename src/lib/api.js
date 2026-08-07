@@ -51,6 +51,12 @@ export const yieldApi = {
   meta: () => request("/yield/meta"),
   municipalities: (year, season) =>
     request(`/yield/municipalities?year=${year}&season=${encodeURIComponent(season)}`),
+  trend: (season, municipalityId) =>
+    request(
+      `/yield/trend?season=${encodeURIComponent(season)}${
+        municipalityId ? `&municipality_id=${municipalityId}` : ""
+      }`
+    ),
 };
 
 export const usersApi = {

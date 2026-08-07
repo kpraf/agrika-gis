@@ -86,3 +86,46 @@ def municipalities():
     }
 
     return jsonify({"year": year, "season": season, "stats": stats, "records": records})
+
+
+@yields_bp.get("/trend")
+def trend():
+    """Year-over-year yield for a season.
+
+    Query params:
+        season          (str) required — 'Dry' or 'Wet'
+        municipality_id (int) optional — one municipality's series; omit for the
+                              province average across municipalities.
+
+    Returns one point per year: { year, avg, min, max, count }.
+    """
+    season = request.args.get("season", type=str)
+    mid = request.args.get("municipality_id", type=int)
+    if not season:
+        return jsonify({"error": "season is required"}), 400
+
+    sql = (
+        "SELECT s.year, "
+        "AVG(r.observed_yield) AS avg, MIN(r.observed_yield) AS min, "
+        "MAX(r.observed_yield) AS max, COUNT(*) AS count "
+        "FROM municipality_yield_records r "
+        "JOIN seasons s ON s.season_id = r.season_id "
+        "WHERE s.season_type = :sea"
+    )
+    params = {"sea": season}
+    if mid:
+        sql += " AND r.municipality_id = :mid"
+        params["mid"] = mid
+    sql += " GROUP BY s.year ORDER BY s.year"
+
+    series = [
+        {
+            "year": row.year,
+            "avg": round(row.avg, 3),
+            "min": round(row.min, 3),
+            "max": round(row.max, 3),
+            "count": row.count,
+        }
+        for row in db.session.execute(text(sql), params)
+    ]
+    return jsonify({"season": season, "municipality_id": mid, "series": series})
