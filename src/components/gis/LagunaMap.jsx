@@ -30,11 +30,24 @@ const BASEMAPS = {
  *       { level: "province", municipalityCount }  |
  *       { level: "municipality", id, name, barangayCount }
  */
+// Sequential green ramp for the yield heatmap: light (low yield) -> dark (high).
+const YIELD_RAMP = ["#EDF8E9", "#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
+
+function yieldColor(value, min, max) {
+  if (value == null || min == null || max == null || max <= min) return YIELD_RAMP[3];
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  return YIELD_RAMP[Math.round(t * (YIELD_RAMP.length - 1))];
+}
+
 export default function LagunaMap({
   boundariesVisible = true,
   onSelectionChange,
   focusMunicipalityId = null,
   onMunicipalitiesLoaded,
+  heatmap = false,
+  yieldByMuni = null, // { [municipality_id]: { yield, is_proxy } }
+  colorScale = null, // { min, max }
+  yieldKey = "", // changes (e.g. "2024-Dry") force the choropleth to restyle
 }) {
   const mapRef = useRef(null);
   const [basemap, setBasemap] = useState("map");
@@ -100,12 +113,37 @@ export default function LagunaMap({
   // Boundary colours adapt to the basemap: green on the light map, bright yellow
   // (outline only) on satellite so they stay visible over green farmland.
   const sat = basemap === "satellite";
-  const muniStyle = sat
+  const heatmapActive = heatmap && yieldByMuni;
+  const baseMuniStyle = sat
     ? { color: "#FACC15", weight: 2, fillColor: "#FACC15", fillOpacity: 0 }
     : { color: "#1F6306", weight: 1.5, fillColor: "#3B9E1C", fillOpacity: 0.08 };
   const brgyStyle = sat
     ? { color: "#FDE047", weight: 1.2, fillColor: "#FDE047", fillOpacity: 0 }
     : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
+
+  // Per-feature municipality style. In heatmap mode, fill by observed yield;
+  // municipalities with no data (e.g. San Pedro) render a neutral grey.
+  const muniStyleFor = (feature) => {
+    if (!heatmapActive) return baseMuniStyle;
+    const rec = yieldByMuni[feature.properties.municipality_id];
+    if (!rec || rec.yield == null) {
+      return { color: sat ? "#FFFFFF" : "#9CA3AF", weight: 1, fillColor: "#D1D5DB", fillOpacity: sat ? 0.35 : 0.5 };
+    }
+    return {
+      color: sat ? "#FFFFFF" : "#0E2207",
+      weight: 1,
+      fillColor: yieldColor(rec.yield, colorScale?.min, colorScale?.max),
+      fillOpacity: sat ? 0.6 : 0.85,
+    };
+  };
+
+  const muniTooltip = (feature) => {
+    const name = feature.properties?.name ?? "";
+    if (!heatmapActive) return name;
+    const rec = yieldByMuni[feature.properties.municipality_id];
+    if (!rec || rec.yield == null) return `${name}: no data`;
+    return `${name}: ${rec.yield} mt/ha${rec.is_proxy ? " (est.)" : ""}`;
+  };
 
   const drillInto = (feature, layer) => {
     setSelectedMuni({ id: feature.properties.municipality_id, name: feature.properties.name });
@@ -161,12 +199,13 @@ export default function LagunaMap({
   }, [focusMunicipalityId, muniGeo]);
 
   const onEachMunicipality = (feature, layer) => {
+    const base = muniStyleFor(feature);
     layer.on({
       click: () => drillInto(feature, layer),
-      mouseover: () => layer.setStyle({ weight: muniStyle.weight + 1.5, fillOpacity: muniStyle.fillOpacity + 0.2 }),
-      mouseout: () => layer.setStyle(muniStyle),
+      mouseover: () => layer.setStyle({ weight: base.weight + 1.5, fillOpacity: Math.min(1, base.fillOpacity + 0.2) }),
+      mouseout: () => layer.setStyle(base),
     });
-    if (feature.properties?.name) layer.bindTooltip(feature.properties.name, { sticky: true });
+    layer.bindTooltip(muniTooltip(feature), { sticky: true });
   };
 
   const onEachBarangay = (feature, layer) => {
@@ -188,7 +227,12 @@ export default function LagunaMap({
       >
         <TileLayer key={basemap} attribution={BASEMAPS[basemap].attribution} url={BASEMAPS[basemap].url} />
         {boundariesVisible && !selectedMuni && muniGeo && (
-          <GeoJSON key={`municipalities-${basemap}`} data={muniGeo} style={muniStyle} onEachFeature={onEachMunicipality} />
+          <GeoJSON
+            key={`municipalities-${basemap}-${heatmapActive ? `heat-${yieldKey}` : "plain"}`}
+            data={muniGeo}
+            style={muniStyleFor}
+            onEachFeature={onEachMunicipality}
+          />
         )}
         {boundariesVisible && selectedMuni && barangayGeo && (
           <GeoJSON
@@ -229,6 +273,27 @@ export default function LagunaMap({
           </svg>
           {selectedMuni.name} — back to all
         </button>
+      )}
+
+      {/* Yield heatmap legend — sits above the zoom controls (which are at
+          right-6 bottom-6) so the two don't overlap. */}
+      {heatmapActive && !selectedMuni && colorScale?.min != null && (
+        <div className="absolute right-6 bottom-[172px] z-[500] bg-white/95 backdrop-blur-sm shadow-md rounded-lg px-3 py-2.5">
+          <div className="text-[11px] font-semibold text-[#374151] mb-1.5">Avg yield (mt/ha)</div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-[#6B7280]">{colorScale.min}</span>
+            <div className="flex h-2.5 w-28 rounded-full overflow-hidden">
+              {YIELD_RAMP.map((c) => (
+                <span key={c} className="flex-1" style={{ background: c }} />
+              ))}
+            </div>
+            <span className="text-[10px] text-[#6B7280]">{colorScale.max}</span>
+          </div>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#D1D5DB]" />
+            <span className="text-[10px] text-[#6B7280]">No data</span>
+          </div>
+        </div>
       )}
 
       {/* Basemap switcher */}

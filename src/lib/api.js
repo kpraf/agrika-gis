@@ -47,6 +47,12 @@ export const boundariesApi = {
     request(`/boundaries/barangays${municipalityId ? `?municipality_id=${municipalityId}` : ""}`),
 };
 
+export const yieldApi = {
+  meta: () => request("/yield/meta"),
+  municipalities: (year, season) =>
+    request(`/yield/municipalities?year=${year}&season=${encodeURIComponent(season)}`),
+};
+
 export const usersApi = {
   list: () => request("/users", { auth: true }),
   meta: () => request("/meta", { auth: true }),

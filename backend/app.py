@@ -27,16 +27,19 @@ def create_app(config_class=Config):
 
     # Import models so SQLAlchemy is aware of them (tables already exist via schema.sql)
     from models import (  # noqa: F401
-        Role, Municipality, User, Barangay, Season, Prediction, YieldRecord, Residual,
+        Role, Municipality, User, Barangay, Season, Prediction, YieldRecord,
+        MunicipalityYieldRecord, Residual,
     )
 
     # Blueprints
     from auth import auth_bp
     from boundaries import boundaries_bp
     from users import users_bp
+    from yields import yields_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(boundaries_bp)
     app.register_blueprint(users_bp)
+    app.register_blueprint(yields_bp)
 
     @app.get("/api/health")
     def health():

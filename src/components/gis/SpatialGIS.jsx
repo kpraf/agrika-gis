@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import Navbar from "../layout/Navbar";
 import LagunaMap from "./LagunaMap";
 import { useAuth } from "../../context/AuthContext";
+import { yieldApi } from "../../lib/api";
 
 function ToggleSwitch({ checked, onChange, icon, label, disabled = false, hint }) {
   return (
@@ -52,10 +53,18 @@ export default function SpatialGIS() {
   //   public     -> top nav only
   const isPublic = !isAuthenticated;
 
+  const [viewType, setViewType] = useState("heatmap");
   const [layers, setLayers] = useState({ boundaries: true });
   const [selection, setSelection] = useState(null); // reported by <LagunaMap />
   const [municipalities, setMunicipalities] = useState([]); // [{ id, name }] from the map
   const [activeCityId, setActiveCityId] = useState(null); // null = whole province
+
+  // Filters, backed by the real data available in the DB.
+  const [meta, setMeta] = useState({ years: [], seasons: [] });
+  const [season, setSeason] = useState(null);
+  const [year, setYear] = useState(null);
+  const [yieldResp, setYieldResp] = useState(null); // { stats, records }
+  const [yieldLoading, setYieldLoading] = useState(false);
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
@@ -63,6 +72,44 @@ export default function SpatialGIS() {
   );
 
   const toggleLayer = (key) => setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // Which years/seasons actually have data -> populate the filters, default to
+  // the most recent year and the first available season.
+  useEffect(() => {
+    yieldApi
+      .meta()
+      .then((m) => {
+        setMeta(m);
+        if (m.years?.length) setYear(m.years[m.years.length - 1]);
+        if (m.seasons?.length) setSeason(m.seasons[0]);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch observed yields whenever the year/season selection changes.
+  useEffect(() => {
+    if (!year || !season) return;
+    let active = true;
+    setYieldLoading(true);
+    yieldApi
+      .municipalities(year, season)
+      .then((resp) => active && setYieldResp(resp))
+      .catch(() => active && setYieldResp(null))
+      .finally(() => active && setYieldLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [year, season]);
+
+  // Shape the records for the map (id -> { yield, is_proxy }) and the panels.
+  const yieldByMuni = useMemo(() => {
+    const out = {};
+    for (const r of yieldResp?.records ?? []) out[r.municipality_id] = { yield: r.yield, is_proxy: r.is_proxy };
+    return out;
+  }, [yieldResp]);
+
+  const heatmapOn = viewType === "heatmap" && layers.boundaries && !!yieldResp;
+  const selectedYield = selection?.level === "municipality" ? yieldByMuni[selection.id] : null;
 
   // When the map's drill state changes (e.g. the user clicked a municipality),
   // mirror it into the City filter so the two never disagree.
@@ -105,21 +152,29 @@ export default function SpatialGIS() {
           {/* Left Panel — Map Controls */}
           <section className="w-[400px] shrink-0 h-full overflow-y-auto bg-white border-r border-[#C3C8BD]">
             <div className="flex flex-col gap-12 p-6">
-              {/* View Type — the parcels/heatmap split needs rendered yield data, so it's
-                  disabled until that data lands (only the boundary map exists today). */}
+              {/* View Type — Yield Heatmap is live (real observed data). Land Parcels
+                  needs parcel geometry we don't have, so it stays disabled. */}
               <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">View Type</h2>
-                  <span className="text-[10px] font-medium text-[#9CA3AF]">Needs yield data</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1 opacity-50">
-                  <div className="flex flex-col items-center gap-1 py-3 rounded-lg border bg-[#3B9E1C] border-[#1B6D24] text-white text-sm font-semibold cursor-not-allowed">
+                <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">View Type</h2>
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewType("heatmap")}
+                    className={`flex flex-col items-center gap-1 py-3 rounded-lg border text-sm font-semibold ${
+                      viewType === "heatmap"
+                        ? "bg-[#3B9E1C] border-[#1B6D24] text-white"
+                        : "bg-[#F8FAF5] border-[#C3C8BD] text-[#191C1A]"
+                    }`}
+                  >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 12h4l3 8 4-16 3 8h4" />
                     </svg>
                     Yield Heatmap
-                  </div>
-                  <div className="flex flex-col items-center gap-1 py-3 rounded-lg border bg-[#F8FAF5] border-[#C3C8BD] text-[#191C1A] text-sm font-semibold cursor-not-allowed">
+                  </button>
+                  <div
+                    title="Needs land-parcel data"
+                    className="flex flex-col items-center gap-1 py-3 rounded-lg border bg-[#F8FAF5] border-[#C3C8BD] text-[#191C1A] text-sm font-semibold opacity-50 cursor-not-allowed"
+                  >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z" />
                     </svg>
@@ -132,23 +187,23 @@ export default function SpatialGIS() {
               <div className="flex flex-col gap-3">
                 <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Filters</h2>
                 <div className="flex flex-col gap-6">
-                  {/* Season — filters yield records that don't exist yet. */}
-                  <div className="flex flex-col gap-1 opacity-50">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm text-[#434840]">Season</label>
-                      <span className="text-[10px] font-medium text-[#9CA3AF]">Needs yield data</span>
-                    </div>
+                  {/* Season — live: filters the observed-yield choropleth. */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm text-[#434840]">Season</label>
                     <div className="flex gap-1">
-                      {[
-                        { key: "dry", label: "Dry Season" },
-                        { key: "wet", label: "Wet Season" },
-                      ].map((opt) => (
-                        <span
-                          key={opt.key}
-                          className="px-3 py-1.5 rounded-full border text-sm bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A] cursor-not-allowed"
+                      {(meta.seasons.length ? meta.seasons : ["Dry", "Wet"]).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setSeason(opt)}
+                          className={`px-3 py-1.5 rounded-full border text-sm ${
+                            season === opt
+                              ? "bg-[#3B9E1C] border-[#3B9E1C] text-white"
+                              : "bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A]"
+                          }`}
                         >
-                          {opt.label}
-                        </span>
+                          {opt} Season
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -187,15 +242,34 @@ export default function SpatialGIS() {
                     )}
                   </div>
 
-                  {/* Year — filters yield records that don't exist yet. */}
-                  <div className="flex flex-col gap-1 opacity-50">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm text-[#434840]">Year</label>
-                      <span className="text-[10px] font-medium text-[#9CA3AF]">Needs yield data</span>
-                    </div>
-                    <div className="flex items-center justify-between px-3 py-3 bg-white border border-[#C3C8BD] rounded-lg text-base text-[#191C1A] cursor-not-allowed">
-                      2023 – 2024
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  {/* Year — live: from the years that actually have data. */}
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="year-filter" className="text-sm text-[#434840]">Year</label>
+                    <div className="relative">
+                      <select
+                        id="year-filter"
+                        value={year ?? ""}
+                        onChange={(e) => setYear(e.target.value ? Number(e.target.value) : null)}
+                        disabled={!meta.years.length}
+                        className="w-full appearance-none px-3 py-3 pr-9 bg-white border border-[#C3C8BD] rounded-lg text-base text-[#191C1A] outline-none focus:border-[#3B9E1C] cursor-pointer disabled:opacity-50"
+                      >
+                        {meta.years.length ? (
+                          meta.years.map((y) => (
+                            <option key={y} value={y}>
+                              {y}
+                            </option>
+                          ))
+                        ) : (
+                          <option>Loading…</option>
+                        )}
+                      </select>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                      >
                         <path d="M2 4l5 5 5-5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
@@ -205,23 +279,10 @@ export default function SpatialGIS() {
 
               <div className="border-t border-[#C3C8BD]" />
 
-              {/* Map Layers — Boundaries is live; the yield/land-use overlays need
-                  their data layers, so they're shown disabled until then. */}
+              {/* Map Layers — Boundaries is live; land-use still needs its data layer. */}
               <div className="flex flex-col gap-3">
                 <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Map Layers</h2>
                 <div className="flex flex-col gap-3">
-                  <ToggleSwitch
-                    checked={false}
-                    disabled
-                    hint="Needs yield data"
-                    label="Yield Points"
-                    icon={
-                      <svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z" />
-                        <circle cx="12" cy="9" r="2.5" />
-                      </svg>
-                    }
-                  />
                   <ToggleSwitch
                     checked={false}
                     disabled
@@ -254,6 +315,10 @@ export default function SpatialGIS() {
             onSelectionChange={handleSelection}
             focusMunicipalityId={activeCityId}
             onMunicipalitiesLoaded={setMunicipalities}
+            heatmap={heatmapOn}
+            yieldByMuni={yieldByMuni}
+            colorScale={yieldResp?.stats ? { min: yieldResp.stats.min, max: yieldResp.stats.max } : null}
+            yieldKey={`${year}-${season}`}
           />
 
           {/* Right Panel — Context */}
@@ -286,22 +351,65 @@ export default function SpatialGIS() {
               {/* Active layers — reflects the real toggles */}
               <Card title="Active Layers">
                 <div className="flex flex-col gap-1.5">
-                  {layers.boundaries ? (
+                  {heatmapOn && (
+                    <div className="flex items-center gap-3">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-[#41AB5D]" />
+                      <span className="text-sm text-[#191C1A]">Yield Heatmap</span>
+                    </div>
+                  )}
+                  {layers.boundaries && (
                     <div className="flex items-center gap-3">
                       <span className="w-2.5 h-2.5 rounded-sm bg-[#1B6D24]" />
                       <span className="text-sm text-[#191C1A]">Boundaries</span>
                     </div>
-                  ) : (
+                  )}
+                  {!heatmapOn && !layers.boundaries && (
                     <span className="text-sm text-[#9CA3AF]">No layers active.</span>
                   )}
                 </div>
               </Card>
 
-              {/* Rice yield — honest pending state (no fabricated numbers) */}
-              <Card title="Rice Yield">
-                <p className="text-sm leading-5 text-[#6B7280]">
-                  Rice yield metrics for the selected area will appear here once prediction data is available.
-                </p>
+              {/* Rice yield — real observed data (mt/ha) for the current filters */}
+              <Card title={`Rice Yield — ${season ?? ""} ${year ?? ""}`.trim()}>
+                {yieldLoading ? (
+                  <p className="text-sm text-[#6B7280]">Loading yield…</p>
+                ) : selection?.level === "municipality" ? (
+                  selectedYield?.yield != null ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-3xl font-bold text-[#1B3315]">
+                        {selectedYield.yield}
+                        <span className="text-base font-normal text-[#6B7280]"> mt/ha</span>
+                      </span>
+                      <span className="text-sm text-[#434840]">
+                        Observed average yield for {selection.name}.
+                        {selectedYield.is_proxy && " (Estimated — source proxy value.)"}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#6B7280]">
+                      No observed yield for {selection.name} in {season} {year}.
+                    </p>
+                  )
+                ) : yieldResp?.stats?.avg != null ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-3xl font-bold text-[#1B3315]">
+                        {yieldResp.stats.avg}
+                        <span className="text-base font-normal text-[#6B7280]"> mt/ha</span>
+                      </span>
+                      <span className="text-sm text-[#434840]">
+                        Province average across {yieldResp.stats.count} municipalities.
+                      </span>
+                    </div>
+                    <div className="flex gap-4 text-sm text-[#434840]">
+                      <span>Low <b className="text-[#191C1A]">{yieldResp.stats.min}</b></span>
+                      <span>High <b className="text-[#191C1A]">{yieldResp.stats.max}</b></span>
+                    </div>
+                    <p className="text-xs text-[#9CA3AF]">Click a municipality for its value.</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#6B7280]">No yield data for {season} {year}.</p>
+                )}
               </Card>
             </div>
           </section>
