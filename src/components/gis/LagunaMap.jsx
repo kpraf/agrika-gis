@@ -30,13 +30,23 @@ const BASEMAPS = {
  *       { level: "province", municipalityCount }  |
  *       { level: "municipality", id, name, barangayCount }
  */
-export default function LagunaMap({ boundariesVisible = true, onSelectionChange }) {
+export default function LagunaMap({
+  boundariesVisible = true,
+  onSelectionChange,
+  focusMunicipalityId = null,
+  onMunicipalitiesLoaded,
+}) {
   const mapRef = useRef(null);
   const [basemap, setBasemap] = useState("map");
   const [muniGeo, setMuniGeo] = useState(null);
   const [provinceBounds, setProvinceBounds] = useState(null);
   const [selectedMuni, setSelectedMuni] = useState(null); // { id, name }
   const [barangayGeo, setBarangayGeo] = useState(null);
+
+  // Report the loaded municipality list to the parent (for the City filter),
+  // via a ref so an inline callback doesn't retrigger the fetch effect.
+  const muniListCbRef = useRef(onMunicipalitiesLoaded);
+  muniListCbRef.current = onMunicipalitiesLoaded;
 
   // Fetch municipality boundaries once, and frame the whole province.
   useEffect(() => {
@@ -46,6 +56,11 @@ export default function LagunaMap({ boundariesVisible = true, onSelectionChange 
       .then((fc) => {
         if (!active) return;
         setMuniGeo(fc);
+        muniListCbRef.current?.(
+          fc.features
+            .map((f) => ({ id: f.properties.municipality_id, name: f.properties.name }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
         try {
           const b = L.geoJSON(fc).getBounds();
           if (b.isValid()) {
@@ -113,6 +128,37 @@ export default function LagunaMap({ boundariesVisible = true, onSelectionChange 
       mapRef.current?.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
     }
   };
+
+  // Drill into a municipality by id (used by the parent's City filter — we may
+  // not have a Leaflet layer handle here, so derive bounds from the geometry).
+  const focusMunicipality = (id) => {
+    if (!muniGeo) return;
+    const feature = muniGeo.features.find((f) => f.properties.municipality_id === id);
+    if (!feature) return;
+    setSelectedMuni({ id, name: feature.properties.name });
+    setBarangayGeo(null);
+    boundariesApi
+      .barangays(id)
+      .then((fc) => setBarangayGeo(fc))
+      .catch(() => {});
+    try {
+      const b = L.geoJSON(feature).getBounds();
+      if (b.isValid()) mapRef.current?.fitBounds(b, { padding: [24, 24] });
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Keep the map in sync with the parent's City filter. Guard against the value
+  // we're already showing so map clicks (which the parent echoes back) don't
+  // re-drill or bounce us to the province view.
+  useEffect(() => {
+    const currentId = selectedMuni?.id ?? null;
+    if (focusMunicipalityId === currentId) return;
+    if (focusMunicipalityId == null) backToProvince();
+    else focusMunicipality(focusMunicipalityId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusMunicipalityId, muniGeo]);
 
   const onEachMunicipality = (feature, layer) => {
     layer.on({

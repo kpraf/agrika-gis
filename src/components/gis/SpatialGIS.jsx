@@ -5,21 +5,25 @@ import Navbar from "../layout/Navbar";
 import LagunaMap from "./LagunaMap";
 import { useAuth } from "../../context/AuthContext";
 
-const CITY_FILTERS = ["All Cities", "Calamba", "Los Baños"];
-
-function ToggleSwitch({ checked, onChange, icon, label }) {
+function ToggleSwitch({ checked, onChange, icon, label, disabled = false, hint }) {
   return (
-    <div className="flex items-center justify-between py-1">
+    <div className={`flex items-center justify-between py-1 ${disabled ? "opacity-50" : ""}`}>
       <div className="flex items-center gap-3">
         <span className="text-[#74796F]">{icon}</span>
-        <span className="text-base text-[#191C1A]">{label}</span>
+        <div className="flex flex-col">
+          <span className="text-base text-[#191C1A]">{label}</span>
+          {disabled && hint && <span className="text-[11px] text-[#9CA3AF]">{hint}</span>}
+        </div>
       </div>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
+        disabled={disabled}
         onClick={onChange}
-        className={`relative w-11 h-6 rounded-full transition-colors ${checked ? "bg-[#1B6D24]" : "bg-[#E1E3DE]"}`}
+        className={`relative w-11 h-6 rounded-full transition-colors ${
+          disabled ? "bg-[#E1E3DE] cursor-not-allowed" : checked ? "bg-[#1B6D24]" : "bg-[#E1E3DE]"
+        }`}
       >
         <span
           className={`absolute left-0 top-0.5 block w-5 h-5 rounded-full bg-white border transition-transform ${
@@ -48,11 +52,10 @@ export default function SpatialGIS() {
   //   public     -> top nav only
   const isPublic = !isAuthenticated;
 
-  const [viewType, setViewType] = useState("heatmap");
-  const [season, setSeason] = useState("wet");
-  const [cityFilter, setCityFilter] = useState("All Cities");
-  const [layers, setLayers] = useState({ yieldPoints: true, landUse: false, boundaries: true });
+  const [layers, setLayers] = useState({ boundaries: true });
   const [selection, setSelection] = useState(null); // reported by <LagunaMap />
+  const [municipalities, setMunicipalities] = useState([]); // [{ id, name }] from the map
+  const [activeCityId, setActiveCityId] = useState(null); // null = whole province
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
@@ -60,6 +63,13 @@ export default function SpatialGIS() {
   );
 
   const toggleLayer = (key) => setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // When the map's drill state changes (e.g. the user clicked a municipality),
+  // mirror it into the City filter so the two never disagree.
+  const handleSelection = (sel) => {
+    setSelection(sel);
+    setActiveCityId(sel.level === "municipality" ? sel.id : null);
+  };
 
   // While the session is being restored, don't render either chrome (avoids a
   // public->portal flash for a logged-in user refreshing on /yield-map).
@@ -95,38 +105,26 @@ export default function SpatialGIS() {
           {/* Left Panel — Map Controls */}
           <section className="w-[400px] shrink-0 h-full overflow-y-auto bg-white border-r border-[#C3C8BD]">
             <div className="flex flex-col gap-12 p-6">
-              {/* View Type */}
+              {/* View Type — the parcels/heatmap split needs rendered yield data, so it's
+                  disabled until that data lands (only the boundary map exists today). */}
               <div className="flex flex-col gap-3">
-                <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">View Type</h2>
-                <div className="grid grid-cols-2 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setViewType("heatmap")}
-                    className={`flex flex-col items-center gap-1 py-3 rounded-lg border text-sm font-semibold ${
-                      viewType === "heatmap"
-                        ? "bg-[#3B9E1C] border-[#1B6D24] text-white"
-                        : "bg-[#F8FAF5] border-[#C3C8BD] text-[#191C1A]"
-                    }`}
-                  >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">View Type</h2>
+                  <span className="text-[10px] font-medium text-[#9CA3AF]">Needs yield data</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1 opacity-50">
+                  <div className="flex flex-col items-center gap-1 py-3 rounded-lg border bg-[#3B9E1C] border-[#1B6D24] text-white text-sm font-semibold cursor-not-allowed">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 12h4l3 8 4-16 3 8h4" />
                     </svg>
                     Yield Heatmap
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewType("parcels")}
-                    className={`flex flex-col items-center gap-1 py-3 rounded-lg border text-sm font-semibold ${
-                      viewType === "parcels"
-                        ? "bg-[#3B9E1C] border-[#1B6D24] text-white"
-                        : "bg-[#F8FAF5] border-[#C3C8BD] text-[#191C1A]"
-                    }`}
-                  >
+                  </div>
+                  <div className="flex flex-col items-center gap-1 py-3 rounded-lg border bg-[#F8FAF5] border-[#C3C8BD] text-[#191C1A] text-sm font-semibold cursor-not-allowed">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z" />
                     </svg>
                     Land Parcels
-                  </button>
+                  </div>
                 </div>
               </div>
 
@@ -134,73 +132,88 @@ export default function SpatialGIS() {
               <div className="flex flex-col gap-3">
                 <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Filters</h2>
                 <div className="flex flex-col gap-6">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm text-[#434840]">Season</label>
+                  {/* Season — filters yield records that don't exist yet. */}
+                  <div className="flex flex-col gap-1 opacity-50">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-[#434840]">Season</label>
+                      <span className="text-[10px] font-medium text-[#9CA3AF]">Needs yield data</span>
+                    </div>
                     <div className="flex gap-1">
                       {[
                         { key: "dry", label: "Dry Season" },
                         { key: "wet", label: "Wet Season" },
                       ].map((opt) => (
-                        <button
+                        <span
                           key={opt.key}
-                          type="button"
-                          onClick={() => setSeason(opt.key)}
-                          className={`px-3 py-1.5 rounded-full border text-sm ${
-                            season === opt.key
-                              ? "bg-[#3B9E1C] border-[#3B9E1C] text-white"
-                              : "bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A]"
-                          }`}
+                          className="px-3 py-1.5 rounded-full border text-sm bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A] cursor-not-allowed"
                         >
                           {opt.label}
-                        </button>
+                        </span>
                       ))}
                     </div>
                   </div>
 
+                  {/* City — fully functional: drives the map's drill-down. */}
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm text-[#434840]">City</label>
-                    <div className="flex flex-wrap gap-1">
-                      {CITY_FILTERS.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setCityFilter(option)}
-                          className={`px-3 py-1.5 rounded-full border text-sm ${
-                            cityFilter === option
-                              ? "bg-[#3B9E1C] border-[#3B9E1C] text-white"
-                              : "bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A]"
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
+                    <label htmlFor="city-filter" className="text-sm text-[#434840]">
+                      City / Municipality
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="city-filter"
+                        value={activeCityId ?? ""}
+                        onChange={(e) => setActiveCityId(e.target.value ? Number(e.target.value) : null)}
+                        className="w-full appearance-none px-3 py-3 pr-9 bg-white border border-[#C3C8BD] rounded-lg text-base text-[#191C1A] outline-none focus:border-[#3B9E1C] cursor-pointer"
+                      >
+                        <option value="">All Cities</option>
+                        {municipalities.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </select>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                      >
+                        <path d="M2 4l5 5 5-5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                     </div>
+                    {municipalities.length === 0 && (
+                      <span className="text-[11px] text-[#9CA3AF]">Loading municipalities…</span>
+                    )}
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm text-[#434840]">Year</label>
-                    <button
-                      type="button"
-                      className="flex items-center justify-between px-3 py-3 bg-white border border-[#C3C8BD] rounded-lg text-base text-[#191C1A]"
-                    >
+                  {/* Year — filters yield records that don't exist yet. */}
+                  <div className="flex flex-col gap-1 opacity-50">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm text-[#434840]">Year</label>
+                      <span className="text-[10px] font-medium text-[#9CA3AF]">Needs yield data</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-3 bg-white border border-[#C3C8BD] rounded-lg text-base text-[#191C1A] cursor-not-allowed">
                       2023 – 2024
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                         <path d="M2 4l5 5 5-5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="border-t border-[#C3C8BD]" />
 
-              {/* Map Layers */}
+              {/* Map Layers — Boundaries is live; the yield/land-use overlays need
+                  their data layers, so they're shown disabled until then. */}
               <div className="flex flex-col gap-3">
                 <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Map Layers</h2>
                 <div className="flex flex-col gap-3">
                   <ToggleSwitch
-                    checked={layers.yieldPoints}
-                    onChange={() => toggleLayer("yieldPoints")}
+                    checked={false}
+                    disabled
+                    hint="Needs yield data"
                     label="Yield Points"
                     icon={
                       <svg width="16" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -210,8 +223,9 @@ export default function SpatialGIS() {
                     }
                   />
                   <ToggleSwitch
-                    checked={layers.landUse}
-                    onChange={() => toggleLayer("landUse")}
+                    checked={false}
+                    disabled
+                    hint="Needs land-use data"
                     label="Land use"
                     icon={
                       <svg width="22" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -235,7 +249,12 @@ export default function SpatialGIS() {
           </section>
 
           {/* Center — shared map */}
-          <LagunaMap boundariesVisible={layers.boundaries} onSelectionChange={setSelection} />
+          <LagunaMap
+            boundariesVisible={layers.boundaries}
+            onSelectionChange={handleSelection}
+            focusMunicipalityId={activeCityId}
+            onMunicipalitiesLoaded={setMunicipalities}
+          />
 
           {/* Right Panel — Context */}
           <section className="w-[460px] shrink-0 h-full overflow-y-auto bg-white">
@@ -267,19 +286,12 @@ export default function SpatialGIS() {
               {/* Active layers — reflects the real toggles */}
               <Card title="Active Layers">
                 <div className="flex flex-col gap-1.5">
-                  {[
-                    ["yieldPoints", "Yield Points"],
-                    ["landUse", "Land use"],
-                    ["boundaries", "Boundaries"],
-                  ]
-                    .filter(([key]) => layers[key])
-                    .map(([key, label]) => (
-                      <div key={key} className="flex items-center gap-3">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-[#1B6D24]" />
-                        <span className="text-sm text-[#191C1A]">{label}</span>
-                      </div>
-                    ))}
-                  {!Object.values(layers).some(Boolean) && (
+                  {layers.boundaries ? (
+                    <div className="flex items-center gap-3">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-[#1B6D24]" />
+                      <span className="text-sm text-[#191C1A]">Boundaries</span>
+                    </div>
+                  ) : (
                     <span className="text-sm text-[#9CA3AF]">No layers active.</span>
                   )}
                 </div>
