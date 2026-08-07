@@ -12,9 +12,10 @@
 -- ============================================================
 
 -- Drop in reverse-dependency order so the script is re-runnable during dev.
-DROP TABLE IF EXISTS residuals      CASCADE;
-DROP TABLE IF EXISTS predictions    CASCADE;
-DROP TABLE IF EXISTS yield_records  CASCADE;
+DROP TABLE IF EXISTS residuals                  CASCADE;
+DROP TABLE IF EXISTS predictions                CASCADE;
+DROP TABLE IF EXISTS yield_records              CASCADE;
+DROP TABLE IF EXISTS municipality_yield_records CASCADE;
 DROP TABLE IF EXISTS barangays      CASCADE;
 DROP TABLE IF EXISTS seasons        CASCADE;
 DROP TABLE IF EXISTS users          CASCADE;
@@ -93,6 +94,24 @@ CREATE TABLE yield_records (
 );
 
 -- ------------------------------------------------------------
+--  MUNICIPALITY_YIELD_RECORDS  (observed average yield, per municipality
+--  per season). Our real historical data (PRiSM / Ricelytics) is only
+--  available at municipality level, not barangay level, so it lands here.
+--  observed_yield is in mt/ha. source names where the value came from and
+--  is_proxy flags values Ricelytics appears to have backfilled (identical
+--  yields shared across low-rice cities) so the UI can caveat them.
+-- ------------------------------------------------------------
+CREATE TABLE municipality_yield_records (
+    muni_yield_id   SERIAL PRIMARY KEY,
+    observed_yield  DOUBLE PRECISION NOT NULL,
+    municipality_id INTEGER NOT NULL REFERENCES municipalities(municipality_id),
+    season_id       INTEGER NOT NULL REFERENCES seasons(season_id),
+    source          VARCHAR(50),
+    is_proxy        BOOLEAN NOT NULL DEFAULT FALSE,
+    UNIQUE (municipality_id, season_id)
+);
+
+-- ------------------------------------------------------------
 --  RESIDUALS  (observed - predicted; ties a prediction to its actual)
 -- ------------------------------------------------------------
 CREATE TABLE residuals (
@@ -110,3 +129,5 @@ CREATE INDEX idx_predictions_barangay  ON predictions(barangay_id);
 CREATE INDEX idx_predictions_season    ON predictions(season_id);
 CREATE INDEX idx_yield_barangay        ON yield_records(barangay_id);
 CREATE INDEX idx_yield_season          ON yield_records(season_id);
+CREATE INDEX idx_muni_yield_muni       ON municipality_yield_records(municipality_id);
+CREATE INDEX idx_muni_yield_season     ON municipality_yield_records(season_id);

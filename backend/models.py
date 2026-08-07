@@ -93,6 +93,25 @@ class YieldRecord(db.Model):
     season_id = db.Column(db.Integer, db.ForeignKey("seasons.season_id"), nullable=False)
 
 
+class MunicipalityYieldRecord(db.Model):
+    """Observed average yield (mt/ha) per municipality per season.
+
+    Our real historical data (PRiSM / Ricelytics) is municipality-level only,
+    so it lives here rather than in the barangay-keyed yield_records table.
+    """
+    __tablename__ = "municipality_yield_records"
+    muni_yield_id = db.Column(db.Integer, primary_key=True)
+    observed_yield = db.Column(db.Float, nullable=False)
+    municipality_id = db.Column(
+        db.Integer, db.ForeignKey("municipalities.municipality_id"), nullable=False
+    )
+    season_id = db.Column(db.Integer, db.ForeignKey("seasons.season_id"), nullable=False)
+    source = db.Column(db.String(50))
+    is_proxy = db.Column(db.Boolean, nullable=False, default=False)
+
+    __table_args__ = (db.UniqueConstraint("municipality_id", "season_id"),)
+
+
 class Residual(db.Model):
     __tablename__ = "residuals"
     residual_id = db.Column(db.Integer, primary_key=True)
