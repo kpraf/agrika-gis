@@ -49,7 +49,7 @@ const TEAM = [
 
 export default function Home() {
   return (
-    <div className="w-full bg-[#F3F4F6] font-sans anim-page-in" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="w-full bg-[#F3F4F6] font-sans anim-page-in-left" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {/* Hero + Nav */}
       <section className="relative bg-[#0B2005] overflow-hidden min-h-[100vh] flex flex-col">
         <div className="absolute inset-0 bg-[url('/images/farmer-1.png')] bg-cover bg-center opacity-80" />

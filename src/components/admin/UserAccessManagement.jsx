@@ -83,8 +83,8 @@ function UserForm({ initial, roles, municipalities, onCancel, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <form onSubmit={submit} className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 anim-fade-in">
+      <form onSubmit={submit} className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4 anim-scale-in">
         <h2 className="text-lg font-bold text-[#1F2937]">{isEdit ? "Edit User" : "Add User"}</h2>
 
         {error && (

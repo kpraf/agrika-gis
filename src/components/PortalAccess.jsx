@@ -142,6 +142,9 @@ export default function PortalAccess() {
                       strokeWidth="1.25"
                     />
                     <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.25" />
+                    {showPassword && (
+                      <path d="M3 3l14 14" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+                    )}
                   </svg>
                 </button>
               </div>
