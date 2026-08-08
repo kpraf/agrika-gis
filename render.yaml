@@ -28,10 +28,10 @@ services:
         sync: false
 
   # --- Vite / React frontend ---------------------------------------------------
+  # Static sites are always free — they take no `plan` field.
   - type: web
     name: agrika-gis-web
     runtime: static
-    plan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     # Set to the API origin + /api after the API is live,
