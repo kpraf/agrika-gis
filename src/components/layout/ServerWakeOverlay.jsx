@@ -30,7 +30,7 @@ export default function ServerWakeOverlay() {
           <p className="text-base font-semibold text-white">Waking up the server…</p>
           <p className="text-sm leading-5 text-white/70">
             The server sleeps when idle on the free tier. This first load can take up to a
-            minute — hang tight, it'll continue automatically.
+            minute. Hang tight, it'll continue automatically.
           </p>
         </div>
       </div>
