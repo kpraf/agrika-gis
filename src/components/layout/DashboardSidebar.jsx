@@ -133,11 +133,11 @@ export default function DashboardSidebar({ active }) {
           on the map pages can't trap it behind the map. */}
       {confirmLogout && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 anim-fade-in"
           onClick={() => setConfirmLogout(false)}
         >
           <div
-            className="w-[320px] max-w-[90vw] bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4"
+            className="w-[320px] max-w-[90vw] bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4 anim-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col gap-1">

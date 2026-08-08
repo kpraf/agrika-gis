@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/* ---- Shared UI animations ---- */
+@keyframes agrika-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes agrika-scale-in {
+  from { opacity: 0; transform: scale(0.94) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes agrika-slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Backdrop fade (e.g. the logout dialog) */
+.anim-fade-in { animation: agrika-fade-in 160ms ease-out both; }
+/* Dialog / popover pop */
+.anim-scale-in { animation: agrika-scale-in 190ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* Page entrance slide (Home <-> Portal Access) */
+.anim-page-in { animation: agrika-slide-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-fade-in, .anim-scale-in, .anim-page-in { animation: none; }
+}

@@ -39,7 +39,7 @@ export default function PortalAccess() {
   };
 
   return (
-    <div className="relative w-full min-h-screen flex items-center justify-center bg-white px-8 py-24 overflow-hidden">
+    <div className="relative w-full min-h-screen flex items-center justify-center bg-white px-8 py-24 overflow-hidden anim-page-in">
       {/* Background image layer */}
       <div className="absolute inset-0 bg-[url('/images/farms.png')] bg-cover bg-center opacity-80" />
 
