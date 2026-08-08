@@ -18,13 +18,19 @@ window — bad for something you need live at defense. Supabase is the safer fre
 1. Create a project at supabase.com. Save the database password.
 2. **Enable PostGIS**: Dashboard → Database → Extensions → search `postgis` → enable.
    (Or run `create extension if not exists postgis;` in the SQL editor.)
-3. Get the connection string: Dashboard → Project Settings → Database →
-   **Connection string → URI** (use the direct connection on port `5432`, not the
-   transaction pooler). It looks like:
+3. Get the connection string: Dashboard → **Connect → Session pooler → URI**.
+   Use the **Session pooler**, NOT the direct connection:
+   - Direct (`db.<ref>.supabase.co:5432`) is **IPv6-only**; Render's free tier
+     egresses over IPv4, so it will time out.
+   - The **Session pooler** is IPv4 and session-mode (prepared statements work,
+     so psycopg3 needs no extra config). Avoid the *transaction* pooler (`:6543`).
+
+   It looks like (note the dotted `postgres.<project-ref>` username):
    ```
-   postgresql://postgres:YOUR-PASSWORD@db.xxxxxxxx.supabase.co:5432/postgres
+   postgresql://postgres.xxxxxxxx:YOUR-PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres
    ```
-   If connections fail, append `?sslmode=require`.
+   If connections fail, append `?sslmode=require`. This same URL works for both
+   the local seeding below and Render's `DATABASE_URL`.
 
 ### Load the schema + data into Supabase
 Run these **locally**, pointed at the remote DB. From `backend/` with the venv active:
