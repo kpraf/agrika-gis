@@ -66,6 +66,11 @@ export default function SpatialGIS() {
   const [yieldResp, setYieldResp] = useState(null); // { stats, records }
   const [yieldLoading, setYieldLoading] = useState(false);
 
+  // CNN-LSTM predictions overlay (empty until model output is loaded).
+  const [dataSource, setDataSource] = useState("observed"); // "observed" | "predicted"
+  const [predMeta, setPredMeta] = useState({ has_predictions: false });
+  const [compareResp, setCompareResp] = useState(null); // { stats, records } observed vs predicted
+
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
     [city]
@@ -101,6 +106,24 @@ export default function SpatialGIS() {
     };
   }, [year, season]);
 
+  // Are there any CNN-LSTM predictions loaded at all? (gates the Predicted view)
+  useEffect(() => {
+    yieldApi.predictionsMeta().then(setPredMeta).catch(() => {});
+  }, []);
+
+  // Observed vs predicted (+ residual) for the current year/season.
+  useEffect(() => {
+    if (!year || !season) return;
+    let active = true;
+    yieldApi
+      .compare(year, season)
+      .then((r) => active && setCompareResp(r))
+      .catch(() => active && setCompareResp(null));
+    return () => {
+      active = false;
+    };
+  }, [year, season]);
+
   // Shape the records for the map (id -> { yield, is_proxy }) and the panels.
   const yieldByMuni = useMemo(() => {
     const out = {};
@@ -108,8 +131,33 @@ export default function SpatialGIS() {
     return out;
   }, [yieldResp]);
 
-  const heatmapOn = viewType === "heatmap" && layers.boundaries && !!yieldResp;
+  // Predicted values shaped for the map, plus a colour scale over predictions.
+  const predByMuni = useMemo(() => {
+    const out = {};
+    for (const r of compareResp?.records ?? []) {
+      if (r.predicted != null) out[r.municipality_id] = { yield: r.predicted, is_proxy: false };
+    }
+    return out;
+  }, [compareResp]);
+  const predScale = useMemo(() => {
+    const vals = Object.values(predByMuni).map((x) => x.yield);
+    return vals.length ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
+  }, [predByMuni]);
+
+  const showingPredicted = dataSource === "predicted" && predMeta.has_predictions;
+  const mapYieldByMuni = showingPredicted ? predByMuni : yieldByMuni;
+  const mapColorScale = showingPredicted
+    ? predScale
+    : yieldResp?.stats
+    ? { min: yieldResp.stats.min, max: yieldResp.stats.max }
+    : null;
+  const heatmapOn =
+    viewType === "heatmap" && layers.boundaries && (showingPredicted ? !!predScale : !!yieldResp);
   const selectedYield = selection?.level === "municipality" ? yieldByMuni[selection.id] : null;
+  const selectedCompare =
+    selection?.level === "municipality"
+      ? (compareResp?.records ?? []).find((r) => r.municipality_id === selection.id)
+      : null;
 
   // When the map's drill state changes (e.g. the user clicked a municipality),
   // mirror it into the City filter so the two never disagree.
@@ -180,6 +228,40 @@ export default function SpatialGIS() {
                     </svg>
                     Land Parcels
                   </div>
+                </div>
+              </div>
+
+              {/* Data source — Observed is live; Predicted lights up once CNN-LSTM
+                  model output is loaded (municipality_predictions). */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Data Source</h2>
+                  {!predMeta.has_predictions && (
+                    <span className="text-[10px] font-medium text-[#9CA3AF]">Predicted: needs model output</span>
+                  )}
+                </div>
+                <div className="flex p-1 gap-1 bg-[#ECEFEA] rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setDataSource("observed")}
+                    className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
+                      dataSource === "observed" ? "bg-[#3B9E1C] text-white shadow-sm" : "text-[#4B5563]"
+                    }`}
+                  >
+                    Observed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => predMeta.has_predictions && setDataSource("predicted")}
+                    disabled={!predMeta.has_predictions}
+                    className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
+                      dataSource === "predicted" && predMeta.has_predictions
+                        ? "bg-[#3B9E1C] text-white shadow-sm"
+                        : "text-[#4B5563]"
+                    } ${!predMeta.has_predictions ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    Predicted
+                  </button>
                 </div>
               </div>
 
@@ -316,9 +398,9 @@ export default function SpatialGIS() {
             focusMunicipalityId={activeCityId}
             onMunicipalitiesLoaded={setMunicipalities}
             heatmap={heatmapOn}
-            yieldByMuni={yieldByMuni}
-            colorScale={yieldResp?.stats ? { min: yieldResp.stats.min, max: yieldResp.stats.max } : null}
-            yieldKey={`${year}-${season}`}
+            yieldByMuni={mapYieldByMuni}
+            colorScale={mapColorScale}
+            yieldKey={`${showingPredicted ? "pred" : "obs"}-${year}-${season}`}
           />
 
           {/* Right Panel — Context */}
@@ -409,6 +491,67 @@ export default function SpatialGIS() {
                   </div>
                 ) : (
                   <p className="text-sm text-[#6B7280]">No yield data for {season} {year}.</p>
+                )}
+              </Card>
+
+              {/* CNN-LSTM prediction — observed vs predicted (+ residual). Empty
+                  until model output is loaded into municipality_predictions. */}
+              <Card title="CNN-LSTM Prediction">
+                {!predMeta.has_predictions ? (
+                  <p className="text-sm leading-5 text-[#6B7280]">
+                    No model predictions loaded yet. Once CNN-LSTM output is imported, predicted yield
+                    and the observed-vs-predicted residual will appear here and as a “Predicted” map layer.
+                  </p>
+                ) : selection?.level === "municipality" ? (
+                  selectedCompare?.predicted != null ? (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-6">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-[#6B7280]">Predicted</span>
+                          <span className="text-2xl font-bold text-[#1B3315]">{selectedCompare.predicted}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs text-[#6B7280]">Observed</span>
+                          <span className="text-2xl font-bold text-[#1B3315]">
+                            {selectedCompare.observed ?? "—"}
+                          </span>
+                        </div>
+                      </div>
+                      {selectedCompare.residual != null && (
+                        <span className="text-sm text-[#434840]">
+                          Residual (obs − pred):{" "}
+                          <b className={selectedCompare.residual >= 0 ? "text-[#16A34A]" : "text-[#EF4444]"}>
+                            {selectedCompare.residual > 0 ? "+" : ""}
+                            {selectedCompare.residual} mt/ha
+                          </b>
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#6B7280]">No prediction for {selection.name} in {season} {year}.</p>
+                  )
+                ) : compareResp?.stats?.predicted_avg != null ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-6">
+                      <div className="flex flex-col">
+                        <span className="text-xs text-[#6B7280]">Predicted avg</span>
+                        <span className="text-2xl font-bold text-[#1B3315]">{compareResp.stats.predicted_avg}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs text-[#6B7280]">Observed avg</span>
+                        <span className="text-2xl font-bold text-[#1B3315]">{compareResp.stats.observed_avg}</span>
+                      </div>
+                    </div>
+                    {compareResp.stats.mae != null && (
+                      <span className="text-sm text-[#434840]">
+                        Model MAE: <b className="text-[#191C1A]">{compareResp.stats.mae} mt/ha</b>{" "}
+                        over {compareResp.stats.count_predicted} municipalities
+                      </span>
+                    )}
+                    <p className="text-xs text-[#9CA3AF]">Switch to the Predicted layer or click a municipality.</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#6B7280]">No predictions for {season} {year}.</p>
                 )}
               </Card>
             </div>

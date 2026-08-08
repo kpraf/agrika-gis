@@ -58,6 +58,9 @@ export const yieldApi = {
       }`
     ),
   records: () => request("/yield/records"),
+  predictionsMeta: () => request("/yield/predictions/meta"),
+  compare: (year, season) =>
+    request(`/yield/compare?year=${year}&season=${encodeURIComponent(season)}`),
 };
 
 export const usersApi = {

@@ -14,6 +14,7 @@
 -- Drop in reverse-dependency order so the script is re-runnable during dev.
 DROP TABLE IF EXISTS residuals                  CASCADE;
 DROP TABLE IF EXISTS predictions                CASCADE;
+DROP TABLE IF EXISTS municipality_predictions   CASCADE;
 DROP TABLE IF EXISTS yield_records              CASCADE;
 DROP TABLE IF EXISTS municipality_yield_records CASCADE;
 DROP TABLE IF EXISTS barangays      CASCADE;
@@ -112,6 +113,24 @@ CREATE TABLE municipality_yield_records (
 );
 
 -- ------------------------------------------------------------
+--  MUNICIPALITY_PREDICTIONS  (CNN-LSTM predicted average yield, per
+--  municipality per season). Mirrors municipality_yield_records because the
+--  model is trained/served at municipality level. predicted_yield is in mt/ha.
+--  model_version tags the run so several model outputs can coexist; the
+--  residual (observed - predicted) is computed on the fly against the observed
+--  table rather than stored.
+-- ------------------------------------------------------------
+CREATE TABLE municipality_predictions (
+    muni_pred_id    SERIAL PRIMARY KEY,
+    predicted_yield DOUBLE PRECISION NOT NULL,
+    municipality_id INTEGER NOT NULL REFERENCES municipalities(municipality_id),
+    season_id       INTEGER NOT NULL REFERENCES seasons(season_id),
+    model_version   VARCHAR(50) NOT NULL DEFAULT 'cnn-lstm',
+    generated_at    TIMESTAMP NOT NULL DEFAULT now(),
+    UNIQUE (municipality_id, season_id, model_version)
+);
+
+-- ------------------------------------------------------------
 --  RESIDUALS  (observed - predicted; ties a prediction to its actual)
 -- ------------------------------------------------------------
 CREATE TABLE residuals (
@@ -131,3 +150,5 @@ CREATE INDEX idx_yield_barangay        ON yield_records(barangay_id);
 CREATE INDEX idx_yield_season          ON yield_records(season_id);
 CREATE INDEX idx_muni_yield_muni       ON municipality_yield_records(municipality_id);
 CREATE INDEX idx_muni_yield_season     ON municipality_yield_records(season_id);
+CREATE INDEX idx_muni_pred_muni        ON municipality_predictions(municipality_id);
+CREATE INDEX idx_muni_pred_season      ON municipality_predictions(season_id);

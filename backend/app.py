@@ -28,7 +28,7 @@ def create_app(config_class=Config):
     # Import models so SQLAlchemy is aware of them (tables already exist via schema.sql)
     from models import (  # noqa: F401
         Role, Municipality, User, Barangay, Season, Prediction, YieldRecord,
-        MunicipalityYieldRecord, Residual,
+        MunicipalityYieldRecord, MunicipalityPrediction, Residual,
     )
 
     # Blueprints

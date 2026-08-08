@@ -112,6 +112,26 @@ class MunicipalityYieldRecord(db.Model):
     __table_args__ = (db.UniqueConstraint("municipality_id", "season_id"),)
 
 
+class MunicipalityPrediction(db.Model):
+    """CNN-LSTM predicted average yield (mt/ha) per municipality per season.
+
+    Mirrors MunicipalityYieldRecord; the model is served at municipality level.
+    model_version lets several model runs coexist. The residual (observed -
+    predicted) is computed against the observed table rather than stored.
+    """
+    __tablename__ = "municipality_predictions"
+    muni_pred_id = db.Column(db.Integer, primary_key=True)
+    predicted_yield = db.Column(db.Float, nullable=False)
+    municipality_id = db.Column(
+        db.Integer, db.ForeignKey("municipalities.municipality_id"), nullable=False
+    )
+    season_id = db.Column(db.Integer, db.ForeignKey("seasons.season_id"), nullable=False)
+    model_version = db.Column(db.String(50), nullable=False, default="cnn-lstm")
+    generated_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    __table_args__ = (db.UniqueConstraint("municipality_id", "season_id", "model_version"),)
+
+
 class Residual(db.Model):
     __tablename__ = "residuals"
     residual_id = db.Column(db.Integer, primary_key=True)
