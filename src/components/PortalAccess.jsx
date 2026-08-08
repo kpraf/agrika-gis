@@ -4,9 +4,10 @@ import { useAuth } from "../context/AuthContext";
 
 const slugify = (name) => (name || "").toLowerCase().trim().replace(/\s+/g, "-");
 
-// Where each role lands right after signing in.
+// Where each role lands right after signing in — everyone starts on Monitoring.
+// Admin sees the province-wide view; scoped roles see their own municipality.
 function landingPathFor(user) {
-  if (user.role === "administrator") return "/admin/users";
+  if (user.role === "administrator") return "/monitoring";
   const city = slugify(user.municipality);
   return city ? `/monitoring/${city}` : "/yield-map";
 }
