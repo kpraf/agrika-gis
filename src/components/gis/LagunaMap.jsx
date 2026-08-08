@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import MapControls from "../layout/MapControls";
-import { boundariesApi } from "../../lib/api";
+import { boundariesApi, onServerSlow } from "../../lib/api";
 
 const DEFAULT_CENTER = [14.2117, 121.1653];
 const DEFAULT_ZOOM = 11;
@@ -62,6 +62,10 @@ export default function LagunaMap({
   const [searchOpen, setSearchOpen] = useState(false);
   const [barangayIndex, setBarangayIndex] = useState([]);
   const [pendingBarangay, setPendingBarangay] = useState(null);
+
+  // "server waking up" signal (free-tier cold start), scoped to the map overlay.
+  const [serverSlow, setServerSlow] = useState(false);
+  useEffect(() => onServerSlow(setServerSlow), []);
 
   // Report the loaded municipality list to the parent (for the City filter),
   // via a ref so an inline callback doesn't retrigger the fetch effect.
@@ -318,6 +322,28 @@ export default function LagunaMap({
           />
         )}
       </MapContainer>
+
+      {/* Loading overlay — while boundaries load, or the free-tier API is waking. */}
+      {(!muniGeo || serverSlow) && (
+        <div className="absolute inset-0 z-[650] flex items-center justify-center bg-[#E5E7EB]/70 backdrop-blur-[2px]">
+          <div className="flex flex-col items-center gap-3 px-8 text-center">
+            <span className="relative flex h-9 w-9">
+              <span className="absolute inline-flex h-full w-full rounded-full border-4 border-[#1F6306]/20" />
+              <span className="inline-flex h-9 w-9 rounded-full border-4 border-transparent border-t-[#1F6306] animate-spin" />
+            </span>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-[#1F2937]">
+                {serverSlow ? "Waking up the server…" : "Loading map…"}
+              </p>
+              {serverSlow && (
+                <p className="text-xs leading-4 text-[#6B7280] max-w-[240px]">
+                  The server sleeps when idle on the free tier. This can take up to a minute.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search overlay — municipalities + barangays, click a result to fly there */}
       <div className="absolute left-6 right-6 top-6 z-[500] flex justify-center pointer-events-none">

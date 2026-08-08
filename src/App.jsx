@@ -11,7 +11,6 @@ import SpatialGIS from "./components/gis/SpatialGIS";
 import RiceYieldAnalytics from "./components/analytics/RiceYieldAnalytics";
 import ReportsExport from "./components/reports/ReportsExport";
 import UserAccessManagement from "./components/admin/UserAccessManagement";
-import ServerWakeOverlay from "./components/layout/ServerWakeOverlay";
 
 // Simple placeholder so routes are navigable before each module is built
 function Placeholder({ title }) {
@@ -55,7 +54,6 @@ function MunicipalityDashboard({ moduleTitle }) {
 export default function App() {
   return (
     <AuthProvider>
-      <ServerWakeOverlay />
       <BrowserRouter>
         <Routes>
         {/* Public */}
