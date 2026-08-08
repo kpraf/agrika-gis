@@ -8,6 +8,25 @@ export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
+// --- "server waking up" signal -----------------------------------------------
+// Free hosting (Render) sleeps the API after idle, so the first request can take
+// 30-60s. We flag any request that stays pending past a threshold so the UI can
+// show a "waking the server" overlay, and clear it once the request resolves.
+const SLOW_MS = 2500;
+const slowListeners = new Set();
+let slowCount = 0;
+
+const emitSlow = () => {
+  const active = slowCount > 0;
+  slowListeners.forEach((cb) => cb(active));
+};
+
+/** Subscribe to server-slow state. cb(active). Returns an unsubscribe fn. */
+export function onServerSlow(cb) {
+  slowListeners.add(cb);
+  return () => slowListeners.delete(cb);
+}
+
 async function request(path, { method = "GET", body, auth = false } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth) {
@@ -15,23 +34,38 @@ async function request(path, { method = "GET", body, auth = false } = {}) {
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
-  let res;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch {
-    // Network / server-down
-    throw new Error("Can't reach the server. Is the backend running?");
-  }
+  let markedSlow = false;
+  const slowTimer = setTimeout(() => {
+    markedSlow = true;
+    slowCount += 1;
+    emitSlow();
+  }, SLOW_MS);
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status}).`);
+  try {
+    let res;
+    try {
+      res = await fetch(`${API_BASE}${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch {
+      // Network / server-down
+      throw new Error("Can't reach the server. Is the backend running?");
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Request failed (${res.status}).`);
+    }
+    return data;
+  } finally {
+    clearTimeout(slowTimer);
+    if (markedSlow) {
+      slowCount -= 1;
+      emitSlow();
+    }
   }
-  return data;
 }
 
 export const authApi = {
