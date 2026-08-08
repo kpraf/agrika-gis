@@ -16,8 +16,10 @@ window — bad for something you need live at defense. Supabase is the safer fre
 ## 1. Database — Supabase
 
 1. Create a project at supabase.com. Save the database password.
-2. **Enable PostGIS**: Dashboard → Database → Extensions → search `postgis` → enable.
-   (Or run `create extension if not exists postgis;` in the SQL editor.)
+2. **Schema + PostGIS + seed in one shot**: open the Supabase **SQL Editor**,
+   paste the entire contents of **`backend/db/supabase_setup.sql`**, and Run.
+   That file enables PostGIS and creates every table + the base seed (roles,
+   municipalities, seasons) — no separate extension toggle needed.
 3. Get the connection string: Dashboard → **Connect → Session pooler → URI**.
    Use the **Session pooler**, NOT the direct connection:
    - Direct (`db.<ref>.supabase.co:5432`) is **IPv6-only**; Render's free tier
@@ -32,25 +34,19 @@ window — bad for something you need live at defense. Supabase is the safer fre
    If connections fail, append `?sslmode=require`. This same URL works for both
    the local seeding below and Render's `DATABASE_URL`.
 
-### Load the schema + data into Supabase
-Run these **locally**, pointed at the remote DB. From `backend/` with the venv active:
+### Load boundaries + yield data into Supabase
+The tables already exist (step 2 above). Now load the geometry + yield data from
+your machine. From `backend/` with the venv active:
 
 ```bash
-# point every script at Supabase for this shell
-export DATABASE_URL="postgresql://postgres:YOUR-PASSWORD@db.xxxx.supabase.co:5432/postgres"
+# point every script at Supabase for this shell (PowerShell: $env:DATABASE_URL = "...")
+export DATABASE_URL="postgresql://postgres.xxxx:YOUR-PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres"
 
-# 1. schema — paste db/schema.sql then db/schema_geometry.sql into the Supabase
-#    SQL editor and run them (easiest), OR use psql:
-#    psql "$DATABASE_URL" -f db/schema.sql -f db/schema_geometry.sql
-
-# 2. seed roles + municipalities
-#    psql "$DATABASE_URL" -f db/seed.sql
-
-# 3. import boundaries, then the real yield data
+# 1. import boundaries (30 municipalities, 682 barangays), then the real yield data
 python scripts/import_boundaries.py
 python scripts/load_municipality_yield.py --csv db/ricelytics_laguna_yield.csv
 
-# 4. create the 3 portal accounts on prod
+# 2. create the 3 portal accounts on prod (interactive — set real passwords)
 python scripts/create_user.py
 ```
 
