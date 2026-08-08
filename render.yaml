@@ -1,0 +1,46 @@
+# Render blueprint for AgriKA-GIS.
+# Deploys the Flask API (web service) and the Vite/React frontend (static site).
+# The database is NOT defined here — use an external Postgres with PostGIS
+# (Supabase recommended; see DEPLOY.md) and paste its URL into DATABASE_URL.
+#
+# Import this file from the Render dashboard: New + -> Blueprint -> pick the repo.
+services:
+  # --- Flask API ---------------------------------------------------------------
+  - type: web
+    name: agrika-gis-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/health
+    envVars:
+      # Paste your Supabase/Postgres connection string here (Render dashboard).
+      # The app rewrites postgres:// -> postgresql+psycopg:// automatically.
+      - key: DATABASE_URL
+        sync: false
+      # Generated once by Render; keep it secret. Rotating it logs everyone out.
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Must match the deployed frontend origin exactly (no trailing slash),
+      # e.g. https://agrika-gis-web.onrender.com
+      - key: CORS_ORIGINS
+        sync: false
+
+  # --- Vite / React frontend ---------------------------------------------------
+  - type: web
+    name: agrika-gis-web
+    runtime: static
+    plan: free
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    # Set to the API origin + /api after the API is live,
+    # e.g. https://agrika-gis-api.onrender.com/api
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+    # SPA fallback so client-side routes (/yield-map, /reports, ...) resolve.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
