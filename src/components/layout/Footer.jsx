@@ -8,7 +8,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           <div className="flex flex-col gap-6">
             <Link to="/" className="flex items-center">
-              <img src="/images/agrika-gis-logo.png" alt="AgriKA-GIS" className="h-14 w-auto object-contain" />
+              <img src="/images/agrika-gis-logo.png" alt="AgriKA-GIS" className="h-20 w-auto object-contain" />
             </Link>
             <p className="text-sm text-[#D1D5DB] leading-[23px] max-w-[284px]">
               Empowering local agriculture with satellite intelligence and AI-powered precision

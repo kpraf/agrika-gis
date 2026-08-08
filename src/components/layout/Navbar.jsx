@@ -13,7 +13,7 @@ export default function Navbar({ active = "Home" }) {
   return (
     <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-6">
       <Link to="/" className="flex items-center">
-        <img src="/images/agrika-gis-logo.png" alt="AgriKA-GIS" className="h-14 w-auto object-contain" />
+        <img src="/images/agrika-gis-logo.png" alt="AgriKA-GIS" className="h-20 w-auto object-contain" />
       </Link>
       <div className="hidden md:flex items-center gap-8">
         {NAV_LINKS.map((link) => (

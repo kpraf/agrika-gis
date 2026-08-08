@@ -67,7 +67,7 @@ export default function PortalAccess() {
               <img
                 src="/images/agrika-gis-logo.png"
                 alt="AgriKA-GIS"
-                className="h-12 w-auto self-start object-contain"
+                className="h-16 w-auto self-start object-contain"
               />
 
               <div className="flex flex-col gap-2">
