@@ -345,10 +345,15 @@ export default function YieldMonitoring() {
                 <div className="bg-[#F9FAFB] border border-[#F3F4F6] rounded-lg p-3">
                   {trend.length ? (
                     <ResponsiveContainer width="100%" height={220}>
-                      <LineChart data={trend} margin={{ left: -18, right: 8, top: 8, bottom: 4 }}>
+                      <LineChart data={trend} margin={{ left: 4, right: 8, top: 8, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                         <XAxis dataKey="year" tick={{ fontSize: 10, fill: "#9CA3AF" }} />
-                        <YAxis domain={["dataMin - 0.5", "dataMax + 0.5"]} tick={{ fontSize: 10, fill: "#9CA3AF" }} />
+                        <YAxis
+                          width={58}
+                          tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                          domain={[(min) => Math.floor((min - 0.5) * 2) / 2, (max) => Math.ceil((max + 0.5) * 2) / 2]}
+                          tickFormatter={(v) => `${Number(v).toFixed(1)} mt/ha`}
+                        />
                         <Tooltip formatter={(v) => [`${v} mt/ha`, "Avg yield"]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                         <Line type="monotone" dataKey="avg" stroke="#1F6306" strokeWidth={2.5} dot={{ r: 3, fill: "#1F6306" }} />
                       </LineChart>
