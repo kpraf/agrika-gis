@@ -39,6 +39,28 @@ def municipalities():
     return jsonify({"type": "FeatureCollection", "features": features})
 
 
+@boundaries_bp.get("/barangays/index")
+def barangays_index():
+    """Lightweight barangay list (no geometry) for the map search box."""
+    rows = db.session.execute(
+        text(
+            "SELECT b.barangay_id, b.barangay_name, b.municipality_id, m.municipality_name "
+            "FROM barangays b "
+            "JOIN municipalities m ON m.municipality_id = b.municipality_id "
+            "ORDER BY b.barangay_name"
+        )
+    ).all()
+    return jsonify([
+        {
+            "barangay_id": r.barangay_id,
+            "name": r.barangay_name,
+            "municipality_id": r.municipality_id,
+            "municipality_name": r.municipality_name,
+        }
+        for r in rows
+    ])
+
+
 @boundaries_bp.get("/barangays")
 def barangays():
     """All barangays, or just one municipality's via ?municipality_id=N."""

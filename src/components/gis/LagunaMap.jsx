@@ -56,6 +56,13 @@ export default function LagunaMap({
   const [selectedMuni, setSelectedMuni] = useState(null); // { id, name }
   const [barangayGeo, setBarangayGeo] = useState(null);
 
+  // Search: query + barangay index (names only) + a pending barangay to zoom to
+  // once its municipality's boundaries finish loading.
+  const [query, setQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [barangayIndex, setBarangayIndex] = useState([]);
+  const [pendingBarangay, setPendingBarangay] = useState(null);
+
   // Report the loaded municipality list to the parent (for the City filter),
   // via a ref so an inline callback doesn't retrigger the fetch effect.
   const muniListCbRef = useRef(onMunicipalitiesLoaded);
@@ -87,6 +94,18 @@ export default function LagunaMap({
       .catch(() => {
         /* boundaries just won't draw if the API is down */
       });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch the lightweight barangay index once (for the search box).
+  useEffect(() => {
+    let active = true;
+    boundariesApi
+      .barangayIndex()
+      .then((list) => active && setBarangayIndex(list))
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -206,6 +225,54 @@ export default function LagunaMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusMunicipalityId, muniGeo]);
 
+  // Once a searched barangay's municipality has loaded, zoom to that barangay.
+  useEffect(() => {
+    if (pendingBarangay == null || !barangayGeo) return;
+    const f = barangayGeo.features.find((x) => x.properties.barangay_id === pendingBarangay);
+    if (f) {
+      try {
+        const b = L.geoJSON(f).getBounds();
+        if (b.isValid()) mapRef.current?.fitBounds(b, { padding: [40, 40], maxZoom: 14 });
+      } catch {
+        /* ignore */
+      }
+    }
+    setPendingBarangay(null);
+  }, [barangayGeo, pendingBarangay]);
+
+  // Search matches: municipalities + barangays, capped for a tidy dropdown.
+  const q = query.trim().toLowerCase();
+  const searchResults = q
+    ? [
+        ...(muniGeo?.features ?? [])
+          .filter((f) => f.properties.name?.toLowerCase().includes(q))
+          .map((f) => ({ type: "municipality", id: f.properties.municipality_id, name: f.properties.name })),
+        ...barangayIndex
+          .filter((b) => b.name?.toLowerCase().includes(q))
+          .map((b) => ({
+            type: "barangay",
+            id: b.barangay_id,
+            name: b.name,
+            municipality_id: b.municipality_id,
+            municipality_name: b.municipality_name,
+          })),
+      ].slice(0, 8)
+    : [];
+
+  const selectResult = (r) => {
+    setQuery("");
+    setSearchOpen(false);
+    if (r.type === "municipality") {
+      focusMunicipality(r.id);
+    } else {
+      // Drill into the barangay's municipality, then zoom to the barangay.
+      if (selectedMuni?.id !== r.municipality_id) {
+        focusMunicipality(r.municipality_id);
+      }
+      setPendingBarangay(r.id);
+    }
+  };
+
   const onEachMunicipality = (feature, layer) => {
     const base = muniStyleFor(feature);
     layer.on({
@@ -252,20 +319,61 @@ export default function LagunaMap({
         )}
       </MapContainer>
 
-      {/* Search overlay */}
+      {/* Search overlay — municipalities + barangays, click a result to fly there */}
       <div className="absolute left-6 right-6 top-6 z-[500] flex justify-center pointer-events-none">
-        <div className="w-full max-w-[473px] bg-white/90 backdrop-blur-sm shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] rounded-lg pointer-events-auto">
-          <div className="relative flex items-center">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="absolute left-4 text-[#9CA3AF]">
-              <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search municipalities, crops, or indicators..."
-              className="w-full pl-11 pr-4 py-3.5 text-sm text-[#374151] bg-transparent outline-none placeholder:text-[#6B7280]"
-            />
+        <div className="w-full max-w-[473px] pointer-events-auto">
+          <div className="bg-white/95 backdrop-blur-sm shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] rounded-lg">
+            <div className="relative flex items-center">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="absolute left-4 text-[#9CA3AF]">
+                <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSearchOpen(true);
+                }}
+                onFocus={() => setSearchOpen(true)}
+                onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                placeholder="Search a municipality or barangay..."
+                className="w-full pl-11 pr-4 py-3.5 text-sm text-[#374151] bg-transparent outline-none placeholder:text-[#6B7280]"
+              />
+            </div>
           </div>
+
+          {searchOpen && q && (
+            <div className="mt-1 bg-white rounded-lg shadow-lg max-h-72 overflow-y-auto border border-[#E5E7EB]">
+              {searchResults.length ? (
+                searchResults.map((r) => (
+                  <button
+                    key={`${r.type}-${r.id}`}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()} // keep input from blurring first
+                    onClick={() => selectResult(r)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F0FDF4]"
+                  >
+                    <span
+                      className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                        r.type === "municipality" ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#EFF6FF] text-[#1D4ED8]"
+                      }`}
+                    >
+                      {r.type === "municipality" ? "City" : "Brgy"}
+                    </span>
+                    <span className="flex flex-col">
+                      <span className="text-sm text-[#191C1A]">{r.name}</span>
+                      {r.type === "barangay" && (
+                        <span className="text-xs text-[#9CA3AF]">{r.municipality_name}</span>
+                      )}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-4 py-3 text-sm text-[#9CA3AF]">No matches for “{query}”.</div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

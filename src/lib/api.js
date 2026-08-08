@@ -45,6 +45,7 @@ export const boundariesApi = {
   municipalities: () => request("/boundaries/municipalities"),
   barangays: (municipalityId) =>
     request(`/boundaries/barangays${municipalityId ? `?municipality_id=${municipalityId}` : ""}`),
+  barangayIndex: () => request("/boundaries/barangays/index"),
 };
 
 export const yieldApi = {
