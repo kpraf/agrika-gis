@@ -2,14 +2,23 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
+  Cell,
   CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
 } from "recharts";
 import DashboardSidebar from "../layout/DashboardSidebar";
+
+// Green ramp so taller bars read darker — adds a second visual cue to height.
+const REPORT_RAMP = ["#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
+function rampColor(value, min, max) {
+  if (value == null || max <= min) return REPORT_RAMP[3];
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  return REPORT_RAMP[Math.round(t * (REPORT_RAMP.length - 1))];
+}
 import { yieldApi } from "../../lib/api";
 
 function deriveStatus(yieldValue) {
@@ -438,21 +447,45 @@ export default function ReportsExport() {
                     </select>
                   </div>
                 </div>
-                <div className="w-full h-48">
+                <div className="w-full h-72">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="yieldFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#22C55E" stopOpacity={0.35} />
-                          <stop offset="100%" stopColor="#22C55E" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
+                    <BarChart
+                      data={chartData}
+                      margin={{ top: 8, right: 8, left: 6, bottom: chartData.length > 10 ? 64 : 8 }}
+                      barCategoryGap="20%"
+                    >
                       <CartesianGrid stroke="#F3F4F6" vertical={false} strokeDasharray="4 4" />
-                      <XAxis dataKey="key" tick={{ fontSize: 12, fill: "#9CA3AF" }} axisLine={{ stroke: "#F3F4F6" }} tickLine={false} />
-                      <YAxis tick={{ fontSize: 12, fill: "#9CA3AF" }} axisLine={false} tickLine={false} width={32} />
-                      <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }} />
-                      <Area type="monotone" dataKey="yield" stroke="#1F6306" strokeWidth={2.5} fill="url(#yieldFill)" />
-                    </AreaChart>
+                      <XAxis
+                        dataKey="key"
+                        tick={{ fontSize: 11, fill: "#6B7280" }}
+                        axisLine={{ stroke: "#E5E7EB" }}
+                        tickLine={false}
+                        interval={0}
+                        angle={chartData.length > 10 ? -45 : 0}
+                        textAnchor={chartData.length > 10 ? "end" : "middle"}
+                        height={chartData.length > 10 ? 70 : 30}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: "#9CA3AF" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={52}
+                        tickFormatter={(v) => `${v} mt/ha`}
+                      />
+                      <Tooltip
+                        cursor={{ fill: "#F0FDF4" }}
+                        contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}
+                        formatter={(v) => [`${v} mt/ha`, "Avg yield"]}
+                      />
+                      <Bar dataKey="yield" radius={[4, 4, 0, 0]}>
+                        {(() => {
+                          const vals = chartData.map((d) => d.yield);
+                          const lo = vals.length ? Math.min(...vals) : 0;
+                          const hi = vals.length ? Math.max(...vals) : 1;
+                          return chartData.map((d, i) => <Cell key={i} fill={rampColor(d.yield, lo, hi)} />);
+                        })()}
+                      </Bar>
+                    </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>

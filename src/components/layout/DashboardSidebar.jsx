@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -63,13 +64,21 @@ const NAV_BY_ROLE = {
 };
 
 export default function DashboardSidebar({ active }) {
-  const { role, municipality, logout } = useAuth();
+  const { role, municipality, logout, user } = useAuth();
   const navigate = useNavigate();
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const handleLogout = async () => {
+    setConfirmLogout(false);
     await logout();
     navigate("/portal-access", { replace: true });
   };
+
+  // Initials from the person's name (first + last), falling back to the username.
+  const nameParts = (user?.full_name || "").trim().split(/\s+/).filter(Boolean);
+  const initials = nameParts.length
+    ? (nameParts[0][0] + (nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : "")).toUpperCase()
+    : (user?.username?.[0]?.toUpperCase() || "?");
 
   // Admin is province-wide (no city in the path); scoped roles use their municipality slug.
   const slug = (municipality || "").toLowerCase().trim().replace(/\s+/g, "-");
@@ -89,7 +98,10 @@ export default function DashboardSidebar({ active }) {
   return (
     <aside className="flex flex-col items-center justify-between py-6 w-[70px] shrink-0 h-full bg-[#1F6306] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] z-10">
       <div className="flex flex-col items-center w-full pb-8">
-        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#D1D5DB] text-[#1F6306] font-extrabold shadow-sm">
+        <div
+          className="flex items-center justify-center w-11 h-11 rounded-xl bg-white text-[#1F6306] font-extrabold text-lg shadow-sm"
+          title="AgriKA-GIS"
+        >
           A
         </div>
       </div>
@@ -101,18 +113,57 @@ export default function DashboardSidebar({ active }) {
       </nav>
 
       <div className="flex flex-col items-center gap-6 w-full pb-4">
-        <div className="w-10 h-10 rounded-full border-2 border-white/20 shadow-sm flex items-center justify-center">
-          <span className="w-9 h-9 rounded-full bg-[#D1D5DB]" />
+        <div
+          className="w-10 h-10 rounded-full border-2 border-white/20 shadow-sm flex items-center justify-center bg-white/15 text-white text-sm font-bold"
+          title={user?.full_name || user?.username || ""}
+        >
+          {initials}
         </div>
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => setConfirmLogout(true)}
           className="flex flex-col items-center gap-1 w-10 text-white/50 hover:text-white/80"
         >
           {ICONS.logout}
           <span className="text-[10px] font-medium leading-[15px]">Exit</span>
         </button>
       </div>
+
+      {/* Logout confirmation — portaled to <body> so Leaflet's stacking contexts
+          on the map pages can't trap it behind the map. */}
+      {confirmLogout && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40"
+          onClick={() => setConfirmLogout(false)}
+        >
+          <div
+            className="w-[320px] max-w-[90vw] bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-1">
+              <h3 className="text-lg font-bold text-[#1F2937]">Log out?</h3>
+              <p className="text-sm text-[#6B7280]">Are you sure you want to log out of AgriKA-GIS?</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(false)}
+                className="px-4 py-2 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-lg bg-[#1F6306] text-sm font-semibold text-white hover:bg-[#286A11]"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </aside>
   );
 }

@@ -81,6 +81,7 @@ export default function RiceYieldAnalytics() {
   const [showAverage, setShowAverage] = useState(false);
   const [zoomEnabled, setZoomEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [level, setLevel] = useState("municipality"); // "municipality" | "barangay" (barangay pending data)
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
@@ -190,24 +191,51 @@ export default function RiceYieldAnalytics() {
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-6 md:p-10">
           <div className="flex flex-col gap-6 p-6 bg-white border border-[#F3F4F6] shadow-sm rounded-2xl">
-            {/* Season filter */}
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium text-[#374151]">Season</span>
-              <div className="flex gap-1">
-                {(meta.seasons.length ? meta.seasons : ["Dry", "Wet"]).map((opt) => (
+            {/* Level + Season filters */}
+            <div className="flex flex-wrap items-center gap-6">
+              {/* Compare level — Municipality is live; Barangay awaits barangay-level data. */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-[#374151]">Compare by</span>
+                <div className="flex p-1 gap-1 bg-[#F3F4F6] rounded-lg">
                   <button
-                    key={opt}
                     type="button"
-                    onClick={() => setSeason(opt)}
-                    className={`px-3 py-1.5 rounded-full border text-sm ${
-                      season === opt
-                        ? "bg-[#3B9E1C] border-[#3B9E1C] text-white"
-                        : "bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A]"
+                    onClick={() => setLevel("municipality")}
+                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                      level === "municipality" ? "bg-white text-[#1B3315] shadow-sm" : "text-[#4B5563]"
                     }`}
                   >
-                    {opt} Season
+                    Municipality
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    disabled
+                    title="Barangay-level yield data not available yet"
+                    className="px-3 py-1.5 rounded text-sm font-medium text-[#4B5563] opacity-40 cursor-not-allowed"
+                  >
+                    Barangay
+                  </button>
+                </div>
+                <span className="text-[11px] text-[#9CA3AF]">Barangay: needs data</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-[#374151]">Season</span>
+                <div className="flex gap-1">
+                  {(meta.seasons.length ? meta.seasons : ["Dry", "Wet"]).map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setSeason(opt)}
+                      className={`px-3 py-1.5 rounded-full border text-sm ${
+                        season === opt
+                          ? "bg-[#3B9E1C] border-[#3B9E1C] text-white"
+                          : "bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A]"
+                      }`}
+                    >
+                      {opt} Season
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -263,16 +291,16 @@ export default function RiceYieldAnalytics() {
                 <div className="w-full h-full flex items-center justify-center text-[#9CA3AF]">Loading yield series…</div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <ChartComponent data={chartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
+                  <ChartComponent data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
                     <CartesianGrid stroke="#F3F4F6" vertical={false} />
                     <XAxis dataKey="year" tick={{ fontSize: 12, fill: "#6B7280" }} axisLine={{ stroke: "#E5E7EB" }} tickLine={false} />
                     <YAxis
                       tick={{ fontSize: 12, fill: "#6B7280" }}
                       axisLine={false}
                       tickLine={false}
-                      unit=" mt/ha"
-                      width={82}
-                      domain={["dataMin - 0.5", "dataMax + 0.5"]}
+                      width={76}
+                      domain={[(min) => Math.floor((min - 0.5) * 2) / 2, (max) => Math.ceil((max + 0.5) * 2) / 2]}
+                      tickFormatter={(v) => `${Number(v).toFixed(1)} mt/ha`}
                     />
                     <Tooltip
                       contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}

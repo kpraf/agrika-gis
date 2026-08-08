@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import { usersApi } from "../../lib/api";
 
@@ -183,6 +184,7 @@ export default function UserAccessManagement() {
   const [selected, setSelected] = useState(new Set());
   const [formState, setFormState] = useState(null); // null | "new" | user object
   const [menuOpenFor, setMenuOpenFor] = useState(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -543,7 +545,15 @@ export default function UserAccessManagement() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setMenuOpenFor(menuOpenFor === u.id ? null : u.id)}
+                              onClick={(e) => {
+                                if (menuOpenFor === u.id) {
+                                  setMenuOpenFor(null);
+                                  return;
+                                }
+                                const r = e.currentTarget.getBoundingClientRect();
+                                setMenuPos({ top: r.bottom + 4, left: r.right - 176 });
+                                setMenuOpenFor(u.id);
+                              }}
                               className="p-2 rounded-lg text-[#9CA3AF] hover:bg-[#F3F4F6] hover:text-[#4B5563]"
                               aria-label={`More actions for ${displayName(u)}`}
                             >
@@ -553,22 +563,36 @@ export default function UserAccessManagement() {
                                 <circle cx="19" cy="12" r="1.5" />
                               </svg>
                             </button>
-                            {menuOpenFor === u.id && (
-                              <div className="absolute right-0 top-10 w-44 bg-white border border-[#E5E7EB] rounded-xl shadow-lg py-1 z-20">
-                                <button
-                                  onClick={() => toggleStatus(u)}
-                                  className="w-full text-left px-4 py-2 text-sm text-[#374151] hover:bg-[#F9FAFB]"
-                                >
-                                  Mark as {u.status === "Active" ? "Inactive" : "Active"}
-                                </button>
-                                <button
-                                  onClick={() => deleteUser(u)}
-                                  className="w-full text-left px-4 py-2 text-sm text-[#DC2626] hover:bg-[#FEF2F2]"
-                                >
-                                  Delete User
-                                </button>
-                              </div>
-                            )}
+                            {menuOpenFor === u.id &&
+                              createPortal(
+                                <div className="fixed inset-0 z-[9998]" onClick={() => setMenuOpenFor(null)}>
+                                  <div
+                                    className="fixed w-44 bg-white border border-[#E5E7EB] rounded-xl shadow-lg py-1 z-[9999]"
+                                    style={{ top: menuPos.top, left: menuPos.left }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      onClick={() => {
+                                        setMenuOpenFor(null);
+                                        toggleStatus(u);
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-[#374151] hover:bg-[#F9FAFB]"
+                                    >
+                                      Mark as {u.status === "Active" ? "Inactive" : "Active"}
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setMenuOpenFor(null);
+                                        deleteUser(u);
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm text-[#DC2626] hover:bg-[#FEF2F2]"
+                                    >
+                                      Delete User
+                                    </button>
+                                  </div>
+                                </div>,
+                                document.body
+                              )}
                           </div>
                         </td>
                       </tr>
