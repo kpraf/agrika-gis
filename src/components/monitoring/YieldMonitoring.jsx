@@ -151,7 +151,7 @@ export default function YieldMonitoring() {
 
         <div className="flex flex-1 min-h-0">
           {/* Left Panel — charts */}
-          <section className="w-[440px] shrink-0 h-full overflow-y-auto bg-white border-r border-[#D8DBD6] shadow-sm">
+          <section className="w-[440px] shrink-0 h-full overflow-y-auto [scrollbar-gutter:stable] bg-white border-r border-[#D8DBD6] shadow-sm">
             <div className="flex flex-col gap-6 p-6">
               <SectionHeading title="Yield Overview" />
 
