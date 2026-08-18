@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { pingHealth } from "../lib/api";
 
 const slugify = (name) => (name || "").toLowerCase().trim().replace(/\s+/g, "-");
 
@@ -18,8 +19,38 @@ export default function PortalAccess() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [server, setServer] = useState("checking"); // checking | online | waking | offline
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Poll the API health endpoint so the user can see when the (free-tier,
+  // possibly-asleep) backend is actually ready — no manual refreshing.
+  useEffect(() => {
+    let active = true;
+    let attempts = 0;
+    const poll = async () => {
+      const ok = await pingHealth();
+      if (!active) return;
+      if (ok) {
+        setServer("online");
+        return; // reachable — stop polling
+      }
+      attempts += 1;
+      setServer(attempts >= 18 ? "offline" : "waking"); // ~18 tries before giving up
+      if (active) setTimeout(poll, 4000);
+    };
+    poll();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const SERVER_UI = {
+    checking: { dot: "bg-[#9CA3AF]", text: "Checking server…", cls: "text-[#6B7280]", pulse: true },
+    waking: { dot: "bg-[#F59E0B]", text: "Server waking up, this can take up to a minute", cls: "text-[#B45309]", pulse: true },
+    online: { dot: "bg-[#16A34A]", text: "Server online, ready to sign in", cls: "text-[#15803D]", pulse: false },
+    offline: { dot: "bg-[#EF4444]", text: "Server unreachable, still retrying…", cls: "text-[#B91C1C]", pulse: true },
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -167,6 +198,17 @@ export default function PortalAccess() {
               Request Access
             </a>
           </p>
+
+          {/* Live backend status — polls until the (possibly-asleep) API is up */}
+          <div className="mt-auto pt-6 flex items-center justify-center gap-2 border-t border-[#F3F4F6]">
+            <span className="relative flex h-2.5 w-2.5">
+              {SERVER_UI[server].pulse && (
+                <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping ${SERVER_UI[server].dot}`} />
+              )}
+              <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${SERVER_UI[server].dot}`} />
+            </span>
+            <span className={`text-xs font-medium ${SERVER_UI[server].cls}`}>{SERVER_UI[server].text}</span>
+          </div>
         </div>
       </div>
     </div>

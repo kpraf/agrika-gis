@@ -8,6 +8,24 @@ export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
+/**
+ * Lightweight health check — returns true if the API answers /health OK.
+ * Deliberately bypasses request()/the slow overlay so it can be polled quietly
+ * (e.g. the login page waiting for a free-tier backend to wake up).
+ */
+export async function pingHealth(timeoutMs = 8000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE}/health`, { signal: ctrl.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // --- "server waking up" signal -----------------------------------------------
 // Free hosting (Render) sleeps the API after idle, so the first request can take
 // 30-60s. We flag any request that stays pending past a threshold so the UI can
