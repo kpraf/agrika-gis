@@ -200,7 +200,7 @@ export default function PortalAccess() {
           </p>
 
           {/* Live backend status — polls until the (possibly-asleep) API is up */}
-          <div className="mt-auto pt-6 flex items-center justify-center gap-2 border-t border-[#F3F4F6]">
+          <div className="mt-auto pt-5 flex items-center justify-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
               {SERVER_UI[server].pulse && (
                 <span className={`absolute inline-flex h-full w-full rounded-full opacity-60 animate-ping ${SERVER_UI[server].dot}`} />
