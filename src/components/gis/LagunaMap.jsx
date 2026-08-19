@@ -67,6 +67,14 @@ export default function LagunaMap({
   const [serverSlow, setServerSlow] = useState(false);
   useEffect(() => onServerSlow(setServerSlow), []);
 
+  // Keep the loading overlay up until the base tiles have actually painted, so
+  // there's no blank-grey "frozen" gap. Safety timeout in case tiles never fire.
+  const [tilesReady, setTilesReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTilesReady(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
+
   // Report the loaded municipality list to the parent (for the City filter),
   // via a ref so an inline callback doesn't retrigger the fetch effect.
   const muniListCbRef = useRef(onMunicipalitiesLoaded);
@@ -304,7 +312,12 @@ export default function LagunaMap({
         zoomControl={false}
         style={{ height: "100%", width: "100%" }}
       >
-        <TileLayer key={basemap} attribution={BASEMAPS[basemap].attribution} url={BASEMAPS[basemap].url} />
+        <TileLayer
+          key={basemap}
+          attribution={BASEMAPS[basemap].attribution}
+          url={BASEMAPS[basemap].url}
+          eventHandlers={{ load: () => setTilesReady(true) }}
+        />
         {boundariesVisible && !selectedMuni && muniGeo && (
           <GeoJSON
             key={`municipalities-${basemap}-${yieldSig}`}
@@ -323,9 +336,10 @@ export default function LagunaMap({
         )}
       </MapContainer>
 
-      {/* Loading overlay — while boundaries load, or the free-tier API is waking. */}
-      {(!muniGeo || serverSlow) && (
-        <div className="absolute inset-0 z-[650] flex items-center justify-center bg-[#E5E7EB]/70 backdrop-blur-[2px]">
+      {/* Loading overlay — until tiles paint and boundaries load, or while the
+          free-tier API is waking. Covers the blank-grey gap so it never looks frozen. */}
+      {(!tilesReady || !muniGeo || serverSlow) && (
+        <div className="absolute inset-0 z-[650] flex items-center justify-center bg-[#E5E7EB]/80 backdrop-blur-[2px]">
           <div className="flex flex-col items-center gap-3 px-8 text-center">
             <span className="relative flex h-9 w-9">
               <span className="absolute inline-flex h-full w-full rounded-full border-4 border-[#1F6306]/20" />
