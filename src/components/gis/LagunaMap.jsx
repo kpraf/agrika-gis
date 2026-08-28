@@ -12,6 +12,12 @@ const DEFAULT_ZOOM = 11;
 // perceptible even when the backend responds in a few hundred ms.
 const MIN_LOADING_MS = 550;
 
+// Drill-in fit options. `maxZoom` stops tiny municipalities (e.g. Victoria) from
+// zooming in so far that the basemap goes white/blurry while high-zoom tiles load.
+// The zoom stays animated; the loading highlight is deferred until it settles (see
+// fitAndSignal / highlightReady) so its stroke is never caught in the zoom-stretch.
+const FIT_OPTS = { padding: [24, 24], maxZoom: 13 };
+
 // Basemap options. "map" = clean light map (CARTO); "satellite" = aerial imagery (Esri).
 // CARTO raster tiles now require an API key to drop the "API key required" watermark.
 // The key is read at build time from VITE_CARTO_API_KEY (see .env / DEPLOY.md). It is
@@ -63,6 +69,8 @@ export default function LagunaMap({
   // Monotonic id of the latest drill-in, so a slower earlier fetch can't override
   // the barangays of a municipality the user has since clicked.
   const drillReqRef = useRef(0);
+  // Token for the latest fit-to-bounds, so only its "settled" signal counts.
+  const fitTokenRef = useRef(0);
   const [basemap, setBasemap] = useState("map");
   const [muniGeo, setMuniGeo] = useState(null);
   const [provinceBounds, setProvinceBounds] = useState(null);
@@ -72,6 +80,10 @@ export default function LagunaMap({
   // GeoJSON feature of the municipality being drilled into. While its barangays load,
   // its own polygon shows a steady "loading" highlight instead of blanking the map.
   const [loadingFeature, setLoadingFeature] = useState(null);
+  // True once the drill-in zoom has settled, so the highlight polygon is only drawn
+  // at its final scale — never mid-animation, where Leaflet's zoom-stretch would
+  // balloon its stroke into a thick border.
+  const [highlightReady, setHighlightReady] = useState(false);
 
   // Search: query + barangay index (names only) + a pending barangay to zoom to
   // once its municipality's boundaries finish loading.
@@ -227,19 +239,40 @@ export default function LagunaMap({
       });
   };
 
+  // Animate to `bounds`, then flag the highlight ready once the zoom settles. A
+  // timeout fallback covers the case where the view doesn't change (no moveend).
+  const fitAndSignal = (bounds) => {
+    const map = mapRef.current;
+    if (!map) {
+      setHighlightReady(true);
+      return;
+    }
+    setHighlightReady(false);
+    const token = ++fitTokenRef.current;
+    const finish = () => {
+      map.off("moveend", finish);
+      if (fitTokenRef.current === token) setHighlightReady(true);
+    };
+    map.once("moveend", finish);
+    setTimeout(finish, 800);
+    map.fitBounds(bounds, FIT_OPTS);
+  };
+
   const drillInto = (feature, layer) => {
     loadBarangays(feature.properties.municipality_id, feature.properties.name, feature);
     if (mapRef.current && layer.getBounds) {
-      mapRef.current.fitBounds(layer.getBounds(), { padding: [24, 24] });
+      fitAndSignal(layer.getBounds());
     }
   };
 
   const backToProvince = () => {
     drillReqRef.current += 1; // cancel any in-flight barangay load
+    fitTokenRef.current += 1; // invalidate any pending highlight-ready signal
     setSelectedMuni(null);
     setBarangayGeo(null);
     setBarangaysLoading(false);
     setLoadingFeature(null);
+    setHighlightReady(false);
     if (provinceBounds) {
       mapRef.current?.fitBounds(provinceBounds, { padding: [20, 20] });
     } else {
@@ -256,7 +289,7 @@ export default function LagunaMap({
     loadBarangays(id, feature.properties.name, feature);
     try {
       const b = L.geoJSON(feature).getBounds();
-      if (b.isValid()) mapRef.current?.fitBounds(b, { padding: [24, 24] });
+      if (b.isValid()) fitAndSignal(b);
     } catch {
       /* ignore */
     }
@@ -371,8 +404,9 @@ export default function LagunaMap({
           />
         )}
         {/* Steady "loading" highlight of the clicked municipality, shown only while
-            its barangays are being fetched — localized, so the map stays visible. */}
-        {selectedMuni && barangaysLoading && loadingFeature && (
+            its barangays are being fetched — and only after the drill-in zoom has
+            settled, so its stroke is never caught in the zoom-stretch. */}
+        {selectedMuni && barangaysLoading && loadingFeature && highlightReady && (
           <GeoJSON
             key={`loading-${selectedMuni.id}`}
             data={loadingFeature}
