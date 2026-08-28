@@ -70,6 +70,7 @@ creates two services: `agrika-gis-api` and `agrika-gis-web`.
 | Key | Value |
 |-----|-------|
 | `VITE_API_URL` | the API URL + `/api`, e.g. `https://agrika-gis-api.onrender.com/api` |
+| `VITE_CARTO_API_KEY` | CARTO Basemaps key — removes the "API key required" watermark on the map tiles |
 
 ### Ordering (because the two URLs reference each other)
 1. Deploy the **API** first. Copy its URL.

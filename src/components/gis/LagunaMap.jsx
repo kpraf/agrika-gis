@@ -8,10 +8,16 @@ import { boundariesApi, onServerSlow } from "../../lib/api";
 const DEFAULT_CENTER = [14.2117, 121.1653];
 const DEFAULT_ZOOM = 11;
 
-// Basemap options (both free, no API key). "map" = clean light map; "satellite" = aerial imagery.
+// Basemap options. "map" = clean light map (CARTO); "satellite" = aerial imagery (Esri).
+// CARTO raster tiles now require an API key to drop the "API key required" watermark.
+// The key is read at build time from VITE_CARTO_API_KEY (see .env / DEPLOY.md). It is
+// public by nature (sent from the browser with every tile request), so this is expected.
+const CARTO_KEY = import.meta.env.VITE_CARTO_API_KEY;
+const CARTO_KEY_PARAM = CARTO_KEY ? `?key=${CARTO_KEY}` : "";
+
 const BASEMAPS = {
   map: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    url: `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${CARTO_KEY_PARAM}`,
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
   },

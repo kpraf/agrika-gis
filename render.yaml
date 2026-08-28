@@ -39,6 +39,9 @@ services:
     envVars:
       - key: VITE_API_URL
         sync: false
+      # CARTO Basemaps API key — removes the "API key required" watermark on raster tiles.
+      - key: VITE_CARTO_API_KEY
+        sync: false
     # SPA fallback so client-side routes (/yield-map, /reports, ...) resolve.
     routes:
       - type: rewrite
