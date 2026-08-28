@@ -8,6 +8,10 @@ import { boundariesApi, onServerSlow } from "../../lib/api";
 const DEFAULT_CENTER = [14.2117, 121.1653];
 const DEFAULT_ZOOM = 11;
 
+// Minimum time the "loading barangays" highlight stays up, so it's always
+// perceptible even when the backend responds in a few hundred ms.
+const MIN_LOADING_MS = 550;
+
 // Basemap options. "map" = clean light map (CARTO); "satellite" = aerial imagery (Esri).
 // CARTO raster tiles now require an API key to drop the "API key required" watermark.
 // The key is read at build time from VITE_CARTO_API_KEY (see .env / DEPLOY.md). It is
@@ -56,6 +60,9 @@ export default function LagunaMap({
   yieldKey = "", // changes (e.g. "2024-Dry") force the choropleth to restyle
 }) {
   const mapRef = useRef(null);
+  // Monotonic id of the latest drill-in, so a slower earlier fetch can't override
+  // the barangays of a municipality the user has since clicked.
+  const drillReqRef = useRef(0);
   const [basemap, setBasemap] = useState("map");
   const [muniGeo, setMuniGeo] = useState(null);
   const [provinceBounds, setProvinceBounds] = useState(null);
@@ -194,22 +201,41 @@ export default function LagunaMap({
     return `${name}: ${rec.yield} mt/ha${rec.is_proxy ? " (est.)" : ""}`;
   };
 
-  const drillInto = (feature, layer) => {
-    setSelectedMuni({ id: feature.properties.municipality_id, name: feature.properties.name });
+  // Select a municipality and load its barangays, keeping the "loading" highlight up
+  // for at least MIN_LOADING_MS so the municipality -> loading -> barangays sequence
+  // is always visible (even on a fast backend). Stale fetches are ignored.
+  const loadBarangays = (id, name, feature) => {
+    setSelectedMuni({ id, name });
     setBarangayGeo(null);
     setBarangaysLoading(true);
     setLoadingFeature(feature);
+    const reqId = ++drillReqRef.current;
+    const startedAt = performance.now();
     boundariesApi
-      .barangays(feature.properties.municipality_id)
-      .then((fc) => setBarangayGeo(fc))
-      .catch(() => {})
-      .finally(() => setBarangaysLoading(false));
+      .barangays(id)
+      .then((fc) => {
+        if (drillReqRef.current !== reqId) return; // superseded by a newer click
+        const wait = Math.max(0, MIN_LOADING_MS - (performance.now() - startedAt));
+        setTimeout(() => {
+          if (drillReqRef.current !== reqId) return;
+          setBarangayGeo(fc);
+          setBarangaysLoading(false);
+        }, wait);
+      })
+      .catch(() => {
+        if (drillReqRef.current === reqId) setBarangaysLoading(false);
+      });
+  };
+
+  const drillInto = (feature, layer) => {
+    loadBarangays(feature.properties.municipality_id, feature.properties.name, feature);
     if (mapRef.current && layer.getBounds) {
       mapRef.current.fitBounds(layer.getBounds(), { padding: [24, 24] });
     }
   };
 
   const backToProvince = () => {
+    drillReqRef.current += 1; // cancel any in-flight barangay load
     setSelectedMuni(null);
     setBarangayGeo(null);
     setBarangaysLoading(false);
@@ -227,15 +253,7 @@ export default function LagunaMap({
     if (!muniGeo) return;
     const feature = muniGeo.features.find((f) => f.properties.municipality_id === id);
     if (!feature) return;
-    setSelectedMuni({ id, name: feature.properties.name });
-    setBarangayGeo(null);
-    setBarangaysLoading(true);
-    setLoadingFeature(feature);
-    boundariesApi
-      .barangays(id)
-      .then((fc) => setBarangayGeo(fc))
-      .catch(() => {})
-      .finally(() => setBarangaysLoading(false));
+    loadBarangays(id, feature.properties.name, feature);
     try {
       const b = L.geoJSON(feature).getBounds();
       if (b.isValid()) mapRef.current?.fitBounds(b, { padding: [24, 24] });
@@ -390,6 +408,20 @@ export default function LagunaMap({
                 </p>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barangay loading indicator — a spinner + label centered over the map. Since
+          drilling in fits the map to the clicked municipality, this sits on that
+          municipality (whose polygon is highlighted underneath). Non-blocking. */}
+      {selectedMuni && barangaysLoading && (
+        <div className="absolute inset-0 z-[600] flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-2.5 rounded-full bg-white/95 px-4 py-2.5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1)] backdrop-blur-sm">
+            <span className="inline-flex h-4 w-4 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
+            <span className="text-sm font-medium text-[#374151] whitespace-nowrap">
+              Loading barangays…
+            </span>
           </div>
         </div>
       )}
