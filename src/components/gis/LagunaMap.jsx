@@ -61,6 +61,10 @@ export default function LagunaMap({
   const [provinceBounds, setProvinceBounds] = useState(null);
   const [selectedMuni, setSelectedMuni] = useState(null); // { id, name }
   const [barangayGeo, setBarangayGeo] = useState(null);
+  const [barangaysLoading, setBarangaysLoading] = useState(false);
+  // GeoJSON feature of the municipality being drilled into. While its barangays load,
+  // its own polygon shows a steady "loading" highlight instead of blanking the map.
+  const [loadingFeature, setLoadingFeature] = useState(null);
 
   // Search: query + barangay index (names only) + a pending barangay to zoom to
   // once its municipality's boundaries finish loading.
@@ -193,10 +197,13 @@ export default function LagunaMap({
   const drillInto = (feature, layer) => {
     setSelectedMuni({ id: feature.properties.municipality_id, name: feature.properties.name });
     setBarangayGeo(null);
+    setBarangaysLoading(true);
+    setLoadingFeature(feature);
     boundariesApi
       .barangays(feature.properties.municipality_id)
       .then((fc) => setBarangayGeo(fc))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setBarangaysLoading(false));
     if (mapRef.current && layer.getBounds) {
       mapRef.current.fitBounds(layer.getBounds(), { padding: [24, 24] });
     }
@@ -205,6 +212,8 @@ export default function LagunaMap({
   const backToProvince = () => {
     setSelectedMuni(null);
     setBarangayGeo(null);
+    setBarangaysLoading(false);
+    setLoadingFeature(null);
     if (provinceBounds) {
       mapRef.current?.fitBounds(provinceBounds, { padding: [20, 20] });
     } else {
@@ -220,10 +229,13 @@ export default function LagunaMap({
     if (!feature) return;
     setSelectedMuni({ id, name: feature.properties.name });
     setBarangayGeo(null);
+    setBarangaysLoading(true);
+    setLoadingFeature(feature);
     boundariesApi
       .barangays(id)
       .then((fc) => setBarangayGeo(fc))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setBarangaysLoading(false));
     try {
       const b = L.geoJSON(feature).getBounds();
       if (b.isValid()) mapRef.current?.fitBounds(b, { padding: [24, 24] });
@@ -340,11 +352,28 @@ export default function LagunaMap({
             onEachFeature={onEachBarangay}
           />
         )}
+        {/* Steady "loading" highlight of the clicked municipality, shown only while
+            its barangays are being fetched — localized, so the map stays visible. */}
+        {selectedMuni && barangaysLoading && loadingFeature && (
+          <GeoJSON
+            key={`loading-${selectedMuni.id}`}
+            data={loadingFeature}
+            interactive={false}
+            style={{
+              color: sat ? "#FDE047" : "#1F6306",
+              weight: 2.5,
+              fillColor: sat ? "#FACC15" : "#3B9E1C",
+              fillOpacity: 0.35,
+            }}
+          />
+        )}
       </MapContainer>
 
-      {/* Loading overlay — until tiles paint and boundaries load, or while the
-          free-tier API is waking. Covers the blank-grey gap so it never looks frozen. */}
-      {(!tilesReady || !muniGeo || serverSlow) && (
+      {/* Full-screen loading overlay — ONLY for the initial map/province load
+          (blank tiles, or the API waking up before the province is drawn). Once a
+          municipality is selected, a slow barangay fetch shows the localized highlight
+          on that municipality instead, so drilling in never blanks the whole map. */}
+      {(!tilesReady || !muniGeo || (serverSlow && !selectedMuni)) && (
         <div className="absolute inset-0 z-[650] flex items-center justify-center bg-[#E5E7EB]/80 backdrop-blur-[2px]">
           <div className="flex flex-col items-center gap-3 px-8 text-center">
             <span className="relative flex h-9 w-9">
