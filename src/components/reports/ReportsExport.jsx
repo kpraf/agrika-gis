@@ -347,7 +347,7 @@ export default function ReportsExport() {
             />
             <StatCard
               label="Highest Yield"
-              value={stats.highest ? `${stats.highest.yield.toFixed(1)} MT/ha` : "—"}
+              value={stats.highest ? `${stats.highest.yield.toFixed(1)} MT/ha` : "N/A"}
               caption={stats.highest?.municipality || "No data"}
               captionColor="text-[#9CA3AF]"
               iconBg="bg-[#F0FDF4]"
@@ -355,7 +355,7 @@ export default function ReportsExport() {
             />
             <StatCard
               label="Lowest Yield"
-              value={stats.lowest ? `${stats.lowest.yield.toFixed(1)} MT/ha` : "—"}
+              value={stats.lowest ? `${stats.lowest.yield.toFixed(1)} MT/ha` : "N/A"}
               caption={stats.lowest?.municipality || "No data"}
               captionColor="text-[#9CA3AF]"
               iconBg="bg-[#FFF7ED]"

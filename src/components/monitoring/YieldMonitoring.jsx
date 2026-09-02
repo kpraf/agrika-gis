@@ -196,9 +196,9 @@ export default function YieldMonitoring() {
               {/* Stat cards */}
               {stats && (
                 <div className="grid grid-cols-3 gap-3">
-                  <StatCard label="Average" value={stats.avg ?? "—"} unit="mt/ha" />
-                  <StatCard label="Highest" value={stats.max ?? "—"} unit="mt/ha" />
-                  <StatCard label="Lowest" value={stats.min ?? "—"} unit="mt/ha" />
+                  <StatCard label="Average" value={stats.avg ?? "N/A"} unit="mt/ha" />
+                  <StatCard label="Highest" value={stats.max ?? "N/A"} unit="mt/ha" />
+                  <StatCard label="Lowest" value={stats.min ?? "N/A"} unit="mt/ha" />
                 </div>
               )}
 

@@ -492,7 +492,7 @@ export default function SpatialGIS() {
               </Card>
 
               {/* Rice yield — real observed data (mt/ha) for the current filters */}
-              <Card title={`Rice Yield — ${season ?? ""} ${year ?? ""}`.trim()}>
+              <Card title={`Rice Yield: ${season ?? ""} ${year ?? ""}`.trim()}>
                 {yieldLoading ? (
                   <p className="text-sm text-[#6B7280]">Loading yield…</p>
                 ) : selection?.level === "municipality" ? (
@@ -504,7 +504,7 @@ export default function SpatialGIS() {
                       </span>
                       <span className="text-sm text-[#434840]">
                         Observed average yield for {selection.name}.
-                        {selectedYield.is_proxy && " (Estimated — source proxy value.)"}
+                        {selectedYield.is_proxy && " (Estimated, source proxy value.)"}
                       </span>
                       {barangayHeatmapOn && barangayResp?.stats?.count > 0 && (
                         <div className="mt-1 flex items-start gap-2 rounded-lg bg-[#FEF3C7] border border-[#FDE68A] px-3 py-2">
@@ -564,7 +564,7 @@ export default function SpatialGIS() {
                         <div className="flex flex-col">
                           <span className="text-xs text-[#6B7280]">Observed</span>
                           <span className="text-2xl font-bold text-[#1B3315]">
-                            {selectedCompare.observed ?? "—"}
+                            {selectedCompare.observed ?? "N/A"}
                           </span>
                         </div>
                       </div>

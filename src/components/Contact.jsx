@@ -89,7 +89,7 @@ export default function Contact() {
 
             {submitted ? (
               <div className="flex flex-col gap-3 p-6 bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl">
-                <h3 className="text-lg font-bold text-[#15803D]">Thanks — your message is queued.</h3>
+                <h3 className="text-lg font-bold text-[#15803D]">Thanks, your message is queued.</h3>
                 <p className="text-sm text-[#374151]">
                   There's no backend wired up yet to actually deliver this, but your inquiry passed validation and
                   would be sent to the AgriKA-GIS team once the contact endpoint is live.

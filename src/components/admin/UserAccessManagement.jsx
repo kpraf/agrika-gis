@@ -9,7 +9,7 @@ const ROLE_META = {
   rice_technician: { label: "Rice Technician", scope: "Field Operations" },
 };
 
-const roleLabel = (role) => ROLE_META[role]?.label || role || "—";
+const roleLabel = (role) => ROLE_META[role]?.label || role || "N/A";
 const roleScope = (role) => ROLE_META[role]?.scope || "";
 
 const BADGE_COLORS = [

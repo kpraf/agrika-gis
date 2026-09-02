@@ -48,7 +48,7 @@ function RequireRole({ allowedRoles, children }) {
 // Municipality-scoped dashboard wrapper (Agriculturist / Rice Technician only see their own city)
 function MunicipalityDashboard({ moduleTitle }) {
   const { city } = useParams();
-  return <Placeholder title={`${moduleTitle} — ${city}`} />;
+  return <Placeholder title={`${moduleTitle}: ${city}`} />;
 }
 
 export default function App() {

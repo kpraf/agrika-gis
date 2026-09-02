@@ -66,12 +66,12 @@ export default function About() {
                 absence of scalable, data-driven tools for rice yield prediction at the local government level.
                 Through years of research collaboration with PhilRice and city agriculturists across Laguna, our
                 team developed and validated an optimized CNN-LSTM model capable of forecasting rice yields using
-                only satellite imagery and publicly available weather data — significantly reducing the need for
+                only satellite imagery and publicly available weather data, significantly reducing the need for
                 costly, labor-intensive field surveys.
               </p>
               <p className="text-lg leading-7 text-[#666666]">
                 The result is a platform that translates complex deep learning outputs into clear, spatially
-                referenced maps and dashboards that any agriculturist can use — no technical background required.
+                referenced maps and dashboards that any agriculturist can use, no technical background required.
               </p>
             </div>
           </div>

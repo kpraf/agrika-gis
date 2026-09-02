@@ -129,7 +129,7 @@ export default function Home() {
           <div className="flex flex-col gap-8">
             <p className="text-base leading-6 text-[#4B5563]">
               Traditional yield estimation is slow, labor-intensive, and often inaccurate. AgriKA-GIS automates
-              the entire pipeline — from satellite data collection to real-time prediction — so decision-makers
+              the entire pipeline, from satellite data collection to real-time prediction, so decision-makers
               always have the insights they need, when they need them.
             </p>
             <div className="flex flex-col">

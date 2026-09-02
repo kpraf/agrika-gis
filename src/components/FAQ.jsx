@@ -18,7 +18,7 @@ const FAQS = [
   },
   {
     q: "What kind of data does the system display?",
-    a: "The platform displays real-time and historical yield estimates, land use and boundary layers, weather and vegetation indicators, municipality comparisons, and downloadable reports — all mapped spatially across Laguna's municipalities.",
+    a: "The platform displays real-time and historical yield estimates, land use and boundary layers, weather and vegetation indicators, municipality comparisons, and downloadable reports, all mapped spatially across Laguna's municipalities.",
   },
   {
     q: "Does the system use real-time satellite imagery?",
@@ -26,7 +26,7 @@ const FAQS = [
   },
   {
     q: "Can users compare rice productivity between cities or municipalities?",
-    a: "Yes — the Rice Yield Analytics & Comparison module lets agriculturists and administrators compare yield trends across multiple municipalities side by side, filtered by season and growth stage.",
+    a: "Yes, the Rice Yield Analytics & Comparison module lets agriculturists and administrators compare yield trends across multiple municipalities side by side, filtered by season and growth stage.",
   },
   {
     q: "How accurate are the predictions?",
@@ -42,7 +42,7 @@ const FAQS = [
   },
   {
     q: "What is the main goal of AgriKA-GIS?",
-    a: "To give Laguna's local government units and agriculturists a scalable, data-driven way to forecast rice yields and monitor agricultural conditions — reducing reliance on costly, labor-intensive manual field surveys.",
+    a: "To give Laguna's local government units and agriculturists a scalable, data-driven way to forecast rice yields and monitor agricultural conditions, reducing reliance on costly, labor-intensive manual field surveys.",
   },
 ];
 

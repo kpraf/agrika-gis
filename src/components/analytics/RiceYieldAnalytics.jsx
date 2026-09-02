@@ -304,7 +304,7 @@ export default function RiceYieldAnalytics() {
                     />
                     <Tooltip
                       contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}
-                      formatter={(v) => (v == null ? "—" : `${v} mt/ha`)}
+                      formatter={(v) => (v == null ? "N/A" : `${v} mt/ha`)}
                     />
                     <Legend wrapperStyle={{ fontSize: 13 }} />
                     {selectedMunis.map((m) =>
@@ -371,7 +371,7 @@ export default function RiceYieldAnalytics() {
                         <td className="px-4 py-2 text-right font-semibold text-[#1B3315]">{avg}</td>
                         <td className="px-4 py-2 text-right text-[#6B7280]">{Math.min(...vals).toFixed(3)}</td>
                         <td className="px-4 py-2 text-right text-[#6B7280]">{Math.max(...vals).toFixed(3)}</td>
-                        <td className="px-4 py-2 text-right text-[#374151]">{latest != null ? latest : "—"}</td>
+                        <td className="px-4 py-2 text-right text-[#374151]">{latest != null ? latest : "N/A"}</td>
                       </tr>
                     );
                   })}
