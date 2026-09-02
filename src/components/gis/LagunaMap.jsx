@@ -63,7 +63,10 @@ export default function LagunaMap({
   heatmap = false,
   yieldByMuni = null, // { [municipality_id]: { yield, is_proxy } }
   colorScale = null, // { min, max }
+  yieldByBarangay = null, // { [barangay_id]: { yield } } — SYNTHETIC sample data
+  barangayColorScale = null, // { min, max } local to the drilled-in municipality
   yieldKey = "", // changes (e.g. "2024-Dry") force the choropleth to restyle
+  barangayKey = "", // changes force the barangay choropleth to restyle
 }) {
   const mapRef = useRef(null);
   // Monotonic id of the latest drill-in, so a slower earlier fetch can't override
@@ -180,6 +183,31 @@ export default function LagunaMap({
   const brgyStyle = sat
     ? { color: "#FDE047", weight: 1.2, fillColor: "#FDE047", fillOpacity: 0 }
     : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
+
+  // Synthetic per-barangay choropleth: colour each barangay by its (sample) yield
+  // on a local scale, grey where there's no value. Falls back to the flat outline
+  // style when no barangay data is provided.
+  const brgyHeatmapActive = !!yieldByBarangay && !!barangayColorScale;
+  const brgyStyleFor = (feature) => {
+    if (!brgyHeatmapActive) return brgyStyle;
+    const rec = yieldByBarangay[feature.properties.barangay_id];
+    if (!rec || rec.yield == null) {
+      return { color: sat ? "#FFFFFF" : "#9CA3AF", weight: 0.8, fillColor: "#D1D5DB", fillOpacity: sat ? 0.3 : 0.45 };
+    }
+    return {
+      color: sat ? "#FFFFFF" : "#0E2207",
+      weight: 0.8,
+      fillColor: yieldColor(rec.yield, barangayColorScale.min, barangayColorScale.max),
+      fillOpacity: sat ? 0.6 : 0.8,
+    };
+  };
+  const brgyTooltip = (feature) => {
+    const name = feature.properties?.name ?? "";
+    if (!brgyHeatmapActive) return name;
+    const rec = yieldByBarangay[feature.properties.barangay_id];
+    if (!rec || rec.yield == null) return `${name}: no data`;
+    return `${name}: ${rec.yield} mt/ha (sample)`;
+  };
 
   // react-leaflet applies `style`/`onEachFeature` (incl. bound tooltips) only at
   // mount, so the layer must remount whenever the yield data itself changes —
@@ -365,11 +393,12 @@ export default function LagunaMap({
   };
 
   const onEachBarangay = (feature, layer) => {
+    const base = brgyStyleFor(feature);
     layer.on({
-      mouseover: () => layer.setStyle({ weight: brgyStyle.weight + 1, fillOpacity: brgyStyle.fillOpacity + 0.24 }),
-      mouseout: () => layer.setStyle(brgyStyle),
+      mouseover: () => layer.setStyle({ weight: base.weight + 1, fillOpacity: Math.min(1, base.fillOpacity + 0.24) }),
+      mouseout: () => layer.setStyle(base),
     });
-    if (feature.properties?.name) layer.bindTooltip(feature.properties.name, { sticky: true });
+    layer.bindTooltip(brgyTooltip(feature), { sticky: true });
   };
 
   return (
@@ -397,9 +426,9 @@ export default function LagunaMap({
         )}
         {boundariesVisible && selectedMuni && barangayGeo && (
           <GeoJSON
-            key={`barangays-${selectedMuni.id}-${basemap}`}
+            key={`barangays-${selectedMuni.id}-${basemap}-${barangayKey}`}
             data={barangayGeo}
-            style={brgyStyle}
+            style={brgyStyleFor}
             onEachFeature={onEachBarangay}
           />
         )}

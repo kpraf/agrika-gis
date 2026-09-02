@@ -5,12 +5,17 @@ Backed by municipality_yield_records (real PRiSM/Ricelytics data, mt/ha),
 joined to seasons (season_type + year) and municipalities. No auth required:
 the public yield map consumes these.
 """
+import random
+
 from flask import Blueprint, jsonify, request
 from sqlalchemy import text
 
 from extensions import db
 
 yields_bp = Blueprint("yields", __name__, url_prefix="/api/yield")
+
+# Spread of the synthetic barangay yields around their municipality's real value.
+SYNTH_BARANGAY_SPREAD = 0.12  # +/- 12%
 
 
 @yields_bp.get("/meta")
@@ -86,6 +91,89 @@ def municipalities():
     }
 
     return jsonify({"year": year, "season": season, "stats": stats, "records": records})
+
+
+@yields_bp.get("/barangays")
+def barangays_yield():
+    """SYNTHETIC per-barangay observed yield for a municipality + year + season.
+
+    We have no real barangay-level yield data (the real PRiSM/Ricelytics data is
+    municipality-level only). To make the drill-in view meaningful, this derives a
+    placeholder value per barangay by jittering the municipality's REAL observed
+    yield by +/- SYNTH_BARANGAY_SPREAD. Values are deterministic (seeded by
+    barangay_id + year + season) so they don't flicker between requests.
+
+    The response is flagged `synthetic: true`; the UI must label it as sample data.
+    Nothing is persisted — remove this endpoint (and its caller) to drop the
+    placeholder entirely once real barangay data exists.
+
+    Query params: municipality_id (int), year (int), season (str) — all required.
+
+    Barangays are returned only when the municipality has a real observed value for
+    that year+season; otherwise `records` is empty (the UI greys those barangays).
+    """
+    mid = request.args.get("municipality_id", type=int)
+    year = request.args.get("year", type=int)
+    season = request.args.get("season", type=str)
+    if not mid or not year or not season:
+        return jsonify({"error": "municipality_id, year and season are required"}), 400
+
+    base_row = db.session.execute(
+        text(
+            "SELECT r.observed_yield FROM municipality_yield_records r "
+            "JOIN seasons s ON s.season_id = r.season_id "
+            "WHERE r.municipality_id = :m AND s.year = :y AND s.season_type = :sea"
+        ),
+        {"m": mid, "y": year, "sea": season},
+    ).first()
+
+    if base_row is None:
+        return jsonify({
+            "synthetic": True,
+            "municipality_id": mid,
+            "year": year,
+            "season": season,
+            "base": None,
+            "stats": {"count": 0, "min": None, "max": None, "avg": None},
+            "records": [],
+        })
+
+    base = base_row.observed_yield
+    brgys = db.session.execute(
+        text(
+            "SELECT barangay_id, barangay_name FROM barangays "
+            "WHERE municipality_id = :m ORDER BY barangay_name"
+        ),
+        {"m": mid},
+    ).all()
+
+    records = []
+    for b in brgys:
+        rnd = random.Random(f"{b.barangay_id}-{year}-{season}")
+        jitter = rnd.uniform(-SYNTH_BARANGAY_SPREAD, SYNTH_BARANGAY_SPREAD)
+        value = max(0.0, base * (1 + jitter))
+        records.append({
+            "barangay_id": b.barangay_id,
+            "name": b.barangay_name,
+            "yield": round(value, 3),
+        })
+
+    values = [r["yield"] for r in records]
+    stats = {
+        "count": len(values),
+        "min": round(min(values), 3) if values else None,
+        "max": round(max(values), 3) if values else None,
+        "avg": round(sum(values) / len(values), 3) if values else None,
+    }
+    return jsonify({
+        "synthetic": True,
+        "municipality_id": mid,
+        "year": year,
+        "season": season,
+        "base": round(base, 3),
+        "stats": stats,
+        "records": records,
+    })
 
 
 @yields_bp.get("/records")

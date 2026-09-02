@@ -65,6 +65,8 @@ export default function SpatialGIS() {
   const [year, setYear] = useState(null);
   const [yieldResp, setYieldResp] = useState(null); // { stats, records }
   const [yieldLoading, setYieldLoading] = useState(false);
+  // SYNTHETIC per-barangay yields for the drilled-in municipality (sample data).
+  const [barangayResp, setBarangayResp] = useState(null); // { synthetic, stats, records }
 
   // CNN-LSTM predictions overlay (empty until model output is loaded).
   const [dataSource, setDataSource] = useState("observed"); // "observed" | "predicted"
@@ -106,6 +108,23 @@ export default function SpatialGIS() {
     };
   }, [year, season]);
 
+  // Fetch synthetic per-barangay yields when a municipality is drilled into.
+  // Cleared when back at the province view.
+  useEffect(() => {
+    if (!activeCityId || !year || !season) {
+      setBarangayResp(null);
+      return;
+    }
+    let active = true;
+    yieldApi
+      .barangays(activeCityId, year, season)
+      .then((resp) => active && setBarangayResp(resp))
+      .catch(() => active && setBarangayResp(null));
+    return () => {
+      active = false;
+    };
+  }, [activeCityId, year, season]);
+
   // Are there any CNN-LSTM predictions loaded at all? (gates the Predicted view)
   useEffect(() => {
     yieldApi.predictionsMeta().then(setPredMeta).catch(() => {});
@@ -144,6 +163,21 @@ export default function SpatialGIS() {
     return vals.length ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
   }, [predByMuni]);
 
+  // Synthetic barangay yields shaped for the map, with a per-municipality colour
+  // scale (local min/max) so intra-municipality variation is visible on drill-in.
+  const yieldByBarangay = useMemo(() => {
+    const out = {};
+    for (const r of barangayResp?.records ?? []) out[r.barangay_id] = { yield: r.yield };
+    return out;
+  }, [barangayResp]);
+  const barangayScale = useMemo(
+    () =>
+      barangayResp?.stats?.min != null
+        ? { min: barangayResp.stats.min, max: barangayResp.stats.max }
+        : null,
+    [barangayResp]
+  );
+
   const showingPredicted = dataSource === "predicted" && predMeta.has_predictions;
   const mapYieldByMuni = showingPredicted ? predByMuni : yieldByMuni;
   const mapColorScale = showingPredicted
@@ -153,6 +187,9 @@ export default function SpatialGIS() {
     : null;
   const heatmapOn =
     viewType === "heatmap" && layers.boundaries && (showingPredicted ? !!predScale : !!yieldResp);
+  // Barangay choropleth (synthetic) only in the observed heatmap view.
+  const barangayHeatmapOn = heatmapOn && !showingPredicted && !!barangayScale;
+  const mapYieldByBarangay = barangayHeatmapOn ? yieldByBarangay : null;
   const selectedYield = selection?.level === "municipality" ? yieldByMuni[selection.id] : null;
   const selectedCompare =
     selection?.level === "municipality"
@@ -400,7 +437,10 @@ export default function SpatialGIS() {
             heatmap={heatmapOn}
             yieldByMuni={mapYieldByMuni}
             colorScale={mapColorScale}
+            yieldByBarangay={mapYieldByBarangay}
+            barangayColorScale={barangayScale}
             yieldKey={`${showingPredicted ? "pred" : "obs"}-${year}-${season}`}
+            barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayResp?.stats?.count ?? 0}`}
           />
 
           {/* Right Panel — Context */}
@@ -466,6 +506,17 @@ export default function SpatialGIS() {
                         Observed average yield for {selection.name}.
                         {selectedYield.is_proxy && " (Estimated — source proxy value.)"}
                       </span>
+                      {barangayHeatmapOn && barangayResp?.stats?.count > 0 && (
+                        <div className="mt-1 flex items-start gap-2 rounded-lg bg-[#FEF3C7] border border-[#FDE68A] px-3 py-2">
+                          <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-[#F59E0B] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Sample
+                          </span>
+                          <span className="text-xs leading-4 text-[#92400E]">
+                            The per-barangay colours are <b>sample data</b>, estimated from this
+                            municipality's yield (not measured). Only the municipality value above is real.
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-[#6B7280]">
