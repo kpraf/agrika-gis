@@ -55,6 +55,16 @@ function yieldColor(value, min, max) {
   return YIELD_RAMP[Math.round(t * (YIELD_RAMP.length - 1))];
 }
 
+// Diverging ramp for residuals (observed - predicted): over-prediction (negative)
+// -> red, near-zero -> neutral, under-prediction (positive) -> blue.
+const RESIDUAL_RAMP = ["#B2182B", "#EF8A62", "#FDDBC7", "#F7F7F7", "#D1E5F0", "#67A9CF", "#2166AC"];
+
+function residualColor(value, absMax) {
+  if (value == null || !absMax) return RESIDUAL_RAMP[3];
+  const t = Math.max(-1, Math.min(1, value / absMax)); // [-1, 1]
+  return RESIDUAL_RAMP[Math.round(((t + 1) / 2) * (RESIDUAL_RAMP.length - 1))];
+}
+
 export default function LagunaMap({
   boundariesVisible = true,
   onSelectionChange,
@@ -63,6 +73,7 @@ export default function LagunaMap({
   heatmap = false,
   yieldByMuni = null, // { [municipality_id]: { yield, is_proxy } }
   colorScale = null, // { min, max }
+  colorMode = "yield", // "yield" (sequential) | "residual" (diverging, symmetric scale)
   yieldByBarangay = null, // { [barangay_id]: { yield } } — SYNTHETIC sample data
   barangayColorScale = null, // { min, max } local to the drilled-in municipality
   yieldKey = "", // changes (e.g. "2024-Dry") force the choropleth to restyle
@@ -228,7 +239,10 @@ export default function LagunaMap({
     return {
       color: sat ? "#FFFFFF" : "#0E2207",
       weight: 1,
-      fillColor: yieldColor(rec.yield, colorScale?.min, colorScale?.max),
+      fillColor:
+        colorMode === "residual"
+          ? residualColor(rec.yield, colorScale?.max)
+          : yieldColor(rec.yield, colorScale?.min, colorScale?.max),
       fillOpacity: sat ? 0.6 : 0.85,
     };
   };
@@ -238,6 +252,8 @@ export default function LagunaMap({
     if (!heatmapActive) return name;
     const rec = yieldByMuni[feature.properties.municipality_id];
     if (!rec || rec.yield == null) return `${name}: no data`;
+    if (colorMode === "residual")
+      return `${name}: residual ${rec.yield > 0 ? "+" : ""}${rec.yield} mt/ha`;
     return `${name}: ${rec.yield} mt/ha${rec.is_proxy ? " (est.)" : ""}`;
   };
 
@@ -565,15 +581,21 @@ export default function LagunaMap({
       {heatmapActive && !selectedMuni && colorScale?.min != null && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-6 z-[500] bg-white/95 backdrop-blur-sm shadow-md rounded-lg px-5 py-3">
           <div className="flex items-center gap-4">
-            <span className="text-sm font-semibold text-[#374151] whitespace-nowrap">Avg yield (mt/ha)</span>
+            <span className="text-sm font-semibold text-[#374151] whitespace-nowrap">
+              {colorMode === "residual" ? "Residual (obs − pred), mt/ha" : "Avg yield (mt/ha)"}
+            </span>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-[#6B7280]">{colorScale.min}</span>
+              <span className="text-xs text-[#6B7280]">
+                {colorMode === "residual" ? "over-predicts" : colorScale.min}
+              </span>
               <div className="flex h-3.5 w-52 rounded-full overflow-hidden">
-                {YIELD_RAMP.map((c) => (
+                {(colorMode === "residual" ? RESIDUAL_RAMP : YIELD_RAMP).map((c) => (
                   <span key={c} className="flex-1" style={{ background: c }} />
                 ))}
               </div>
-              <span className="text-xs text-[#6B7280]">{colorScale.max}</span>
+              <span className="text-xs text-[#6B7280]">
+                {colorMode === "residual" ? "under-predicts" : colorScale.max}
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-[#D1D5DB]" />
