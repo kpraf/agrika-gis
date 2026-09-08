@@ -18,18 +18,27 @@ difference is Sentinel-1's contribution.
 Two documented adaptations to our 6-step sequences: pooling omitted (would collapse
 the temporal axis), and recurrent dropout approximated (PyTorch cuDNN LSTM limitation).
 
-## Results
+## Features (current)
+
+Meteorological (rainfall, temperature, **humidity**) + Sentinel-2 **NDVI** in both
+models; the enhanced model adds Sentinel-1 **VV/VH**. EVI and NDWI are implemented
+in the fetch but **deferred** — the full 30-municipality re-fetch is blocked by the
+CDSE processing-unit quota (only 10 cities, incl. the 4 target cities, have them).
+Add once the quota resets.
+
+## Results (with humidity)
 
 ### Models compared
 
 | Model | Features | RMSE | MAE | R² |
 |---|---|---|---|---|
 | RandomForest baseline | S2+S1 | 0.486 | 0.387 | **0.202** |
-| CNN-LSTM Original | S2 only (rain, temp, ndvi) | 0.564 | 0.450 | −0.065 |
-| **CNN-LSTM Enhanced** | **S2 + S1 (+ vv, vh)** | **0.523** | **0.418** | **0.085** |
+| CNN-LSTM Original | rain, temp, humid, ndvi (S2) | 0.526 | 0.421 | 0.075 |
+| **CNN-LSTM Enhanced** | **+ vv, vh (S2+S1)** | **0.503** | **0.395** | **0.152** |
 
-Adding Sentinel-1 improved the CNN-LSTM on every metric. Note the deep model still
-trails the simple RandomForest baseline (R² 0.20) — expected on 462 samples.
+Adding **humidity** lifted both models markedly (enhanced R² 0.085 → 0.152 vs the
+earlier rain/temp/NDVI-only run). Adding Sentinel-1 improves on every metric on top
+of that. The enhanced CNN-LSTM (0.152) now approaches the RandomForest floor (0.20).
 
 ### Paired significance test (Objective 1)
 
@@ -39,24 +48,26 @@ Paired on identical test observations; diff = |err_original| − |err_enhanced|
 | Statistic | Value |
 |---|---|
 | Paired samples | 462 |
-| Mean abs error, Original | 0.4502 t/ha |
-| Mean abs error, Enhanced | 0.4176 t/ha |
-| Mean improvement | +0.0326 t/ha (−7.2% error) |
-| Samples enhanced better | 248/462 (53.7%) |
-| Shapiro–Wilk (normality of diffs) | W=0.994, p=0.087 → normal |
-| **Paired t-test (primary)** | **t=3.00, p=0.0028** ✅ |
-| Wilcoxon signed-rank (corroborating) | W=46290, p=0.012 ✅ |
-| Effect size (Cohen's d, paired) | 0.14 (small) |
+| Mean abs error, Original | 0.4205 t/ha |
+| Mean abs error, Enhanced | 0.3950 t/ha |
+| Mean improvement | +0.0255 t/ha (−6.1% error) |
+| Samples enhanced better | 254/462 (55.0%) |
+| Shapiro–Wilk (normality of diffs) | W=0.990, p=0.003 → NOT normal |
+| **Wilcoxon signed-rank (primary)** | **W=47153, p=0.028** ✅ |
+| Paired t-test (corroborating) | t=2.40, p=0.017 ✅ |
+| Effect size (Cohen's d, paired) | 0.11 (small) |
 
-**Verdict: the Sentinel-1 improvement is statistically significant (p=0.003) and
-not due to chance.** The effect is small but real.
+**Verdict: the Sentinel-1 improvement is statistically significant (p=0.028) and
+not due to chance.** As humidity strengthens the base model, SAR's marginal effect
+is slightly smaller than the earlier run but still significant under both tests.
 
 ## Citable summary
 
-> Adding Sentinel-1 SAR to the recreated CNN-LSTM significantly reduced mean
-> absolute error from 0.450 to 0.418 t/ha (paired t-test t=3.00, p=0.003;
-> Shapiro–Wilk W=0.994, p=0.087 confirming normality; Wilcoxon p=0.012; Cohen's
-> d=0.14), evaluated on identical leave-one-year-out test observations.
+> With meteorological (rainfall, temperature, humidity) and Sentinel-2 NDVI inputs,
+> adding Sentinel-1 SAR to the recreated CNN-LSTM significantly reduced mean absolute
+> error from 0.421 to 0.395 t/ha (Wilcoxon signed-rank p=0.028; paired t-test
+> t=2.40, p=0.017; Shapiro–Wilk W=0.990, p=0.003; Cohen's d=0.11), on identical
+> leave-one-year-out test observations. Enhanced R²=0.152 vs original R²=0.075.
 
 ## Honest caveats (for the defense)
 

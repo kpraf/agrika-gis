@@ -68,12 +68,17 @@ STEPS = 6
 
 # Feature spec: (source, source_column, short_name). Order = column order.
 # Edit here to add features (e.g. ndvi_std) - long + wide outputs follow.
+# NOTE: EVI/NDWI are fetched by fetch_satellite_cdse.py but the full 30-municipality
+# re-fetch is currently blocked by the CDSE processing-unit quota (only 10 cities,
+# incl. the 4 target cities, have them). Re-add ("sat","evi_mean","evi") and
+# ("sat","ndwi_mean","ndwi") here once the quota resets and all 30 are re-fetched.
 FEATURES = [
-    ("weather", "rainfall_mm", "rain"),
-    ("weather", "temp_mean_c", "temp"),
-    ("sat",     "ndvi_mean",   "ndvi"),
-    ("sat",     "vv_mean",     "vv"),
-    ("sat",     "vh_mean",     "vh"),
+    ("weather", "rainfall_mm",       "rain"),
+    ("weather", "temp_mean_c",       "temp"),
+    ("weather", "humidity_mean_pct", "humid"),
+    ("sat",     "ndvi_mean",         "ndvi"),
+    ("sat",     "vv_mean",           "vv"),
+    ("sat",     "vh_mean",           "vh"),
 ]
 WEATHER_REQUIRED = [f for f in FEATURES if f[0] == "weather"]
 SAT_FEATURES = [f for f in FEATURES if f[0] == "sat"]
