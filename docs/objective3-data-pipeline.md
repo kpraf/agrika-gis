@@ -43,9 +43,11 @@ So acquisition + preprocessing + integration logic is essentially done.
    (idempotent upsert, diacritics-folded name match, 0 skipped). Features now live
    in the DB alongside boundaries, yield, and predictions.
 
-2. **🟠 Automated pipeline (single orchestrator).** The steps are separate manual
-   scripts. → One entry point that runs acquire → preprocess → integrate → load,
-   with logging and clear success/failure reporting.
+2. **✅ DONE — Automated pipeline (single orchestrator).** `run_pipeline.py` runs
+   acquire → ensure-tables → load-to-DB → build-training as ordered stages, with
+   per-stage banners, timing, stop-on-failure (or `--continue-on-error`), and a
+   `--skip-fetch` flag to re-integrate/reload without hitting the APIs. Writes a
+   machine-readable `db/pipeline_last_run.json` summary.
 
 3. **🟠 Reliability evaluation.** None yet. The objective is *evaluated* on reliable
    acquire/preprocess/integrate/deliver. → A QA/validation report.
@@ -63,8 +65,11 @@ So acquisition + preprocessing + integration logic is essentially done.
   diacritics-folded name match. Loaded 2,880 weather + 2,850 satellite rows, 0 skipped.
 - Result: the "centralized spatial database" the paper describes.
 
-**Step 2 — Pipeline orchestrator.**
-- `run_pipeline.py`: acquire (weather, satellite) → preprocess → merge → load to DB → build training data, with a run log and per-stage status. `--skip-fetch` to re-integrate without re-hitting the APIs.
+**Step 2 — Pipeline orchestrator. ✅ DONE.**
+- `run_pipeline.py`: acquire weather → acquire satellite → ensure DB tables →
+  load features to DB → build training set, as ordered stages with per-stage
+  timing/status, stop-on-failure, `--skip-fetch`, and a `pipeline_last_run.json`
+  summary. Verified end-to-end with `--skip-fetch`.
 
 **Step 3 — Reliability evaluation.**
 - Metrics: acquisition success rate (areas fetched / attempted), data completeness (% of expected area-month cells present), integrity checks (value ranges, no NaN/Inf leaking through, name-join coverage), gap accounting (S2 cloud gaps, S1 2022 dip), and delivery check (training rows produced vs labels).
