@@ -44,6 +44,7 @@ Usage
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 import time
@@ -77,10 +78,12 @@ function setup() {
   };
 }
 function evaluatePixel(s) {
-  let ndvi = (s.B08 - s.B04) / (s.B08 + s.B04);
+  let denom = s.B08 + s.B04;
+  let ndvi = denom > 0 ? (s.B08 - s.B04) / denom : 0;
   // SCL: 3 shadow, 8 cloud med, 9 cloud high, 10 cirrus, 11 snow -> drop
   let bad = [3, 8, 9, 10, 11].indexOf(s.SCL) > -1;
-  let valid = (s.dataMask === 1 && !bad) ? 1 : 0;
+  // Exclude clouds, nodata, and zero-reflectance pixels (which make NDVI NaN).
+  let valid = (s.dataMask === 1 && !bad && denom > 0) ? 1 : 0;
   return { ndvi: [ndvi], dataMask: [valid] };
 }
 """
@@ -100,10 +103,13 @@ function setup() {
 }
 function toDb(x) { return 10 * Math.log(x) / Math.LN10; }
 function evaluatePixel(s) {
+  // Only keep pixels with real, positive backscatter; exclude the rest via
+  // dataMask so nodata/border pixels can't turn the average into Infinity.
+  let ok = (s.dataMask === 1) && isFinite(s.VV) && isFinite(s.VH) && s.VV > 0 && s.VH > 0;
   return {
-    vv: [s.VV > 0 ? toDb(s.VV) : -30],
-    vh: [s.VH > 0 ? toDb(s.VH) : -30],
-    dataMask: [s.dataMask]
+    vv: [ok ? toDb(s.VV) : 0],
+    vh: [ok ? toDb(s.VH) : 0],
+    dataMask: [ok ? 1 : 0]
   };
 }
 """
@@ -111,6 +117,13 @@ function evaluatePixel(s) {
 
 def make_config():
     from sentinelhub import SHConfig
+    # Load credentials from backend/.env (gitignored) if present, so they never
+    # have to be set in the shell or hard-coded here.
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(HERE, "..", ".env"))
+    except ImportError:
+        pass
     cid = os.environ.get("CDSE_CLIENT_ID")
     secret = os.environ.get("CDSE_CLIENT_SECRET")
     if not cid or not secret:
@@ -145,6 +158,13 @@ def run_statistical(cfg, collection, evalscript, other_args, geom, start, end, r
     """Return {(year, month): {band_id: {mean,std,min,max,n}}} for one geometry."""
     from sentinelhub import SentinelHubStatistical, Geometry, CRS
 
+    # Reproject to the local UTM zone so `resolution` is in METRES, not degrees.
+    # (A geometry left in WGS84 makes resolution=20 mean 20 degrees/pixel ~ 12 km,
+    # which the Statistical API rejects.)
+    geo = Geometry(geom, CRS.WGS84)
+    utm = CRS.get_utm_from_wgs84(geom.centroid.x, geom.centroid.y)
+    geo = geo.transform(utm)
+
     aggregation = SentinelHubStatistical.aggregation(
         evalscript=evalscript,
         time_interval=(f"{start}-01-01", f"{end}-12-31"),
@@ -154,7 +174,7 @@ def run_statistical(cfg, collection, evalscript, other_args, geom, start, end, r
     request = SentinelHubStatistical(
         aggregation=aggregation,
         input_data=[SentinelHubStatistical.input_data(collection, other_args=other_args)],
-        geometry=Geometry(geom, CRS.WGS84),
+        geometry=geo,
         config=cfg,
     )
     result = request.get_data()[0]
@@ -169,11 +189,15 @@ def run_statistical(cfg, collection, evalscript, other_args, geom, start, end, r
             band = next(iter(out_val["bands"].values()))  # single-band outputs
             st = band.get("stats", {})
             n = st.get("sampleCount", 0) - st.get("noDataCount", 0)
+
+            def fin(v):  # non-finite (NaN/Infinity) or empty-band -> None
+                return v if isinstance(v, (int, float)) and math.isfinite(v) else None
+
             bands[out_id] = {
-                "mean": st.get("mean"),
-                "std": st.get("stDev"),
-                "min": st.get("min"),
-                "max": st.get("max"),
+                "mean": fin(st.get("mean")),
+                "std": fin(st.get("stDev")),
+                "min": fin(st.get("min")),
+                "max": fin(st.get("max")),
                 "n": max(n, 0),
             }
         monthly[key] = bands
