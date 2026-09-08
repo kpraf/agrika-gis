@@ -4,7 +4,18 @@ import DashboardSidebar from "../layout/DashboardSidebar";
 import Navbar from "../layout/Navbar";
 import LagunaMap from "./LagunaMap";
 import { useAuth } from "../../context/AuthContext";
-import { yieldApi } from "../../lib/api";
+import { yieldApi, featuresApi } from "../../lib/api";
+
+// Environment (remote-sensing) layers the map can visualise — the model's inputs.
+// rampKey maps to a colour family defined in LagunaMap.
+const ENV_METRICS = [
+  { key: "ndvi", label: "NDVI", unit: "", rampKey: "green" },
+  { key: "evi", label: "EVI", unit: "", rampKey: "green" },
+  { key: "ndwi", label: "NDWI", unit: "", rampKey: "teal" },
+  { key: "rainfall", label: "Rainfall", unit: "mm/mo", rampKey: "blue" },
+  { key: "temperature", label: "Temp", unit: "°C", rampKey: "warm" },
+  { key: "humidity", label: "Humidity", unit: "%", rampKey: "blue" },
+];
 
 function ToggleSwitch({ checked, onChange, icon, label, disabled = false, hint }) {
   return (
@@ -69,9 +80,13 @@ export default function SpatialGIS() {
   const [barangayResp, setBarangayResp] = useState(null); // { synthetic, stats, records }
 
   // CNN-LSTM predictions overlay (empty until model output is loaded).
-  const [dataSource, setDataSource] = useState("observed"); // "observed" | "predicted"
+  const [dataSource, setDataSource] = useState("observed"); // "observed" | "predicted" | "residual"
   const [predMeta, setPredMeta] = useState({ has_predictions: false });
   const [compareResp, setCompareResp] = useState(null); // { stats, records } observed vs predicted
+
+  // Environment (remote-sensing) layer: selected metric + its per-municipality values.
+  const [envMetric, setEnvMetric] = useState("ndvi");
+  const [featuresResp, setFeaturesResp] = useState(null); // { label, unit, stats, records }
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
@@ -143,6 +158,20 @@ export default function SpatialGIS() {
     };
   }, [year, season]);
 
+  // Environment layer: per-municipality seasonal average of the selected metric.
+  useEffect(() => {
+    if (viewType !== "environment" || !year || !season) return;
+    let active = true;
+    setFeaturesResp(null);
+    featuresApi
+      .municipalities(year, season, envMetric)
+      .then((r) => active && setFeaturesResp(r))
+      .catch(() => active && setFeaturesResp(null));
+    return () => {
+      active = false;
+    };
+  }, [viewType, year, season, envMetric]);
+
   // Shape the records for the map (id -> { yield, is_proxy }) and the panels.
   const yieldByMuni = useMemo(() => {
     const out = {};
@@ -178,6 +207,21 @@ export default function SpatialGIS() {
     return m ? { min: -m, max: m } : null;
   }, [residByMuni]);
 
+  // Environment metric values shaped for the map (id -> { yield: value }).
+  const envByMuni = useMemo(() => {
+    const out = {};
+    for (const r of featuresResp?.records ?? []) out[r.municipality_id] = { yield: r.value };
+    return out;
+  }, [featuresResp]);
+  const envScale = useMemo(
+    () =>
+      featuresResp?.stats?.min != null
+        ? { min: featuresResp.stats.min, max: featuresResp.stats.max }
+        : null,
+    [featuresResp]
+  );
+  const envConfig = ENV_METRICS.find((m) => m.key === envMetric) ?? ENV_METRICS[0];
+
   // Synthetic barangay yields shaped for the map, with a per-municipality colour
   // scale (local min/max) so intra-municipality variation is visible on drill-in.
   const yieldByBarangay = useMemo(() => {
@@ -193,10 +237,19 @@ export default function SpatialGIS() {
     [barangayResp]
   );
 
-  const showingPredicted = dataSource === "predicted" && predMeta.has_predictions;
-  const showingResidual = dataSource === "residual" && predMeta.has_predictions;
-  const mapYieldByMuni = showingResidual ? residByMuni : showingPredicted ? predByMuni : yieldByMuni;
-  const mapColorScale = showingResidual
+  const showingEnvironment = viewType === "environment";
+  const showingPredicted = !showingEnvironment && dataSource === "predicted" && predMeta.has_predictions;
+  const showingResidual = !showingEnvironment && dataSource === "residual" && predMeta.has_predictions;
+  const mapYieldByMuni = showingEnvironment
+    ? envByMuni
+    : showingResidual
+    ? residByMuni
+    : showingPredicted
+    ? predByMuni
+    : yieldByMuni;
+  const mapColorScale = showingEnvironment
+    ? envScale
+    : showingResidual
     ? residScale
     : showingPredicted
     ? predScale
@@ -204,12 +257,24 @@ export default function SpatialGIS() {
     ? { min: yieldResp.stats.min, max: yieldResp.stats.max }
     : null;
   const mapColorMode = showingResidual ? "residual" : "yield";
+  const mapRampKey = showingEnvironment ? envConfig.rampKey : "green";
+  const mapLegendLabel = showingEnvironment
+    ? `${envConfig.label}${envConfig.unit ? ` (${envConfig.unit})` : ""}`
+    : "Avg yield (mt/ha)";
+  const mapValueUnit = showingEnvironment ? envConfig.unit : "mt/ha";
   const heatmapOn =
-    viewType === "heatmap" &&
+    (viewType === "heatmap" || showingEnvironment) &&
     layers.boundaries &&
-    (showingResidual ? !!residScale : showingPredicted ? !!predScale : !!yieldResp);
+    (showingEnvironment
+      ? !!envScale
+      : showingResidual
+      ? !!residScale
+      : showingPredicted
+      ? !!predScale
+      : !!yieldResp);
   // Barangay choropleth (synthetic) only in the observed heatmap view.
-  const barangayHeatmapOn = heatmapOn && !showingPredicted && !showingResidual && !!barangayScale;
+  const barangayHeatmapOn =
+    heatmapOn && !showingEnvironment && !showingPredicted && !showingResidual && !!barangayScale;
   const mapYieldByBarangay = barangayHeatmapOn ? yieldByBarangay : null;
   const selectedYield = selection?.level === "municipality" ? yieldByMuni[selection.id] : null;
   const selectedCompare =
@@ -277,20 +342,27 @@ export default function SpatialGIS() {
                     </svg>
                     Yield Heatmap
                   </button>
-                  <div
-                    title="Needs land-parcel data"
-                    className="flex flex-col items-center gap-1 py-3 rounded-lg border bg-[#F8FAF5] border-[#C3C8BD] text-[#191C1A] text-sm font-semibold opacity-50 cursor-not-allowed"
+                  <button
+                    type="button"
+                    onClick={() => setViewType("environment")}
+                    title="Remote-sensing inputs (NDVI, rainfall, etc.) that drive the model"
+                    className={`flex flex-col items-center gap-1 py-3 rounded-lg border text-sm font-semibold ${
+                      viewType === "environment"
+                        ? "bg-[#3B9E1C] border-[#1B6D24] text-white"
+                        : "bg-[#F8FAF5] border-[#C3C8BD] text-[#191C1A]"
+                    }`}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z" />
+                      <path d="M2 22s4-10 10-10 10 10 10 10M12 12V2M12 2C9 2 7 4 7 6s2 3 5 3 5-1 5-3-2-4-5-4z" />
                     </svg>
-                    Land Parcels
-                  </div>
+                    Environment
+                  </button>
                 </div>
               </div>
 
-              {/* Data source — Observed is live; Predicted lights up once CNN-LSTM
-                  model output is loaded (municipality_predictions). */}
+              {/* Yield view: Observed is live; Predicted/Residual light up once
+                  CNN-LSTM output is loaded (municipality_predictions). */}
+              {viewType === "heatmap" && (
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Data Source</h2>
@@ -335,6 +407,33 @@ export default function SpatialGIS() {
                   </button>
                 </div>
               </div>
+              )}
+
+              {/* Environment view: pick which remote-sensing layer to visualise. */}
+              {viewType === "environment" && (
+                <div className="flex flex-col gap-3">
+                  <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Layer</h2>
+                  <div className="grid grid-cols-3 gap-1">
+                    {ENV_METRICS.map((m) => (
+                      <button
+                        key={m.key}
+                        type="button"
+                        onClick={() => setEnvMetric(m.key)}
+                        className={`py-2 rounded text-sm font-medium transition-colors border ${
+                          envMetric === m.key
+                            ? "bg-[#3B9E1C] text-white border-[#1B6D24]"
+                            : "bg-[#F8FAF5] text-[#4B5563] border-[#C3C8BD]"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-[#9CA3AF]">
+                    Seasonal average per municipality — the model's inputs (Sentinel + Open-Meteo).
+                  </p>
+                </div>
+              )}
 
               {/* Filters */}
               <div className="flex flex-col gap-3">
@@ -432,21 +531,10 @@ export default function SpatialGIS() {
 
               <div className="border-t border-[#C3C8BD]" />
 
-              {/* Map Layers — Boundaries is live; land-use still needs its data layer. */}
+              {/* Map Layers */}
               <div className="flex flex-col gap-3">
                 <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Map Layers</h2>
                 <div className="flex flex-col gap-3">
-                  <ToggleSwitch
-                    checked={false}
-                    disabled
-                    hint="Needs land-use data"
-                    label="Land use"
-                    icon={
-                      <svg width="22" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M2 17l10 5 10-5M2 12l10 5 10-5M12 2L2 7l10 5 10-5-10-5z" />
-                      </svg>
-                    }
-                  />
                   <ToggleSwitch
                     checked={layers.boundaries}
                     onChange={() => toggleLayer("boundaries")}
@@ -472,9 +560,20 @@ export default function SpatialGIS() {
             yieldByMuni={mapYieldByMuni}
             colorScale={mapColorScale}
             colorMode={mapColorMode}
+            rampKey={mapRampKey}
+            legendLabel={mapLegendLabel}
+            valueUnit={mapValueUnit}
             yieldByBarangay={mapYieldByBarangay}
             barangayColorScale={barangayScale}
-            yieldKey={`${showingResidual ? "resid" : showingPredicted ? "pred" : "obs"}-${year}-${season}`}
+            yieldKey={`${
+              showingEnvironment
+                ? `env-${envMetric}`
+                : showingResidual
+                ? "resid"
+                : showingPredicted
+                ? "pred"
+                : "obs"
+            }-${year}-${season}`}
             barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayResp?.stats?.count ?? 0}`}
           />
 

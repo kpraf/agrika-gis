@@ -49,15 +49,23 @@ const BASEMAPS = {
 // Sequential green ramp for the yield heatmap: light (low yield) -> dark (high).
 const YIELD_RAMP = ["#EDF8E9", "#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
 
-function yieldColor(value, min, max) {
-  if (value == null || min == null || max == null || max <= min) return YIELD_RAMP[3];
+function yieldColor(value, min, max, ramp = YIELD_RAMP) {
+  if (value == null || min == null || max == null || max <= min) return ramp[3];
   const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
-  return YIELD_RAMP[Math.round(t * (YIELD_RAMP.length - 1))];
+  return ramp[Math.round(t * (ramp.length - 1))];
 }
 
 // Diverging ramp for residuals (observed - predicted): over-prediction (negative)
 // -> red, near-zero -> neutral, under-prediction (positive) -> blue.
 const RESIDUAL_RAMP = ["#B2182B", "#EF8A62", "#FDDBC7", "#F7F7F7", "#D1E5F0", "#67A9CF", "#2166AC"];
+
+// Sequential ramps for the Environment (remote-sensing) layers, keyed by family.
+const RAMPS = {
+  green: YIELD_RAMP, // NDVI / EVI (vegetation)
+  teal: ["#F7FCFD", "#E5F5F9", "#CCECE6", "#99D8C9", "#66C2A4", "#2CA25F", "#006D2C"], // NDWI (moisture)
+  blue: ["#F7FBFF", "#DEEBF7", "#C6DBEF", "#9ECAE1", "#6BAED6", "#3182BD", "#08519C"], // rainfall / humidity
+  warm: ["#FFF5EB", "#FEE6CE", "#FDD0A2", "#FDAE6B", "#FD8D3C", "#E6550D", "#A63603"], // temperature
+};
 
 function residualColor(value, absMax) {
   if (value == null || !absMax) return RESIDUAL_RAMP[3];
@@ -74,6 +82,9 @@ export default function LagunaMap({
   yieldByMuni = null, // { [municipality_id]: { yield, is_proxy } }
   colorScale = null, // { min, max }
   colorMode = "yield", // "yield" (sequential) | "residual" (diverging, symmetric scale)
+  rampKey = "green", // sequential palette family for the Environment layers
+  legendLabel = "Avg yield (mt/ha)", // legend title (sequential modes)
+  valueUnit = "mt/ha", // unit shown in tooltips ("" for unitless indices like NDVI)
   yieldByBarangay = null, // { [barangay_id]: { yield } } — SYNTHETIC sample data
   barangayColorScale = null, // { min, max } local to the drilled-in municipality
   yieldKey = "", // changes (e.g. "2024-Dry") force the choropleth to restyle
@@ -242,7 +253,7 @@ export default function LagunaMap({
       fillColor:
         colorMode === "residual"
           ? residualColor(rec.yield, colorScale?.max)
-          : yieldColor(rec.yield, colorScale?.min, colorScale?.max),
+          : yieldColor(rec.yield, colorScale?.min, colorScale?.max, RAMPS[rampKey] || YIELD_RAMP),
       fillOpacity: sat ? 0.6 : 0.85,
     };
   };
@@ -254,7 +265,7 @@ export default function LagunaMap({
     if (!rec || rec.yield == null) return `${name}: no data`;
     if (colorMode === "residual")
       return `${name}: residual ${rec.yield > 0 ? "+" : ""}${rec.yield} mt/ha`;
-    return `${name}: ${rec.yield} mt/ha${rec.is_proxy ? " (est.)" : ""}`;
+    return `${name}: ${rec.yield}${valueUnit ? ` ${valueUnit}` : ""}${rec.is_proxy ? " (est.)" : ""}`;
   };
 
   // Select a municipality and load its barangays, keeping the "loading" highlight up
@@ -582,14 +593,14 @@ export default function LagunaMap({
         <div className="absolute left-1/2 -translate-x-1/2 bottom-6 z-[500] bg-white/95 backdrop-blur-sm shadow-md rounded-lg px-5 py-3">
           <div className="flex items-center gap-4">
             <span className="text-sm font-semibold text-[#374151] whitespace-nowrap">
-              {colorMode === "residual" ? "Residual (obs − pred), mt/ha" : "Avg yield (mt/ha)"}
+              {colorMode === "residual" ? "Residual (obs − pred), mt/ha" : legendLabel}
             </span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-[#6B7280]">
                 {colorMode === "residual" ? "over-predicts" : colorScale.min}
               </span>
               <div className="flex h-3.5 w-52 rounded-full overflow-hidden">
-                {(colorMode === "residual" ? RESIDUAL_RAMP : YIELD_RAMP).map((c) => (
+                {(colorMode === "residual" ? RESIDUAL_RAMP : RAMPS[rampKey] || YIELD_RAMP).map((c) => (
                   <span key={c} className="flex-1" style={{ background: c }} />
                 ))}
               </div>
