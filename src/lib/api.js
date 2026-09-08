@@ -121,6 +121,16 @@ export const yieldApi = {
     request(`/yield/compare?year=${year}&season=${encodeURIComponent(season)}`),
 };
 
+// Remote-sensing / meteorological features (NDVI, rainfall, etc.) for the map's
+// Environment view — per-municipality seasonal averages from the feature tables.
+export const featuresApi = {
+  meta: () => request("/features/meta"),
+  municipalities: (year, season, metric) =>
+    request(
+      `/features/municipalities?metric=${encodeURIComponent(metric)}&year=${year}&season=${encodeURIComponent(season)}`
+    ),
+};
+
 export const usersApi = {
   list: () => request("/users", { auth: true }),
   meta: () => request("/meta", { auth: true }),
