@@ -1,0 +1,463 @@
+municipality,year,season,predicted_yield
+Alaminos,2018,Dry,4.5714
+Alaminos,2018,Wet,3.8808
+Alaminos,2019,Dry,4.5364
+Alaminos,2019,Wet,4.094
+Alaminos,2020,Dry,5.0297
+Alaminos,2020,Wet,3.5382
+Alaminos,2021,Dry,3.934
+Alaminos,2021,Wet,3.8543
+Alaminos,2022,Dry,4.2395
+Alaminos,2022,Wet,4.0001
+Alaminos,2023,Dry,4.0009
+Alaminos,2023,Wet,3.6113
+Alaminos,2024,Dry,4.297
+Alaminos,2024,Wet,3.7126
+Alaminos,2025,Dry,4.8441
+Alaminos,2025,Wet,4.0315
+Bay,2018,Dry,4.898
+Bay,2018,Wet,4.0075
+Bay,2019,Dry,4.7832
+Bay,2019,Wet,4.109
+Bay,2020,Dry,5.0846
+Bay,2020,Wet,3.8575
+Bay,2021,Dry,4.0311
+Bay,2021,Wet,4.1911
+Bay,2022,Dry,4.713
+Bay,2022,Wet,4.1441
+Bay,2023,Dry,4.781
+Bay,2023,Wet,3.9108
+Bay,2024,Dry,4.6413
+Bay,2024,Wet,3.9077
+Bay,2025,Dry,4.8541
+Bay,2025,Wet,4.1992
+Calauan,2018,Dry,4.7378
+Calauan,2018,Wet,3.8855
+Calauan,2019,Dry,4.702
+Calauan,2019,Wet,4.2235
+Calauan,2020,Dry,5.0287
+Calauan,2020,Wet,3.7776
+Calauan,2021,Dry,3.9023
+Calauan,2021,Wet,3.8351
+Calauan,2022,Dry,4.7458
+Calauan,2022,Wet,3.9437
+Calauan,2023,Dry,4.205
+Calauan,2023,Wet,3.7539
+Calauan,2024,Dry,4.4935
+Calauan,2024,Wet,3.8753
+Calauan,2025,Dry,4.8522
+Calauan,2025,Wet,4.2107
+Cavinti,2018,Dry,4.7918
+Cavinti,2018,Wet,3.5906
+Cavinti,2019,Dry,4.4862
+Cavinti,2019,Wet,3.605
+Cavinti,2020,Dry,4.4904
+Cavinti,2020,Wet,3.5091
+Cavinti,2021,Dry,3.7595
+Cavinti,2021,Wet,3.8426
+Cavinti,2022,Dry,3.8444
+Cavinti,2022,Wet,3.6799
+Cavinti,2023,Dry,4.0445
+Cavinti,2023,Wet,3.7947
+Cavinti,2024,Dry,4.3932
+Cavinti,2024,Wet,3.735
+Cavinti,2025,Dry,4.5997
+Cavinti,2025,Wet,3.8674
+City of Biñan,2018,Dry,3.7946
+City of Biñan,2018,Wet,3.7228
+City of Biñan,2019,Dry,4.5023
+City of Biñan,2019,Wet,3.9399
+City of Biñan,2020,Dry,4.644
+City of Biñan,2020,Wet,3.5166
+City of Biñan,2021,Dry,4.204
+City of Biñan,2021,Wet,3.7065
+City of Biñan,2022,Dry,4.5462
+City of Biñan,2022,Wet,3.6408
+City of Biñan,2023,Dry,4.0781
+City of Biñan,2023,Wet,3.6134
+City of Biñan,2024,Dry,4.1515
+City of Biñan,2024,Wet,3.7824
+City of Biñan,2025,Dry,4.9167
+City of Biñan,2025,Wet,3.9135
+City of Cabuyao,2018,Dry,4.4401
+City of Cabuyao,2018,Wet,3.9087
+City of Cabuyao,2019,Dry,4.6824
+City of Cabuyao,2019,Wet,4.0778
+City of Cabuyao,2020,Dry,4.8078
+City of Cabuyao,2020,Wet,3.6911
+City of Cabuyao,2021,Dry,4.252
+City of Cabuyao,2021,Wet,3.965
+City of Cabuyao,2022,Dry,4.0687
+City of Cabuyao,2022,Wet,3.8038
+City of Cabuyao,2023,Dry,4.1762
+City of Cabuyao,2023,Wet,3.77
+City of Cabuyao,2024,Dry,4.0401
+City of Cabuyao,2024,Wet,3.7251
+City of Cabuyao,2025,Dry,4.9687
+City of Cabuyao,2025,Wet,3.9661
+City of Calamba,2018,Dry,4.6907
+City of Calamba,2018,Wet,3.8819
+City of Calamba,2019,Dry,4.7364
+City of Calamba,2019,Wet,4.0573
+City of Calamba,2020,Dry,4.7134
+City of Calamba,2020,Wet,3.6818
+City of Calamba,2021,Dry,4.0719
+City of Calamba,2021,Wet,3.9126
+City of Calamba,2022,Dry,4.4838
+City of Calamba,2022,Wet,4.0147
+City of Calamba,2023,Dry,4.2979
+City of Calamba,2023,Wet,3.7538
+City of Calamba,2024,Dry,4.3066
+City of Calamba,2024,Wet,3.6707
+City of Calamba,2025,Dry,5.1638
+City of Calamba,2025,Wet,4.0375
+City of San Pablo,2018,Dry,4.7257
+City of San Pablo,2018,Wet,3.9503
+City of San Pablo,2019,Dry,4.7757
+City of San Pablo,2019,Wet,4.311
+City of San Pablo,2020,Dry,5.1417
+City of San Pablo,2020,Wet,3.775
+City of San Pablo,2021,Dry,3.9711
+City of San Pablo,2021,Wet,3.9397
+City of San Pablo,2022,Dry,4.3896
+City of San Pablo,2022,Wet,4.0399
+City of San Pablo,2023,Dry,4.5095
+City of San Pablo,2023,Wet,3.7775
+City of San Pablo,2024,Dry,4.5037
+City of San Pablo,2024,Wet,3.7902
+City of San Pablo,2025,Dry,5.0563
+City of San Pablo,2025,Wet,4.1657
+City of Santa Rosa,2018,Dry,4.5356
+City of Santa Rosa,2018,Wet,3.9826
+City of Santa Rosa,2019,Dry,4.6346
+City of Santa Rosa,2019,Wet,4.0927
+City of Santa Rosa,2020,Dry,4.7338
+City of Santa Rosa,2020,Wet,3.6403
+City of Santa Rosa,2021,Dry,4.2385
+City of Santa Rosa,2021,Wet,3.654
+City of Santa Rosa,2022,Dry,4.1637
+City of Santa Rosa,2022,Wet,3.7569
+City of Santa Rosa,2023,Dry,4.1808
+City of Santa Rosa,2023,Wet,3.7089
+City of Santa Rosa,2024,Dry,4.2483
+City of Santa Rosa,2024,Wet,3.7287
+City of Santa Rosa,2025,Dry,4.9625
+City of Santa Rosa,2025,Wet,3.9684
+Famy,2018,Dry,4.7416
+Famy,2018,Wet,3.7445
+Famy,2019,Dry,4.6525
+Famy,2019,Wet,4.2436
+Famy,2020,Dry,5.2162
+Famy,2020,Wet,3.7863
+Famy,2021,Dry,4.1381
+Famy,2021,Wet,4.1878
+Famy,2022,Dry,4.3876
+Famy,2022,Wet,4.0352
+Famy,2023,Dry,4.2627
+Famy,2023,Wet,3.8882
+Famy,2024,Dry,4.561
+Famy,2024,Wet,4.0547
+Famy,2025,Dry,5.08
+Famy,2025,Wet,4.1435
+Kalayaan,2018,Dry,4.5732
+Kalayaan,2018,Wet,3.2968
+Kalayaan,2019,Dry,4.4851
+Kalayaan,2019,Wet,3.439
+Kalayaan,2020,Dry,4.4661
+Kalayaan,2020,Wet,3.4458
+Kalayaan,2021,Dry,3.7367
+Kalayaan,2021,Wet,3.598
+Kalayaan,2022,Dry,3.9317
+Kalayaan,2022,Wet,3.6872
+Kalayaan,2023,Dry,4.5626
+Kalayaan,2023,Wet,3.7318
+Kalayaan,2024,Dry,4.6448
+Kalayaan,2024,Wet,3.7353
+Kalayaan,2025,Dry,4.753
+Kalayaan,2025,Wet,3.905
+Liliw,2018,Dry,5.0632
+Liliw,2018,Wet,3.848
+Liliw,2019,Dry,4.5501
+Liliw,2019,Wet,4.0254
+Liliw,2020,Dry,5.0478
+Liliw,2020,Wet,3.5899
+Liliw,2021,Dry,3.8397
+Liliw,2021,Wet,4.1393
+Liliw,2022,Dry,4.2401
+Liliw,2022,Wet,3.7926
+Liliw,2023,Dry,4.6035
+Liliw,2023,Wet,3.8495
+Liliw,2024,Dry,4.4839
+Liliw,2024,Wet,3.8561
+Liliw,2025,Dry,4.8172
+Liliw,2025,Wet,4.1132
+Los Baños,2018,Dry,4.5579
+Los Baños,2018,Wet,3.6488
+Los Baños,2019,Dry,4.5308
+Los Baños,2019,Wet,3.8804
+Los Baños,2020,Dry,4.4566
+Los Baños,2020,Wet,3.4502
+Los Baños,2021,Dry,3.86
+Los Baños,2021,Wet,3.8666
+Los Baños,2022,Dry,3.951
+Los Baños,2022,Wet,4.0716
+Los Baños,2023,Dry,4.4217
+Los Baños,2023,Wet,3.6643
+Los Baños,2024,Dry,4.1269
+Los Baños,2024,Wet,3.7297
+Los Baños,2025,Dry,5.0649
+Los Baños,2025,Wet,4.0771
+Luisiana,2018,Dry,4.682
+Luisiana,2018,Wet,3.3264
+Luisiana,2019,Dry,3.9456
+Luisiana,2019,Wet,3.4425
+Luisiana,2020,Dry,4.0653
+Luisiana,2020,Wet,3.414
+Luisiana,2021,Dry,3.3617
+Luisiana,2021,Wet,3.3302
+Luisiana,2022,Dry,3.5458
+Luisiana,2022,Wet,3.5197
+Luisiana,2023,Dry,3.6942
+Luisiana,2023,Wet,3.5552
+Luisiana,2024,Dry,3.9188
+Luisiana,2024,Wet,3.6284
+Luisiana,2025,Dry,4.3345
+Luisiana,2025,Wet,3.6243
+Lumban,2018,Dry,4.8794
+Lumban,2018,Wet,3.2816
+Lumban,2019,Dry,4.6219
+Lumban,2019,Wet,3.4455
+Lumban,2020,Dry,4.9586
+Lumban,2020,Wet,3.5207
+Lumban,2021,Dry,4.2
+Lumban,2021,Wet,3.8899
+Lumban,2022,Dry,4.2027
+Lumban,2022,Wet,3.6081
+Lumban,2023,Dry,4.9126
+Lumban,2023,Wet,3.8643
+Lumban,2024,Dry,4.956
+Lumban,2024,Wet,3.6902
+Lumban,2025,Dry,4.7953
+Lumban,2025,Wet,3.9964
+Mabitac,2018,Dry,5.0164
+Mabitac,2018,Wet,3.937
+Mabitac,2019,Dry,4.7728
+Mabitac,2019,Wet,4.0334
+Mabitac,2020,Dry,5.2426
+Mabitac,2020,Wet,4.0282
+Mabitac,2021,Dry,4.4862
+Mabitac,2021,Wet,4.1662
+Mabitac,2022,Dry,4.9201
+Mabitac,2022,Wet,3.7609
+Mabitac,2023,Dry,5.2876
+Mabitac,2023,Wet,3.995
+Mabitac,2024,Dry,4.9973
+Mabitac,2024,Wet,3.996
+Mabitac,2025,Dry,5.0085
+Mabitac,2025,Wet,4.017
+Magdalena,2018,Dry,4.9326
+Magdalena,2018,Wet,3.8761
+Magdalena,2019,Dry,4.7645
+Magdalena,2019,Wet,4.0534
+Magdalena,2020,Dry,5.1806
+Magdalena,2020,Wet,3.7782
+Magdalena,2021,Dry,3.9444
+Magdalena,2021,Wet,3.9639
+Magdalena,2022,Dry,4.6473
+Magdalena,2022,Wet,4.0032
+Magdalena,2023,Dry,4.9687
+Magdalena,2023,Wet,3.791
+Magdalena,2024,Dry,4.5271
+Magdalena,2024,Wet,3.9521
+Magdalena,2025,Dry,4.6767
+Magdalena,2025,Wet,4.1101
+Majayjay,2018,Dry,4.9821
+Majayjay,2018,Wet,3.557
+Majayjay,2019,Dry,4.3542
+Majayjay,2019,Wet,3.6814
+Majayjay,2020,Dry,4.622
+Majayjay,2020,Wet,3.5022
+Majayjay,2021,Dry,3.6083
+Majayjay,2021,Wet,3.7961
+Majayjay,2022,Dry,3.9106
+Majayjay,2022,Wet,3.6738
+Majayjay,2023,Dry,4.0867
+Majayjay,2023,Wet,3.7734
+Majayjay,2024,Dry,4.1575
+Majayjay,2024,Wet,4.1795
+Majayjay,2025,Dry,4.6356
+Majayjay,2025,Wet,3.9509
+Nagcarlan,2018,Dry,4.723
+Nagcarlan,2018,Wet,3.7417
+Nagcarlan,2019,Dry,4.3794
+Nagcarlan,2019,Wet,4.0634
+Nagcarlan,2020,Dry,4.7326
+Nagcarlan,2020,Wet,3.5587
+Nagcarlan,2021,Dry,3.7919
+Nagcarlan,2021,Wet,3.9574
+Nagcarlan,2022,Dry,4.1742
+Nagcarlan,2022,Wet,3.7397
+Nagcarlan,2023,Dry,3.9489
+Nagcarlan,2023,Wet,3.736
+Nagcarlan,2024,Dry,4.2977
+Nagcarlan,2024,Wet,3.7887
+Nagcarlan,2025,Dry,4.7691
+Nagcarlan,2025,Wet,4.0559
+Paete,2018,Dry,3.5392
+Paete,2018,Wet,3.2636
+Paete,2019,Dry,3.9239
+Paete,2019,Wet,3.4578
+Paete,2020,Dry,4.4235
+Paete,2020,Wet,3.2916
+Paete,2021,Dry,3.6275
+Paete,2021,Wet,3.179
+Paete,2022,Dry,3.5855
+Paete,2022,Wet,3.5313
+Paete,2023,Dry,3.8993
+Paete,2023,Wet,3.6238
+Paete,2024,Dry,3.9269
+Paete,2024,Wet,3.8263
+Paete,2025,Dry,4.4847
+Paete,2025,Wet,3.7002
+Pagsanjan,2018,Dry,4.9866
+Pagsanjan,2018,Wet,3.9341
+Pagsanjan,2019,Dry,4.7579
+Pagsanjan,2019,Wet,4.1218
+Pagsanjan,2020,Dry,5.0481
+Pagsanjan,2020,Wet,3.8323
+Pagsanjan,2021,Dry,4.0158
+Pagsanjan,2021,Wet,4.0522
+Pagsanjan,2022,Dry,4.7241
+Pagsanjan,2022,Wet,4.1149
+Pagsanjan,2023,Dry,4.5484
+Pagsanjan,2023,Wet,3.8202
+Pagsanjan,2024,Dry,4.5284
+Pagsanjan,2024,Wet,4.0574
+Pagsanjan,2025,Dry,4.6315
+Pagsanjan,2025,Wet,4.0854
+Pakil,2018,Dry,4.4472
+Pakil,2018,Wet,3.9004
+Pakil,2019,Dry,4.5757
+Pakil,2019,Wet,3.8231
+Pakil,2020,Dry,4.555
+Pakil,2020,Wet,3.9507
+Pakil,2021,Dry,3.8569
+Pakil,2021,Wet,4.0955
+Pakil,2022,Dry,4.4177
+Pakil,2022,Wet,4.3597
+Pakil,2023,Dry,4.3101
+Pakil,2023,Wet,3.6519
+Pakil,2024,Dry,4.3016
+Pakil,2024,Wet,3.9623
+Pakil,2025,Dry,4.3285
+Pakil,2025,Wet,4.0603
+Pangil,2018,Dry,4.78
+Pangil,2018,Wet,3.4691
+Pangil,2019,Dry,4.3258
+Pangil,2019,Wet,3.4633
+Pangil,2020,Dry,4.4011
+Pangil,2020,Wet,3.4556
+Pangil,2021,Dry,3.8621
+Pangil,2021,Wet,3.471
+Pangil,2022,Dry,4.3101
+Pangil,2022,Wet,3.5644
+Pangil,2023,Dry,4.9005
+Pangil,2023,Wet,3.8088
+Pangil,2024,Dry,4.4653
+Pangil,2024,Wet,3.7282
+Pangil,2025,Dry,4.8282
+Pangil,2025,Wet,3.8732
+Pila,2018,Dry,4.9519
+Pila,2018,Wet,4.3165
+Pila,2019,Dry,4.7776
+Pila,2019,Wet,4.2363
+Pila,2020,Dry,5.0698
+Pila,2020,Wet,3.9805
+Pila,2021,Dry,4.3098
+Pila,2021,Wet,4.305
+Pila,2022,Dry,4.7902
+Pila,2022,Wet,4.2635
+Pila,2023,Dry,4.6622
+Pila,2023,Wet,3.8642
+Pila,2024,Dry,4.7149
+Pila,2024,Wet,4.1063
+Pila,2025,Dry,4.7358
+Pila,2025,Wet,4.087
+Rizal,2018,Dry,4.5215
+Rizal,2018,Wet,3.9224
+Rizal,2019,Dry,4.2936
+Rizal,2020,Dry,4.2701
+Rizal,2021,Dry,3.8466
+Rizal,2021,Wet,3.9505
+Rizal,2022,Dry,4.1363
+Rizal,2022,Wet,3.7368
+Rizal,2023,Dry,3.9371
+Rizal,2023,Wet,3.8017
+Rizal,2024,Dry,4.6416
+Rizal,2024,Wet,3.6388
+Rizal,2025,Dry,4.6836
+Rizal,2025,Wet,3.8521
+Santa Cruz,2018,Dry,4.9993
+Santa Cruz,2018,Wet,4.236
+Santa Cruz,2019,Dry,4.7689
+Santa Cruz,2019,Wet,4.2264
+Santa Cruz,2020,Dry,5.1346
+Santa Cruz,2020,Wet,3.8901
+Santa Cruz,2021,Dry,4.2793
+Santa Cruz,2021,Wet,4.0658
+Santa Cruz,2022,Dry,4.7603
+Santa Cruz,2022,Wet,4.27
+Santa Cruz,2023,Dry,4.5003
+Santa Cruz,2023,Wet,3.8375
+Santa Cruz,2024,Dry,4.4616
+Santa Cruz,2024,Wet,4.0213
+Santa Cruz,2025,Dry,4.6789
+Santa Cruz,2025,Wet,4.0994
+Santa Maria,2018,Dry,5.0099
+Santa Maria,2018,Wet,3.6432
+Santa Maria,2019,Dry,4.7292
+Santa Maria,2019,Wet,4.1929
+Santa Maria,2020,Dry,5.1891
+Santa Maria,2020,Wet,3.8485
+Santa Maria,2021,Dry,4.0761
+Santa Maria,2021,Wet,4.1594
+Santa Maria,2022,Dry,4.816
+Santa Maria,2022,Wet,4.0646
+Santa Maria,2023,Dry,4.544
+Santa Maria,2023,Wet,3.9015
+Santa Maria,2024,Dry,4.737
+Santa Maria,2024,Wet,4.0769
+Santa Maria,2025,Dry,4.8217
+Santa Maria,2025,Wet,4.154
+Siniloan,2018,Dry,4.8888
+Siniloan,2018,Wet,3.5305
+Siniloan,2019,Dry,4.3631
+Siniloan,2019,Wet,3.8839
+Siniloan,2020,Dry,5.1065
+Siniloan,2020,Wet,3.5535
+Siniloan,2021,Dry,3.9575
+Siniloan,2021,Wet,3.936
+Siniloan,2022,Dry,4.0901
+Siniloan,2022,Wet,3.795
+Siniloan,2023,Dry,4.2546
+Siniloan,2023,Wet,3.9184
+Siniloan,2024,Dry,4.5833
+Siniloan,2024,Wet,3.8156
+Siniloan,2025,Dry,4.8377
+Siniloan,2025,Wet,3.9289
+Victoria,2018,Dry,5.0742
+Victoria,2018,Wet,4.5545
+Victoria,2019,Dry,4.7998
+Victoria,2019,Wet,4.3245
+Victoria,2020,Dry,5.1148
+Victoria,2020,Wet,4.114
+Victoria,2021,Dry,4.3341
+Victoria,2021,Wet,4.1909
+Victoria,2022,Dry,4.5596
+Victoria,2022,Wet,4.1916
+Victoria,2023,Dry,5.1452
+Victoria,2023,Wet,4.0326
+Victoria,2024,Dry,4.9265
+Victoria,2024,Wet,4.135
+Victoria,2025,Dry,4.6372
+Victoria,2025,Wet,4.0179
