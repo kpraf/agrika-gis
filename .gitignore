@@ -17,3 +17,4 @@ dist-ssr
 npm-debug.log*
 backend/db/pipeline_last_run.json
 backend/db/pipeline_reliability_report.txt
+.env.prod
