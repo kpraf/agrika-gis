@@ -5,9 +5,11 @@
 
 ## What the study is
 
-AgriKA-GIS extends a **previous AgriKA system** (cited in v3 as **Ebron et al.,
-2025** — a CNN-LSTM using Sentinel-2 + meteorological data, output at the
-**municipality level**) into a Web-based spatial decision-support system that:
+AgriKA-GIS extends a **previous AgriKA system** — a CNN-LSTM using Sentinel-2 +
+meteorological data, output at the **municipality level**. The actual previous
+paper is **Galang, Lim, Melegrito, Pineda** (confirmed by the team). Note: v3
+cites it as "Ebron et al., 2025" — **verify that citation in the paper.** It
+extends this into a Web-based spatial decision-support system that:
 
 - integrates **Sentinel-1 SAR** with Sentinel-2 + meteorological + historical yield,
 - predicts and visualizes rice yield at the **barangay level** (not municipality),
@@ -83,7 +85,7 @@ prediction performance and spatial decision support.
 | **Barangay-level** prediction | **Municipality-level** model + predictions | 🔴 **MAJOR.** Model, labels, and app predictions are all municipality-level. Barangay yield ground-truth doesn't exist (PhilRice is municipality-level) — this needs a strategy (weak supervision / downscaling) and must be reconciled with the paper. |
 | **4 cities** (Biñan, Cabuyao, Calamba, Santa Rosa) | **All 30 municipalities** | 🔴 Scope mismatch. Re-scope data + training + eval to the 4 cities (or justify province-wide). |
 | Features: NDVI, **EVI, Green Ratio, NDWI**; SAR; rainfall, temp, **humidity** | NDVI + VV/VH + rainfall + temp | 🟠 Missing EVI, Green Ratio, NDWI, humidity. |
-| Compare vs **previous AgriKA (Ebron et al., 2025)** | Ablation: S2-only vs S2+S1 (same architecture) | 🟠 Our ablation isolates SAR cleanly, but the paper asks to compare vs the *previous* model. **Also: the "previous paper" PDF you gave me is Galang/Lim/Melegrito/Pineda — the paper cites Ebron et al. 2025. Confirm which is the actual previous AgriKA.** |
+| Compare vs **previous AgriKA (Galang et al. — confirmed)** | Ablation: S2-only vs S2+S1 (same architecture) | 🟢 Previous paper confirmed = Galang. Our recreation of their CNN-LSTM is the correct baseline. |
 | RMSE / MAE / R² + paired significance | ✅ Done (municipality-level) | 🟢 Method is right; must be re-run at barangay level / 4-city scope. |
 | Residual maps (barangay) | Municipality residuals in `/api/yield/compare` | 🟠 Partial — need barangay-level residual maps. |
 | Web-GIS barangay visualization | ✅ Boundaries + choropleth exist; barangay yield is synthetic | 🟠 Wire real barangay predictions once they exist. |
