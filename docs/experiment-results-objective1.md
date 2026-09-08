@@ -69,6 +69,27 @@ is slightly smaller than the earlier run but still significant under both tests.
 > t=2.40, p=0.017; Shapiro–Wilk W=0.990, p=0.003; Cohen's d=0.11), on identical
 > leave-one-year-out test observations. Enhanced R²=0.152 vs original R²=0.075.
 
+## Feature ablation (what helped, what didn't)
+
+Each feature set was run through the identical pipeline (recreated CNN-LSTM,
+leave-one-year-out). Enhanced = S2+S1; SAR significance = paired test on
+original-vs-enhanced errors.
+
+| Feature set | Enhanced R² | SAR significant? |
+|---|---|---|
+| rain, temp, NDVI | 0.085 | ✅ p=0.003 |
+| **+ humidity** (final) | **0.152** | ✅ p=0.028 |
+| + EVI + NDWI | 0.066 | ❌ p=0.61 |
+
+- **Humidity clearly helped** — enhanced R² 0.085 → 0.152.
+- **EVI and NDWI degraded the model** and eliminated SAR's significance. EVI was
+  numerically unstable on this data (values to ~3.0, well outside the usual
+  [-1, 1]), and both indices are largely redundant with NDVI; on only 462 samples,
+  the added correlated dimensions cost more (noise/overfitting) than they add.
+- **Final feature set:** rainfall, temperature, humidity, NDVI (+ Sentinel-1
+  VV/VH for the enhanced model). EVI/NDWI remain in the training CSV so the
+  ablation is reproducible, but are excluded from the model.
+
 ## Honest caveats (for the defense)
 
 1. **Small effect.** Statistically significant, but ~7% error reduction (d=0.14).
