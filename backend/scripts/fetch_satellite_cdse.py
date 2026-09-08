@@ -221,6 +221,9 @@ def main():
     ap.add_argument("--maxcc", type=float, default=0.6, help="Max S2 scene cloud cover (0-1).")
     ap.add_argument("--limit", type=int, default=0, help="Only process the first N areas (smoke test).")
     ap.add_argument("--sleep", type=float, default=1.0, help="Seconds between areas.")
+    ap.add_argument("--resume", action="store_true",
+                    help="Keep rows already in the output CSV and only fetch missing areas "
+                         "(lets a second CDSE account finish what the first ran out of PU on).")
     args = ap.parse_args()
 
     from sentinelhub import DataCollection
@@ -240,8 +243,16 @@ def main():
     name_col = args.level
     out_path = OUT[args.level]
 
-    print(f"{len(areas)} {args.level} | {args.start}-{args.end} | S2 NDVI/EVI/NDWI + S1 VV/VH | {args.resolution} m")
+    # Resume: carry over rows already fetched, skip those areas.
     rows = []
+    if args.resume and os.path.exists(out_path):
+        with open(out_path, newline="", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
+        done = {r[name_col] for r in rows}
+        areas = [a for a in areas if a[0] not in done]
+        print(f"resume: {len(done)} areas already present, {len(areas)} to fetch")
+
+    print(f"{len(areas)} {args.level} | {args.start}-{args.end} | S2 NDVI/EVI/NDWI + S1 VV/VH | {args.resolution} m")
     for i, (name, geom) in enumerate(areas, 1):
         try:
             s2m = run_statistical(cfg, s2, EVAL_S2_NDVI, s2_args, geom, args.start, args.end, args.resolution)
