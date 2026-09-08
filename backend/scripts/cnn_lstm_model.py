@@ -53,8 +53,11 @@ STEPS = 6
 SEED = 42
 
 FEATURE_SETS = {
-    "S2 only (original)": ["rain", "temp", "ndvi"],
-    "S2+S1 (enhanced)": ["rain", "temp", "ndvi", "vv", "vh"],
+    # Meteorological (rain, temp, humid) + S2 NDVI in both; only the enhanced
+    # config adds Sentinel-1 SAR (vv, vh), so the ablation isolates SAR.
+    # (EVI/NDWI deferred - CDSE quota; add once all 30 municipalities have them.)
+    "S2 only (original)": ["rain", "temp", "humid", "ndvi"],
+    "S2+S1 (enhanced)": ["rain", "temp", "humid", "ndvi", "vv", "vh"],
 }
 
 

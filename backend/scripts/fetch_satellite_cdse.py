@@ -63,28 +63,36 @@ OUT = {
 CDSE_BASE = "https://sh.dataspace.copernicus.eu"
 CDSE_TOKEN = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
 
-# --- evalscripts (Statistical API flavour: emit index band + dataMask) --------
-# Sentinel-2 NDVI, with an SCL-based cloud/shadow mask folded into dataMask so
-# clouded pixels are excluded from the monthly statistics.
+# --- evalscripts (Statistical API flavour: emit index bands + dataMask) -------
+# Sentinel-2 vegetation/water indices (NDVI, EVI, NDWI), with an SCL-based
+# cloud/shadow mask folded into dataMask so clouded pixels are excluded from the
+# monthly statistics. Reflectances are 0-1 (L2A surface reflectance).
 EVAL_S2_NDVI = """
 //VERSION=3
 function setup() {
   return {
-    input: [{ bands: ["B04", "B08", "SCL", "dataMask"] }],
+    input: [{ bands: ["B02", "B03", "B04", "B08", "SCL", "dataMask"] }],
     output: [
       { id: "ndvi", bands: 1, sampleType: "FLOAT32" },
+      { id: "evi",  bands: 1, sampleType: "FLOAT32" },
+      { id: "ndwi", bands: 1, sampleType: "FLOAT32" },
       { id: "dataMask", bands: 1 }
     ]
   };
 }
 function evaluatePixel(s) {
-  let denom = s.B08 + s.B04;
-  let ndvi = denom > 0 ? (s.B08 - s.B04) / denom : 0;
+  let d_ndvi = s.B08 + s.B04;
+  let ndvi = d_ndvi > 0 ? (s.B08 - s.B04) / d_ndvi : 0;
+  // EVI = 2.5 (NIR-RED) / (NIR + 6 RED - 7.5 BLUE + 1)
+  let d_evi = s.B08 + 6.0 * s.B04 - 7.5 * s.B02 + 1.0;
+  let evi = d_evi !== 0 ? 2.5 * (s.B08 - s.B04) / d_evi : 0;
+  // NDWI (McFeeters) = (GREEN - NIR) / (GREEN + NIR)
+  let d_ndwi = s.B03 + s.B08;
+  let ndwi = d_ndwi > 0 ? (s.B03 - s.B08) / d_ndwi : 0;
   // SCL: 3 shadow, 8 cloud med, 9 cloud high, 10 cirrus, 11 snow -> drop
   let bad = [3, 8, 9, 10, 11].indexOf(s.SCL) > -1;
-  // Exclude clouds, nodata, and zero-reflectance pixels (which make NDVI NaN).
-  let valid = (s.dataMask === 1 && !bad && denom > 0) ? 1 : 0;
-  return { ndvi: [ndvi], dataMask: [valid] };
+  let valid = (s.dataMask === 1 && !bad && d_ndvi > 0) ? 1 : 0;
+  return { ndvi: [ndvi], evi: [evi], ndwi: [ndwi], dataMask: [valid] };
 }
 """
 
@@ -232,7 +240,7 @@ def main():
     name_col = args.level
     out_path = OUT[args.level]
 
-    print(f"{len(areas)} {args.level} | {args.start}-{args.end} | S2 NDVI + S1 VV/VH | {args.resolution} m")
+    print(f"{len(areas)} {args.level} | {args.start}-{args.end} | S2 NDVI/EVI/NDWI + S1 VV/VH | {args.resolution} m")
     rows = []
     for i, (name, geom) in enumerate(areas, 1):
         try:
@@ -243,7 +251,10 @@ def main():
             continue
 
         for (year, month) in sorted(set(s2m) | set(s1m)):
-            nd = s2m.get((year, month), {}).get("ndvi", {})
+            s2v = s2m.get((year, month), {})
+            nd = s2v.get("ndvi", {})
+            ev = s2v.get("evi", {})
+            nw = s2v.get("ndwi", {})
             vv = s1m.get((year, month), {}).get("vv", {})
             vh = s1m.get((year, month), {}).get("vh", {})
             rows.append({
@@ -252,8 +263,10 @@ def main():
                 "month": month,
                 "ndvi_mean": nd.get("mean"),
                 "ndvi_std": nd.get("std"),
-                "ndvi_min": nd.get("min"),
-                "ndvi_max": nd.get("max"),
+                "evi_mean": ev.get("mean"),
+                "evi_std": ev.get("std"),
+                "ndwi_mean": nw.get("mean"),
+                "ndwi_std": nw.get("std"),
                 "s2_valid_px": nd.get("n"),
                 "vv_mean": vv.get("mean"),
                 "vv_std": vv.get("std"),
@@ -269,7 +282,8 @@ def main():
         return 1
 
     fieldnames = [name_col, "year", "month",
-                  "ndvi_mean", "ndvi_std", "ndvi_min", "ndvi_max", "s2_valid_px",
+                  "ndvi_mean", "ndvi_std", "evi_mean", "evi_std",
+                  "ndwi_mean", "ndwi_std", "s2_valid_px",
                   "vv_mean", "vv_std", "vh_mean", "vh_std", "s1_valid_px"]
     with open(out_path, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=fieldnames)

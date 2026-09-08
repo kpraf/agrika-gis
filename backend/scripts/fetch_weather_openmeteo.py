@@ -119,13 +119,19 @@ def load_points(level):
 
 # --- Open-Meteo archive fetch -------------------------------------------------
 def fetch_daily(lat, lon, start_date, end_date, retries=3):
-    """Daily precipitation_sum + temperature_2m_mean for one point."""
+    """Daily precipitation_sum + temperature_2m_mean, plus hourly humidity.
+
+    Relative humidity has no daily aggregation in the archive API, so it is
+    requested hourly and averaged to monthly in to_monthly(). Returns the full
+    response dict (both "daily" and "hourly" blocks).
+    """
     params = urllib.parse.urlencode({
         "latitude": lat,
         "longitude": lon,
         "start_date": start_date,
         "end_date": end_date,
         "daily": "precipitation_sum,temperature_2m_mean",
+        "hourly": "relative_humidity_2m",
         "timezone": "Asia/Manila",
     })
     url = f"{ARCHIVE_URL}?{params}"
@@ -133,8 +139,8 @@ def fetch_daily(lat, lon, start_date, end_date, retries=3):
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "agrika-gis/weather"})
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                return json.loads(resp.read().decode("utf-8"))["daily"]
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             last_err = e
             # Rate-limited: back off hard (Open-Meteo's free limit is per-minute).
@@ -146,28 +152,38 @@ def fetch_daily(lat, lon, start_date, end_date, retries=3):
     raise RuntimeError(f"failed after {retries} tries: {last_err}")
 
 
-def to_monthly(daily):
-    """Collapse daily arrays into {(year, month): (rain_mm, temp_mean, days)}."""
-    times = daily["time"]
-    rain = daily["precipitation_sum"]
-    temp = daily["temperature_2m_mean"]
+def to_monthly(resp):
+    """Collapse response into {(year, month): (rain_mm, temp_mean, humidity, days)}."""
+    daily = resp["daily"]
     rain_by = defaultdict(float)
     temp_sum = defaultdict(float)
     temp_n = defaultdict(int)
-    for t, r, tp in zip(times, rain, temp):
-        year, month = int(t[0:4]), int(t[5:7])
-        key = (year, month)
+    for t, r, tp in zip(daily["time"], daily["precipitation_sum"], daily["temperature_2m_mean"]):
+        key = (int(t[0:4]), int(t[5:7]))
         if r is not None:
             rain_by[key] += r
         if tp is not None:
             temp_sum[key] += tp
             temp_n[key] += 1
+
+    # Monthly mean relative humidity from the hourly series.
+    hum_sum = defaultdict(float)
+    hum_n = defaultdict(int)
+    hourly = resp.get("hourly", {})
+    for t, h in zip(hourly.get("time", []), hourly.get("relative_humidity_2m", [])):
+        if h is not None:
+            key = (int(t[0:4]), int(t[5:7]))
+            hum_sum[key] += h
+            hum_n[key] += 1
+
     out = {}
     for key in sorted(set(rain_by) | set(temp_n)):
         n = temp_n.get(key, 0)
+        hn = hum_n.get(key, 0)
         out[key] = (
             round(rain_by.get(key, 0.0), 2),
             round(temp_sum[key] / n, 2) if n else None,
+            round(hum_sum[key] / hn, 2) if hn else None,
             n,
         )
     return out
@@ -206,13 +222,14 @@ def main():
         except Exception as e:  # noqa: BLE001
             print(f"  [{i}/{len(points)}] {name}: ERROR {e}", file=sys.stderr)
             continue
-        for (year, month), (rain_mm, temp_c, days) in monthly.items():
+        for (year, month), (rain_mm, temp_c, humidity, days) in monthly.items():
             rows.append({
                 name_col: name,
                 "year": year,
                 "month": month,
                 "rainfall_mm": rain_mm,
                 "temp_mean_c": temp_c,
+                "humidity_mean_pct": humidity,
                 "days": days,
             })
         print(f"  [{i}/{len(points)}] {name} ({lat},{lon}): {len(monthly)} months")
@@ -223,7 +240,8 @@ def main():
         return 1
 
     rows.sort(key=lambda r: (r[name_col], int(r["year"]), int(r["month"])))
-    fieldnames = [name_col, "year", "month", "rainfall_mm", "temp_mean_c", "days"]
+    fieldnames = [name_col, "year", "month", "rainfall_mm", "temp_mean_c",
+                  "humidity_mean_pct", "days"]
     with open(out_path, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
         writer.writeheader()
