@@ -131,6 +131,43 @@ CREATE TABLE municipality_predictions (
 );
 
 -- ------------------------------------------------------------
+--  MONTHLY FEATURE TABLES  (Objective 3: acquired + preprocessed remote-sensing
+--  and meteorological features, one row per municipality-year-month. Loaded by
+--  scripts/load_feature_tables.py from the fetch CSVs.)
+-- ------------------------------------------------------------
+CREATE TABLE weather_monthly (
+    weather_id        SERIAL PRIMARY KEY,
+    municipality_id   INTEGER NOT NULL REFERENCES municipalities(municipality_id),
+    year              INTEGER NOT NULL,
+    month             INTEGER NOT NULL,
+    rainfall_mm       DOUBLE PRECISION,
+    temp_mean_c       DOUBLE PRECISION,
+    humidity_mean_pct DOUBLE PRECISION,
+    days              INTEGER,
+    UNIQUE (municipality_id, year, month)
+);
+
+CREATE TABLE satellite_monthly (
+    satellite_id    SERIAL PRIMARY KEY,
+    municipality_id INTEGER NOT NULL REFERENCES municipalities(municipality_id),
+    year            INTEGER NOT NULL,
+    month           INTEGER NOT NULL,
+    ndvi_mean       DOUBLE PRECISION,
+    ndvi_std        DOUBLE PRECISION,
+    evi_mean        DOUBLE PRECISION,
+    evi_std         DOUBLE PRECISION,
+    ndwi_mean       DOUBLE PRECISION,
+    ndwi_std        DOUBLE PRECISION,
+    s2_valid_px     INTEGER,
+    vv_mean         DOUBLE PRECISION,
+    vv_std          DOUBLE PRECISION,
+    vh_mean         DOUBLE PRECISION,
+    vh_std          DOUBLE PRECISION,
+    s1_valid_px     INTEGER,
+    UNIQUE (municipality_id, year, month)
+);
+
+-- ------------------------------------------------------------
 --  RESIDUALS  (observed - predicted; ties a prediction to its actual)
 -- ------------------------------------------------------------
 CREATE TABLE residuals (
@@ -152,3 +189,5 @@ CREATE INDEX idx_muni_yield_muni       ON municipality_yield_records(municipalit
 CREATE INDEX idx_muni_yield_season     ON municipality_yield_records(season_id);
 CREATE INDEX idx_muni_pred_muni        ON municipality_predictions(municipality_id);
 CREATE INDEX idx_muni_pred_season      ON municipality_predictions(season_id);
+CREATE INDEX idx_weather_monthly_muni   ON weather_monthly(municipality_id);
+CREATE INDEX idx_satellite_monthly_muni ON satellite_monthly(municipality_id);

@@ -37,10 +37,11 @@ So acquisition + preprocessing + integration logic is essentially done.
 
 ## Gaps to fully satisfy Objective 3
 
-1. **🔴 Centralized spatial database.** Weather & satellite features live in **CSVs**,
-   not the PostGIS DB. Only boundaries, yield, and predictions are in the DB. The
-   paper explicitly says integrate *into a centralized spatial database*.
-   → Add `weather_monthly` + `satellite_monthly` tables and loaders.
+1. **✅ DONE — Centralized spatial database.** `weather_monthly` (2,880 rows) and
+   `satellite_monthly` (2,850 rows) PostGIS tables added (schema.sql +
+   `add_feature_tables.py`), loaded from the fetch CSVs by `load_feature_tables.py`
+   (idempotent upsert, diacritics-folded name match, 0 skipped). Features now live
+   in the DB alongside boundaries, yield, and predictions.
 
 2. **🟠 Automated pipeline (single orchestrator).** The steps are separate manual
    scripts. → One entry point that runs acquire → preprocess → integrate → load,
@@ -55,9 +56,11 @@ So acquisition + preprocessing + integration logic is essentially done.
 
 ## Proposed build order (when we start)
 
-**Step 1 — DB integration (foundational, start here).**
-- Schema: `weather_monthly(municipality_id, year, month, rainfall_mm, temp_mean_c, humidity_mean_pct, ...)` and `satellite_monthly(municipality_id, year, month, ndvi_mean, evi_mean, vv_mean, vh_mean, s2_valid_px, s1_valid_px, ...)`, FK to `municipalities`.
-- Loaders: CSV → tables (idempotent upsert, name-folding match like the predictions loader).
+**Step 1 — DB integration (foundational). ✅ DONE.**
+- Schema: `weather_monthly` and `satellite_monthly` (FK to `municipalities`, UNIQUE
+  on municipality/year/month) in `schema.sql` + `add_feature_tables.py`.
+- Loader: `load_feature_tables.py` — CSV → tables, idempotent ON CONFLICT upsert,
+  diacritics-folded name match. Loaded 2,880 weather + 2,850 satellite rows, 0 skipped.
 - Result: the "centralized spatial database" the paper describes.
 
 **Step 2 — Pipeline orchestrator.**
