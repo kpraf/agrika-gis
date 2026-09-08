@@ -163,6 +163,21 @@ export default function SpatialGIS() {
     return vals.length ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
   }, [predByMuni]);
 
+  // Residual (observed - predicted) per municipality, with a SYMMETRIC scale
+  // (-absMax .. +absMax) so 0 sits at the neutral middle of the diverging ramp.
+  const residByMuni = useMemo(() => {
+    const out = {};
+    for (const r of compareResp?.records ?? []) {
+      if (r.residual != null) out[r.municipality_id] = { yield: r.residual, is_proxy: false };
+    }
+    return out;
+  }, [compareResp]);
+  const residScale = useMemo(() => {
+    const vals = Object.values(residByMuni).map((x) => Math.abs(x.yield));
+    const m = vals.length ? Math.max(...vals) : null;
+    return m ? { min: -m, max: m } : null;
+  }, [residByMuni]);
+
   // Synthetic barangay yields shaped for the map, with a per-municipality colour
   // scale (local min/max) so intra-municipality variation is visible on drill-in.
   const yieldByBarangay = useMemo(() => {
@@ -179,16 +194,22 @@ export default function SpatialGIS() {
   );
 
   const showingPredicted = dataSource === "predicted" && predMeta.has_predictions;
-  const mapYieldByMuni = showingPredicted ? predByMuni : yieldByMuni;
-  const mapColorScale = showingPredicted
+  const showingResidual = dataSource === "residual" && predMeta.has_predictions;
+  const mapYieldByMuni = showingResidual ? residByMuni : showingPredicted ? predByMuni : yieldByMuni;
+  const mapColorScale = showingResidual
+    ? residScale
+    : showingPredicted
     ? predScale
     : yieldResp?.stats
     ? { min: yieldResp.stats.min, max: yieldResp.stats.max }
     : null;
+  const mapColorMode = showingResidual ? "residual" : "yield";
   const heatmapOn =
-    viewType === "heatmap" && layers.boundaries && (showingPredicted ? !!predScale : !!yieldResp);
+    viewType === "heatmap" &&
+    layers.boundaries &&
+    (showingResidual ? !!residScale : showingPredicted ? !!predScale : !!yieldResp);
   // Barangay choropleth (synthetic) only in the observed heatmap view.
-  const barangayHeatmapOn = heatmapOn && !showingPredicted && !!barangayScale;
+  const barangayHeatmapOn = heatmapOn && !showingPredicted && !showingResidual && !!barangayScale;
   const mapYieldByBarangay = barangayHeatmapOn ? yieldByBarangay : null;
   const selectedYield = selection?.level === "municipality" ? yieldByMuni[selection.id] : null;
   const selectedCompare =
@@ -298,6 +319,19 @@ export default function SpatialGIS() {
                     } ${!predMeta.has_predictions ? "opacity-40 cursor-not-allowed" : ""}`}
                   >
                     Predicted
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => predMeta.has_predictions && setDataSource("residual")}
+                    disabled={!predMeta.has_predictions}
+                    title="Observed minus predicted — where the model over- or under-predicts"
+                    className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
+                      dataSource === "residual" && predMeta.has_predictions
+                        ? "bg-[#3B9E1C] text-white shadow-sm"
+                        : "text-[#4B5563]"
+                    } ${!predMeta.has_predictions ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    Residual
                   </button>
                 </div>
               </div>
@@ -437,9 +471,10 @@ export default function SpatialGIS() {
             heatmap={heatmapOn}
             yieldByMuni={mapYieldByMuni}
             colorScale={mapColorScale}
+            colorMode={mapColorMode}
             yieldByBarangay={mapYieldByBarangay}
             barangayColorScale={barangayScale}
-            yieldKey={`${showingPredicted ? "pred" : "obs"}-${year}-${season}`}
+            yieldKey={`${showingResidual ? "resid" : showingPredicted ? "pred" : "obs"}-${year}-${season}`}
             barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayResp?.stats?.count ?? 0}`}
           />
 
