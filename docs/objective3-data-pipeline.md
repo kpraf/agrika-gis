@@ -49,8 +49,10 @@ So acquisition + preprocessing + integration logic is essentially done.
    `--skip-fetch` flag to re-integrate/reload without hitting the APIs. Writes a
    machine-readable `db/pipeline_last_run.json` summary.
 
-3. **🟠 Reliability evaluation.** None yet. The objective is *evaluated* on reliable
-   acquire/preprocess/integrate/deliver. → A QA/validation report.
+3. **✅ DONE — Reliability evaluation.** `pipeline_reliability.py` queries the DB +
+   training set and reports acquisition, completeness, integrity, integration, and
+   gap accounting (saved to `pipeline_reliability_report.txt`). Headline results
+   below.
 
 4. **🟢 Minor: Green Ratio vs NDWI.** Methodology names Green Ratio (B08/B03); we
    fetched NDWI (which the ablation showed didn't help). Add Green Ratio if the
@@ -71,14 +73,22 @@ So acquisition + preprocessing + integration logic is essentially done.
   timing/status, stop-on-failure, `--skip-fetch`, and a `pipeline_last_run.json`
   summary. Verified end-to-end with `--skip-fetch`.
 
-**Step 3 — Reliability evaluation.**
-- Metrics: acquisition success rate (areas fetched / attempted), data completeness (% of expected area-month cells present), integrity checks (value ranges, no NaN/Inf leaking through, name-join coverage), gap accounting (S2 cloud gaps, S1 2022 dip), and delivery check (training rows produced vs labels).
-- Output: a `pipeline_reliability_report` (printed + saved), to cite in the Objective 3 evaluation.
+**Step 3 — Reliability evaluation. ✅ DONE.**
+- `pipeline_reliability.py`: acquisition, completeness, integrity, integration, and
+  gap-accounting checks against the DB + training set; saves `pipeline_reliability_report.txt`.
 
-## Evaluation framing for the paper
+## Evaluation results (citable, from pipeline_reliability.py)
 
-The pipeline's reliability can be reported as: **X% acquisition success**, **Y% area-month
-completeness** (with documented, expected gaps for tropical S2 cloud cover and the 2022
-Sentinel-1 dip), **0 integrity violations** (all values in range, no non-finite values
-delivered), and **100% of yield labels matched** to feature rows. These are concrete,
-defensible reliability figures for a developmental-research pipeline evaluation.
+Scope: 30 municipalities × 8 years × 12 months = **2,880 expected area-months** (2018-2025).
+
+| Check | Result |
+|---|---|
+| **Acquisition** | weather 2,880/2,880 (100%); satellite 2,850/2,880 (99.0%); 30/30 municipalities |
+| **Completeness** | weather features 100%; NDVI/EVI/NDWI 89.9%; VV/VH 99.0% |
+| **Integrity** | **0 violations** — all values in physical range, no non-finite values (4 EVI outliers noted; EVI excluded from final model) |
+| **Integration** | **29/29** yield-label municipalities matched to features (100%); **462** training rows delivered |
+| **Gap accounting** | S2 cloud gaps concentrated in wet season (183/261); S1 SAR complete where acquired; 1.0% area-months fully absent |
+
+**Verdict: 0 integrity violations, weather complete, satellite gaps documented and
+expected** (tropical optical cloud cover). A defensible reliability result for a
+developmental-research pipeline evaluation.
