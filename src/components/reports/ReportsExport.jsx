@@ -323,18 +323,19 @@ export default function ReportsExport() {
   };
 
   return (
-    <div className="flex w-full h-screen bg-[#F3F4F6] font-sans" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="flex w-full h-screen bg-[#F3F4F6] font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <DashboardSidebar active="reports" city={city} />
 
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="flex items-center justify-between px-10 h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
-          <h1 className="text-2xl font-bold text-[#1F2937] tracking-[-0.6px]">
-            Reports Generation and Data Import/Export
+        <header className="flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+          <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">
+            <span className="md:hidden">Reports</span>
+            <span className="hidden md:inline">Reports Generation and Data Import/Export</span>
           </h1>
-          <span className="text-sm font-medium text-[#6B7280]">{cityLabel}</span>
+          <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">{cityLabel}</span>
         </header>
 
-        <div className="flex-1 overflow-y-auto bg-[#F8FAFC] p-6">
+        <div className="flex-1 overflow-y-auto bg-[#F8FAFC] p-4 sm:p-6">
           {/* Top Stats Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <StatCard
@@ -447,7 +448,14 @@ export default function ReportsExport() {
                     </select>
                   </div>
                 </div>
-                <div className="w-full h-72">
+                {/* Many categories (e.g. 29 cities) can't fit legibly on a phone —
+                    let the chart scroll horizontally with room per bar. It still fits
+                    without scrolling on wider screens and when grouped by Year. */}
+                <div className="w-full overflow-x-auto">
+                  <div
+                    className="h-72"
+                    style={{ width: "100%", minWidth: chartData.length > 12 ? `${chartData.length * 30}px` : "100%" }}
+                  >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={chartData}
@@ -487,6 +495,7 @@ export default function ReportsExport() {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
 

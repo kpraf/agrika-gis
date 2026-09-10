@@ -176,20 +176,21 @@ export default function RiceYieldAnalytics() {
   const ChartComponent = chartType === "line" ? LineChart : BarChart;
 
   return (
-    <div className="flex w-full h-screen bg-white font-sans" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="flex w-full h-screen bg-white font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <DashboardSidebar active="compare" city={city} />
 
       <div className="flex flex-col flex-1 min-w-0">
         {/* Top Header */}
-        <header className="flex items-center justify-between px-10 h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
-          <h1 className="text-2xl font-bold text-[#1F2937] tracking-[-0.6px]">
-            Rice Yield Analytics and Comparison
+        <header className="flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+          <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">
+            <span className="md:hidden">Analytics</span>
+            <span className="hidden md:inline">Rice Yield Analytics and Comparison</span>
           </h1>
-          <span className="text-sm font-medium text-[#6B7280]">{cityLabel}</span>
+          <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">{cityLabel}</span>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-10">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
           <div className="flex flex-col gap-6 p-6 bg-white border border-[#F3F4F6] shadow-sm rounded-2xl">
             {/* Level + Season filters */}
             <div className="flex flex-wrap items-center gap-6">
