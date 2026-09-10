@@ -56,6 +56,21 @@ function NavItem({ to, icon, label, active }) {
   );
 }
 
+// Compact tab for the mobile bottom bar (below md).
+function MobileNavItem({ to, icon, label, active }) {
+  return (
+    <Link
+      to={to}
+      className={`flex flex-col items-center justify-center gap-0.5 flex-1 ${
+        active ? "text-white" : "text-white/60 active:text-white"
+      }`}
+    >
+      <span className="flex items-center justify-center">{ICONS[icon]}</span>
+      <span className="text-[9px] font-medium leading-none">{label}</span>
+    </Link>
+  );
+}
+
 // Which modules each role may open (matches the route guards in App.jsx).
 const NAV_BY_ROLE = {
   administrator: ["monitoring", "map", "compare", "reports", "settings"],
@@ -96,7 +111,9 @@ export default function DashboardSidebar({ active }) {
   const NAV = keys.map((key) => ({ key, ...ITEMS[key] }));
 
   return (
-    <aside className="flex flex-col items-center justify-between py-6 w-[70px] shrink-0 h-full bg-[#1F6306] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] z-10">
+    <>
+      {/* Desktop / tablet rail (md+) */}
+      <aside className="hidden md:flex flex-col items-center justify-between py-6 w-[70px] shrink-0 h-full bg-[#1F6306] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] z-10">
       <div className="flex flex-col items-center w-full pb-8">
         <div
           className="flex items-center justify-center w-11 h-11 rounded-xl bg-white text-[#1F6306] font-extrabold text-lg shadow-sm"
@@ -128,6 +145,22 @@ export default function DashboardSidebar({ active }) {
           <span className="text-[10px] font-medium leading-[15px]">Exit</span>
         </button>
       </div>
+      </aside>
+
+      {/* Mobile bottom tab bar (below md) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[900] h-14 bg-[#1F6306] flex items-stretch justify-around shadow-[0_-4px_12px_rgba(0,0,0,0.12)]">
+        {NAV.map((item) => (
+          <MobileNavItem key={item.key} to={item.to} icon={item.key} label={item.label} active={active === item.key} />
+        ))}
+        <button
+          type="button"
+          onClick={() => setConfirmLogout(true)}
+          className="flex flex-col items-center justify-center gap-0.5 flex-1 text-white/60 active:text-white"
+        >
+          {ICONS.logout}
+          <span className="text-[9px] font-medium leading-none">Exit</span>
+        </button>
+      </nav>
 
       {/* Logout confirmation — portaled to <body> so Leaflet's stacking contexts
           on the map pages can't trap it behind the map. */}
@@ -164,6 +197,6 @@ export default function DashboardSidebar({ active }) {
         </div>,
         document.body
       )}
-    </aside>
+    </>
   );
 }

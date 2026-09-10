@@ -66,6 +66,9 @@ export default function SpatialGIS() {
 
   const [viewType, setViewType] = useState("heatmap");
   const [layers, setLayers] = useState({ boundaries: true });
+  // Mobile/tablet (below lg): the two side panels collapse into slide-in drawers.
+  const [leftOpen, setLeftOpen] = useState(false); // controls drawer
+  const [rightOpen, setRightOpen] = useState(false); // context drawer
   const [selection, setSelection] = useState(null); // reported by <LagunaMap />
   const [municipalities, setMunicipalities] = useState([]); // [{ id, name }] from the map
   const [activeCityId, setActiveCityId] = useState(null); // null = whole province
@@ -300,7 +303,7 @@ export default function SpatialGIS() {
   }
 
   return (
-    <div className="flex w-full h-screen bg-[#F8FAF5] font-sans" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className={`flex w-full h-screen bg-[#F8FAF5] font-sans ${!isPublic ? "pb-14 md:pb-0" : ""}`} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {!isPublic && <DashboardSidebar active="map" />}
 
       <div className="flex flex-col flex-1 min-w-0">
@@ -311,17 +314,37 @@ export default function SpatialGIS() {
           </div>
         ) : (
           /* Portal view: dashboard header */
-          <header className="flex items-center justify-between px-10 h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
-            <h1 className="text-2xl font-bold text-[#1F2937] tracking-[-0.6px]">
-              Spatial GIS Visualization and Analysis
+          <header className="flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+            <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">
+              <span className="md:hidden">Spatial GIS</span>
+              <span className="hidden md:inline">Spatial GIS Visualization and Analysis</span>
             </h1>
-            <span className="text-sm font-medium text-[#6B7280]">{cityLabel}</span>
+            <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">{cityLabel}</span>
           </header>
         )}
 
-        <div className="flex flex-1 min-h-0">
-          {/* Left Panel — Map Controls */}
-          <section className="w-[400px] shrink-0 h-full overflow-y-auto bg-white border-r border-[#C3C8BD]">
+        <div className="relative flex flex-1 min-h-0 overflow-hidden lg:overflow-visible">
+          {/* Backdrop behind an open drawer (below lg only) */}
+          {(leftOpen || rightOpen) && (
+            <div
+              className="lg:hidden absolute inset-0 z-[940] bg-black/40"
+              onClick={() => { setLeftOpen(false); setRightOpen(false); }}
+            />
+          )}
+
+          {/* Left Panel — Map Controls.
+              lg+: static column. Below lg: slide-in drawer from the left. */}
+          <section
+            className={`bg-white overflow-y-auto lg:static lg:z-auto lg:w-[400px] lg:max-w-none lg:shrink-0 lg:h-full lg:translate-x-0 lg:border-r lg:border-[#C3C8BD] lg:shadow-none absolute top-0 bottom-0 left-0 z-[950] w-[86vw] max-w-[380px] border-r border-[#C3C8BD] shadow-2xl transition-transform duration-300 ${
+              leftOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
+            <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
+              <span className="text-sm font-semibold text-[#1F2937]">Map Controls</span>
+              <button type="button" onClick={() => setLeftOpen(false)} aria-label="Close controls" className="p-1.5 -mr-1.5 text-[#6B7280] hover:text-[#1F2937]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
             <div className="flex flex-col gap-12 p-6">
               {/* View Type — Yield Heatmap is live (real observed data). Land Parcels
                   needs parcel geometry we don't have, so it stays disabled. */}
@@ -577,8 +600,43 @@ export default function SpatialGIS() {
             barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayResp?.stats?.count ?? 0}`}
           />
 
-          {/* Right Panel — Context */}
-          <section className="w-[460px] shrink-0 h-full overflow-y-auto bg-white">
+          {/* Floating panel toggles — below lg only (the columns are always visible at lg+).
+              Anchored to the mid-height left/right edges to clear the map's own chrome
+              (search bar on top; legend, basemap toggle and zoom along the bottom). */}
+          {!leftOpen && !rightOpen && (
+            <>
+              <button
+                type="button"
+                onClick={() => setLeftOpen(true)}
+                className="lg:hidden absolute left-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pl-2 pr-3 rounded-r-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1B6D24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
+                Layers
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightOpen(true)}
+                className="lg:hidden absolute right-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pr-2 pl-3 rounded-l-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
+              >
+                Details
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1B6D24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10M18 20V4M6 20v-4" /></svg>
+              </button>
+            </>
+          )}
+
+          {/* Right Panel — Context.
+              lg+: static column. Below lg: slide-in drawer from the right. */}
+          <section
+            className={`bg-white overflow-y-auto lg:static lg:z-auto lg:w-[460px] lg:max-w-none lg:shrink-0 lg:h-full lg:translate-x-0 lg:border-l-0 lg:shadow-none absolute top-0 bottom-0 right-0 z-[950] w-[86vw] max-w-[420px] border-l border-[#C3C8BD] shadow-2xl transition-transform duration-300 ${
+              rightOpen ? "translate-x-0" : "translate-x-full"
+            }`}
+          >
+            <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
+              <span className="text-sm font-semibold text-[#1F2937]">Details</span>
+              <button type="button" onClick={() => setRightOpen(false)} aria-label="Close details" className="p-1.5 -mr-1.5 text-[#6B7280] hover:text-[#1F2937]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
             <div className="flex flex-col gap-6 p-6">
               {/* Selected area (reflects the drill-down state from the map) */}
               <div className="flex flex-col gap-2 p-6 bg-[#F8FAF5] border border-[#C3C8BD] rounded-xl w-full">

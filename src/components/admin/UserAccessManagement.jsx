@@ -325,15 +325,15 @@ export default function UserAccessManagement() {
     });
 
   return (
-    <div className="flex w-full h-screen bg-white font-sans" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className="flex w-full h-screen bg-white font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <DashboardSidebar active="settings" />
 
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="flex items-center justify-between px-10 h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
-          <h1 className="text-2xl font-bold text-[#1F2937] tracking-[-0.6px]">User Access Management</h1>
+        <header className="flex items-center justify-between px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+          <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">User Access Management</h1>
         </header>
 
-        <div className="flex-1 overflow-y-auto bg-white p-8">
+        <div className="flex-1 overflow-y-auto bg-white p-4 sm:p-6 md:p-8">
           <div className="bg-white border border-[#F3F4F6] shadow-sm rounded-2xl overflow-hidden flex flex-col">
             {/* Toolbar */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-[#F3F4F6]">
