@@ -590,25 +590,27 @@ export default function LagunaMap({
 
       {/* Yield heatmap legend — centred along the bottom of the map. */}
       {heatmapActive && !selectedMuni && colorScale?.min != null && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-6 z-[500] bg-white/95 backdrop-blur-sm shadow-md rounded-lg px-5 py-3">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-semibold text-[#374151] whitespace-nowrap">
+        <div className="absolute left-3 bottom-20 sm:left-1/2 sm:-translate-x-1/2 sm:bottom-6 z-[500] bg-white/95 backdrop-blur-sm shadow-md rounded-lg px-3 py-2 sm:px-5 sm:py-3 max-w-[calc(100vw-5rem)] sm:max-w-none">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="text-xs sm:text-sm font-semibold text-[#374151] whitespace-nowrap">
               {colorMode === "residual" ? "Residual (obs − pred), mt/ha" : legendLabel}
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-[#6B7280]">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-[10px] sm:text-xs text-[#6B7280]">
                 {colorMode === "residual" ? "over-predicts" : colorScale.min}
               </span>
-              <div className="flex h-3.5 w-52 rounded-full overflow-hidden">
+              <div className="flex h-3 sm:h-3.5 w-24 sm:w-52 rounded-full overflow-hidden">
                 {(colorMode === "residual" ? RESIDUAL_RAMP : RAMPS[rampKey] || YIELD_RAMP).map((c) => (
                   <span key={c} className="flex-1" style={{ background: c }} />
                 ))}
               </div>
-              <span className="text-xs text-[#6B7280]">
+              <span className="text-[10px] sm:text-xs text-[#6B7280]">
                 {colorMode === "residual" ? "under-predicts" : colorScale.max}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            {/* "No data" key hidden on phones to keep the legend from colliding with
+                the basemap toggle / zoom; the grey polygons read clearly enough. */}
+            <div className="hidden sm:flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-[#D1D5DB]" />
               <span className="text-xs text-[#6B7280] whitespace-nowrap">No data</span>
             </div>
