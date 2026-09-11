@@ -93,44 +93,6 @@ export const authApi = {
   logout: () => request("/auth/logout", { method: "POST", auth: true }),
 };
 
-export const boundariesApi = {
-  municipalities: () => request("/boundaries/municipalities"),
-  barangays: (municipalityId) =>
-    request(`/boundaries/barangays${municipalityId ? `?municipality_id=${municipalityId}` : ""}`),
-  barangayIndex: () => request("/boundaries/barangays/index"),
-};
-
-export const yieldApi = {
-  meta: () => request("/yield/meta"),
-  municipalities: (year, season) =>
-    request(`/yield/municipalities?year=${year}&season=${encodeURIComponent(season)}`),
-  // SYNTHETIC per-barangay yields for a municipality (sample data — see backend).
-  barangays: (municipalityId, year, season) =>
-    request(
-      `/yield/barangays?municipality_id=${municipalityId}&year=${year}&season=${encodeURIComponent(season)}`
-    ),
-  trend: (season, municipalityId) =>
-    request(
-      `/yield/trend?season=${encodeURIComponent(season)}${
-        municipalityId ? `&municipality_id=${municipalityId}` : ""
-      }`
-    ),
-  records: () => request("/yield/records"),
-  predictionsMeta: () => request("/yield/predictions/meta"),
-  compare: (year, season) =>
-    request(`/yield/compare?year=${year}&season=${encodeURIComponent(season)}`),
-};
-
-// Remote-sensing / meteorological features (NDVI, rainfall, etc.) for the map's
-// Environment view — per-municipality seasonal averages from the feature tables.
-export const featuresApi = {
-  meta: () => request("/features/meta"),
-  municipalities: (year, season, metric) =>
-    request(
-      `/features/municipalities?metric=${encodeURIComponent(metric)}&year=${year}&season=${encodeURIComponent(season)}`
-    ),
-};
-
 export const usersApi = {
   list: () => request("/users", { auth: true }),
   meta: () => request("/meta", { auth: true }),

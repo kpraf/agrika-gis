@@ -5,6 +5,14 @@ province of Laguna. It combines satellite imagery, weather data, and a CNN-LSTM 
 model to estimate rice yields, and presents them on interactive maps and dashboards for local
 government units and agriculturists.
 
+> **`report-1-scope` branch — Week 1 progress build (Aug 31 – Sept 11, 2026).**
+> This branch is deliberately limited to the modules reported in Progress Report 1:
+> **Module 1 — Home & System Information** (Landing, About, FAQ, Contact, Portal Access),
+> **Module 6 — User Access Management & System Configuration**, and the backend
+> **CNN-LSTM model features** and **automated data pipeline**. The Monitoring, Spatial GIS,
+> Analytics, and Reports modules are scheduled for the succeeding reports and are not part of
+> this build. See the full-system feature list below for the complete planned scope.
+
 ## Features
 
 **Public site** (no login needed)

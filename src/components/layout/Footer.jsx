@@ -35,7 +35,6 @@ export default function Footer() {
             <h4 className="text-xl font-bold text-white">Explore More</h4>
             <div className="flex flex-col gap-4">
               {[
-                { label: "Yield Map", to: "/yield-map" },
                 { label: "Portal Access", to: "/portal-access" },
                 { label: "Contact", to: "/contact" },
               ].map((item) => (

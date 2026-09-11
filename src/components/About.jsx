@@ -144,10 +144,10 @@ export default function About() {
 
           <div className="flex justify-center">
             <Link
-              to="/yield-map"
+              to="/portal-access"
               className="flex items-center gap-2 px-8 py-3 rounded-full bg-[#286A11] text-white font-medium hover:bg-[#1F6306] transition-colors"
             >
-              View Our Yield Map
+              Access the Portal
               <span className="w-4 h-4 rounded-full bg-[#FFCA28] flex items-center justify-center">
                 <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
                   <path d="M1 4h6M4 1l3 3-3 3" stroke="#286A11" strokeWidth="1" />
