@@ -96,14 +96,14 @@ export default function Home() {
       <section className="relative bg-[#FACC15] py-14 px-6 overflow-hidden">
         {/* subtle decorative pattern layer - swap for the real Figma pattern asset if available */}
         <div className="absolute inset-0 bg-repeat opacity-10 bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22><circle cx=%2210%22 cy=%2210%22 r=%223%22 fill=%22%23000%22/></svg>')]" />
-        <div className="relative z-10 max-w-[1120px] mx-auto flex flex-wrap items-center justify-center gap-x-12 gap-y-8 md:gap-x-16">
+        <div className="relative z-10 max-w-[1200px] mx-auto flex flex-wrap lg:flex-nowrap items-center justify-center gap-x-10 gap-y-8 lg:gap-x-6 xl:gap-x-10">
           {PARTNERS.map((partner) => (
             <img
               key={partner.name}
               src={partner.logo}
               alt={partner.name}
               title={partner.name}
-              className="h-16 md:h-20 w-auto object-contain"
+              className="h-16 md:h-20 lg:h-14 xl:h-16 w-auto object-contain shrink-0"
             />
           ))}
         </div>
