@@ -30,13 +30,13 @@ const STEPS = [
 ];
 
 const PARTNERS = [
-  { name: "PhilRice", logo: "/images/philrice.png", w: "w-40" },
-  { name: "ASEAN University Network", logo: "/images/asean.png", w: "w-36" },
-  { name: "MAPUA MMCL", logo: "/images/MMCL_Logo.png", w: "w-20" },
-  { name: "Calamba City Agricultural Services Dept.", logo: "/images/agric-calamba.png", w: "w-24" },
-  { name: "Cabuyao City Agricultural Services Dept.", logo: "/images/agric-cabuyao.png", w: "w-24" },
-  { name: "Santa Rosa City Agricultural Services Dept.", logo: "/images/agric-sta-rosa.png", w: "w-24" },
-
+  { name: "MAPUA MMCL", logo: "/images/MMCL_Logo.png" },
+  { name: "PhilRice", logo: "/images/philrice.png" },
+  { name: "ASEAN University Network", logo: "/images/asean.png" },
+  { name: "Calamba City Agricultural Services Dept.", logo: "/images/agric-calamba.png" },
+  { name: "Cabuyao City Agricultural Services Dept.", logo: "/images/agric-cabuyao.png" },
+  { name: "Santa Rosa City Agricultural Services Dept.", logo: "/images/agric-sta-rosa.png" },
+  { name: "Biñan Knows Organic", logo: "/images/binan-organic.png" },
 ];
 
 const TEAM = [
@@ -96,14 +96,19 @@ export default function Home() {
       <section className="relative bg-[#FACC15] py-14 px-6 overflow-hidden">
         {/* subtle decorative pattern layer - swap for the real Figma pattern asset if available */}
         <div className="absolute inset-0 bg-repeat opacity-10 bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22><circle cx=%2210%22 cy=%2210%22 r=%223%22 fill=%22%23000%22/></svg>')]" />
-        <div className="relative z-10 flex flex-wrap items-center justify-center gap-16">
+        <div className="relative z-10 max-w-[1120px] mx-auto flex flex-wrap items-center justify-center gap-4 md:gap-5">
           {PARTNERS.map((partner) => (
-            <img
+            <div
               key={partner.name}
-              src={partner.logo}
-              alt={partner.name}
-              className={`${partner.w} h-24 object-contain`}
-            />
+              title={partner.name}
+              className="h-20 md:h-24 px-5 md:px-7 flex items-center justify-center bg-white rounded-2xl shadow-[0_6px_16px_rgba(0,0,0,0.10)] ring-1 ring-black/5 transition-transform duration-200 hover:-translate-y-0.5"
+            >
+              <img
+                src={partner.logo}
+                alt={partner.name}
+                className="h-12 md:h-14 w-auto object-contain"
+              />
+            </div>
           ))}
         </div>
       </section>
