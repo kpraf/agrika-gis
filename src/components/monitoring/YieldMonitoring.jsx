@@ -68,6 +68,8 @@ export default function YieldMonitoring() {
   const [resp, setResp] = useState(null); // { stats, records } for year+season
   const [trend, setTrend] = useState([]); // yearly series
   const [selection, setSelection] = useState(null); // from the map
+  // Real per-barangay yields for the drilled-in municipality (barangay_yield).
+  const [barangayResp, setBarangayResp] = useState(null); // { stats, records }
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState("bar"); // "bar" | "pie" | "table"
   // Below lg the two side panels become slide-in drawers.
@@ -111,6 +113,21 @@ export default function YieldMonitoring() {
     return () => { active = false; };
   }, [season, selection]);
 
+  // Real per-barangay yields when a municipality is drilled into; cleared at the
+  // province view. Colours the barangay choropleth and the drill-in breakdown.
+  const activeCityId = selection?.level === "municipality" ? selection.id : null;
+  useEffect(() => {
+    if (!activeCityId || !year || !season) {
+      setBarangayResp(null);
+      return;
+    }
+    let active = true;
+    yieldApi.barangays(activeCityId, year, season)
+      .then((r) => active && setBarangayResp(r))
+      .catch(() => active && setBarangayResp(null));
+    return () => { active = false; };
+  }, [activeCityId, year, season]);
+
   const records = resp?.records ?? [];
   const stats = resp?.stats;
 
@@ -134,6 +151,30 @@ export default function YieldMonitoring() {
     for (const r of records) out[r.municipality_id] = { yield: r.yield, is_proxy: r.is_proxy };
     return out;
   }, [records]);
+
+  // Real barangay yields for the drilled-in municipality.
+  const barangayRecords = barangayResp?.records ?? [];
+  const barangayStats = barangayResp?.stats;
+  const hasBarangayData = barangayRecords.length > 0;
+  const drilled = selection?.level === "municipality";
+
+  // Barangay choropleth for the map, on a local (per-municipality) colour scale
+  // so intra-municipality variation is visible.
+  const yieldByBarangay = useMemo(() => {
+    const out = {};
+    for (const r of barangayRecords) out[r.barangay_id] = { yield: r.yield };
+    return out;
+  }, [barangayRecords]);
+  const barangayScale = useMemo(
+    () => (barangayStats?.min != null ? { min: barangayStats.min, max: barangayStats.max } : null),
+    [barangayStats]
+  );
+
+  // Ranked barangays (high -> low) for the drill-in breakdown list.
+  const barangayBars = useMemo(
+    () => [...barangayRecords].sort((a, b) => b.yield - a.yield),
+    [barangayRecords]
+  );
 
   const trendLabel = selection?.level === "municipality" ? selection.name : "Laguna Province";
 
@@ -220,6 +261,60 @@ export default function YieldMonitoring() {
                   <StatCard label="Average" value={stats.avg ?? "N/A"} unit="mt/ha" />
                   <StatCard label="Highest" value={stats.max ?? "N/A"} unit="mt/ha" />
                   <StatCard label="Lowest" value={stats.min ?? "N/A"} unit="mt/ha" />
+                </div>
+              )}
+
+              {/* Barangay breakdown — real per-barangay yields for the drilled-in
+                  municipality (barangay_yield). Only shown once a municipality is
+                  selected on the map. */}
+              {drilled && (
+                <div className="flex flex-col gap-3 p-4 bg-[#F0FDF4] border border-[#A7E1A1] rounded-lg">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[#1B6D24]">
+                      {selection.name} · Barangays
+                    </span>
+                    {hasBarangayData && (
+                      <span className="inline-flex items-center rounded-full bg-[#3B9E1C] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                        Real
+                      </span>
+                    )}
+                  </div>
+
+                  {hasBarangayData ? (
+                    <>
+                      <div className="grid grid-cols-3 gap-3">
+                        <StatCard label="Average" value={barangayStats.avg ?? "N/A"} unit="mt/ha" />
+                        <StatCard label="Highest" value={barangayStats.max ?? "N/A"} unit="mt/ha" />
+                        <StatCard label="Lowest" value={barangayStats.min ?? "N/A"} unit="mt/ha" />
+                      </div>
+                      <div className="border border-[#DCEBD5] rounded-lg overflow-hidden max-h-64 overflow-y-auto bg-white">
+                        <table className="w-full text-sm">
+                          <thead className="bg-[#E7F6E1] text-[#3F6B39] sticky top-0">
+                            <tr>
+                              <th className="text-left font-semibold px-3 py-2">Barangay</th>
+                              <th className="text-right font-semibold px-3 py-2">mt/ha</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {barangayBars.map((b) => (
+                              <tr key={b.barangay_id} className="border-t border-[#EDF3EA]">
+                                <td className="px-3 py-1.5 text-[#191C1A]">{b.name}</td>
+                                <td className="px-3 py-1.5 text-right font-semibold text-[#1B3315]">{b.yield}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="text-[11px] leading-4 text-[#3F6B39]">
+                        Observed yields from the City Agriculture Office harvest reports. Barangays
+                        with no reported harvest are greyed on the map.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[#4B7A44]">
+                      No per-barangay data collected for {selection.name} in {season} {year} yet.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -344,6 +439,9 @@ export default function YieldMonitoring() {
             yieldByMuni={yieldByMuni}
             colorScale={stats ? { min: stats.min, max: stats.max } : null}
             yieldKey={`${year}-${season}`}
+            yieldByBarangay={hasBarangayData ? yieldByBarangay : null}
+            barangayColorScale={barangayScale}
+            barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayStats?.count ?? 0}`}
             onSelectionChange={setSelection}
           />
 

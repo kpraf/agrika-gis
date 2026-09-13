@@ -85,7 +85,7 @@ export default function LagunaMap({
   rampKey = "green", // sequential palette family for the Environment layers
   legendLabel = "Avg yield (mt/ha)", // legend title (sequential modes)
   valueUnit = "mt/ha", // unit shown in tooltips ("" for unitless indices like NDVI)
-  yieldByBarangay = null, // { [barangay_id]: { yield } } — SYNTHETIC sample data
+  yieldByBarangay = null, // { [barangay_id]: { yield } } — real observed barangay_yield
   barangayColorScale = null, // { min, max } local to the drilled-in municipality
   yieldKey = "", // changes (e.g. "2024-Dry") force the choropleth to restyle
   barangayKey = "", // changes force the barangay choropleth to restyle
@@ -206,9 +206,9 @@ export default function LagunaMap({
     ? { color: "#FDE047", weight: 1.2, fillColor: "#FDE047", fillOpacity: 0 }
     : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
 
-  // Synthetic per-barangay choropleth: colour each barangay by its (sample) yield
-  // on a local scale, grey where there's no value. Falls back to the flat outline
-  // style when no barangay data is provided.
+  // Per-barangay choropleth: colour each barangay by its real observed yield on a
+  // local scale, grey where there's no value. Falls back to the flat outline style
+  // when no barangay data is provided.
   const brgyHeatmapActive = !!yieldByBarangay && !!barangayColorScale;
   const brgyStyleFor = (feature) => {
     if (!brgyHeatmapActive) return brgyStyle;
@@ -228,7 +228,7 @@ export default function LagunaMap({
     if (!brgyHeatmapActive) return name;
     const rec = yieldByBarangay[feature.properties.barangay_id];
     if (!rec || rec.yield == null) return `${name}: no data`;
-    return `${name}: ${rec.yield} mt/ha (sample)`;
+    return `${name}: ${rec.yield} mt/ha`;
   };
 
   // react-leaflet applies `style`/`onEachFeature` (incl. bound tooltips) only at
