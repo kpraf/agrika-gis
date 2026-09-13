@@ -79,8 +79,8 @@ export default function SpatialGIS() {
   const [year, setYear] = useState(null);
   const [yieldResp, setYieldResp] = useState(null); // { stats, records }
   const [yieldLoading, setYieldLoading] = useState(false);
-  // SYNTHETIC per-barangay yields for the drilled-in municipality (sample data).
-  const [barangayResp, setBarangayResp] = useState(null); // { synthetic, stats, records }
+  // Real per-barangay yields for the drilled-in municipality (barangay_yield).
+  const [barangayResp, setBarangayResp] = useState(null); // { stats, records } real barangay_yield
 
   // CNN-LSTM predictions overlay (empty until model output is loaded).
   const [dataSource, setDataSource] = useState("observed"); // "observed" | "predicted" | "residual"
@@ -126,7 +126,7 @@ export default function SpatialGIS() {
     };
   }, [year, season]);
 
-  // Fetch synthetic per-barangay yields when a municipality is drilled into.
+  // Fetch real per-barangay yields when a municipality is drilled into.
   // Cleared when back at the province view.
   useEffect(() => {
     if (!activeCityId || !year || !season) {
@@ -225,7 +225,7 @@ export default function SpatialGIS() {
   );
   const envConfig = ENV_METRICS.find((m) => m.key === envMetric) ?? ENV_METRICS[0];
 
-  // Synthetic barangay yields shaped for the map, with a per-municipality colour
+  // Real barangay yields shaped for the map, with a per-municipality colour
   // scale (local min/max) so intra-municipality variation is visible on drill-in.
   const yieldByBarangay = useMemo(() => {
     const out = {};
@@ -275,7 +275,7 @@ export default function SpatialGIS() {
       : showingPredicted
       ? !!predScale
       : !!yieldResp);
-  // Barangay choropleth (synthetic) only in the observed heatmap view.
+  // Barangay choropleth only in the observed heatmap view.
   const barangayHeatmapOn =
     heatmapOn && !showingEnvironment && !showingPredicted && !showingResidual && !!barangayScale;
   const mapYieldByBarangay = barangayHeatmapOn ? yieldByBarangay : null;
@@ -699,13 +699,13 @@ export default function SpatialGIS() {
                         {selectedYield.is_proxy && " (Estimated, source proxy value.)"}
                       </span>
                       {barangayHeatmapOn && barangayResp?.stats?.count > 0 && (
-                        <div className="mt-1 flex items-start gap-2 rounded-lg bg-[#FEF3C7] border border-[#FDE68A] px-3 py-2">
-                          <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-[#F59E0B] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                            Sample
+                        <div className="mt-1 flex items-start gap-2 rounded-lg bg-[#ECFDF3] border border-[#A7E1A1] px-3 py-2">
+                          <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-[#3B9E1C] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Real
                           </span>
-                          <span className="text-xs leading-4 text-[#92400E]">
-                            The per-barangay colours are <b>sample data</b>, estimated from this
-                            municipality's yield (not measured). Only the municipality value above is real.
+                          <span className="text-xs leading-4 text-[#1B6D24]">
+                            Per-barangay colours are <b>real observed yields</b> from the City
+                            Agriculture Office harvest reports. Barangays with no reported harvest are greyed.
                           </span>
                         </div>
                       )}
