@@ -104,7 +104,7 @@ export const yieldApi = {
   meta: () => request("/yield/meta"),
   municipalities: (year, season) =>
     request(`/yield/municipalities?year=${year}&season=${encodeURIComponent(season)}`),
-  // SYNTHETIC per-barangay yields for a municipality (sample data — see backend).
+  // Real per-barangay observed yields for a municipality (from barangay_yield).
   barangays: (municipalityId, year, season) =>
     request(
       `/yield/barangays?municipality_id=${municipalityId}&year=${year}&season=${encodeURIComponent(season)}`
