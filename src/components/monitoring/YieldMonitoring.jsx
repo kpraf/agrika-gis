@@ -68,8 +68,13 @@ export default function YieldMonitoring() {
   const [resp, setResp] = useState(null); // { stats, records } for year+season
   const [trend, setTrend] = useState([]); // yearly series
   const [selection, setSelection] = useState(null); // from the map
+  // Real per-barangay yields for the drilled-in municipality (barangay_yield).
+  const [barangayResp, setBarangayResp] = useState(null); // { stats, records }
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState("bar"); // "bar" | "pie" | "table"
+  // Panel scope: "municipality" = province-wide comparison; "barangay" = the
+  // drilled-in municipality's barangays. Only offered once drilled in.
+  const [scope, setScope] = useState("municipality");
   // Below lg the two side panels become slide-in drawers.
   const [leftOpen, setLeftOpen] = useState(false); // overview drawer
   const [rightOpen, setRightOpen] = useState(false); // trends drawer
@@ -111,23 +116,55 @@ export default function YieldMonitoring() {
     return () => { active = false; };
   }, [season, selection]);
 
+  // Real per-barangay yields when a municipality is drilled into; cleared at the
+  // province view. Colours the barangay choropleth and the drill-in breakdown.
+  const activeCityId = selection?.level === "municipality" ? selection.id : null;
+  useEffect(() => {
+    if (!activeCityId || !year || !season) {
+      setBarangayResp(null);
+      return;
+    }
+    let active = true;
+    yieldApi.barangays(activeCityId, year, season)
+      .then((r) => active && setBarangayResp(r))
+      .catch(() => active && setBarangayResp(null));
+    return () => { active = false; };
+  }, [activeCityId, year, season]);
+
   const records = resp?.records ?? [];
-  const stats = resp?.stats;
+  const stats = resp?.stats; // municipality stats — also drives the map's colour scale
 
-  const barData = useMemo(
-    () => [...records].sort((a, b) => b.yield - a.yield).map((r) => ({ name: r.name, yield: r.yield, is_proxy: r.is_proxy })),
-    [records]
-  );
+  // Real barangay yields for the drilled-in municipality.
+  const barangayRecords = barangayResp?.records ?? [];
+  const barangayStats = barangayResp?.stats;
+  const hasBarangayData = barangayRecords.length > 0;
+  const drilled = selection?.level === "municipality";
 
-  const pieData = useMemo(
-    () =>
-      BRACKETS.map((b) => ({
-        name: b.label,
-        value: records.filter((r) => b.test(r.yield)).length,
-        color: b.color,
-      })).filter((d) => d.value > 0),
-    [records]
-  );
+  // Default the panel scope to barangays on drill-in, back to municipalities when
+  // returning to the province view.
+  useEffect(() => {
+    setScope(drilled ? "barangay" : "municipality");
+  }, [drilled, selection?.id]);
+
+  // Whichever level the panel is showing (charts, stat cards, table).
+  const onBarangay = drilled && scope === "barangay";
+  const panelStats = onBarangay ? barangayStats : stats;
+
+  const barData = useMemo(() => {
+    const src = onBarangay ? barangayRecords : records;
+    return [...src]
+      .sort((a, b) => b.yield - a.yield)
+      .map((r) => ({ id: r.municipality_id ?? r.barangay_id, name: r.name, yield: r.yield, is_proxy: r.is_proxy }));
+  }, [onBarangay, barangayRecords, records]);
+
+  const pieData = useMemo(() => {
+    const src = onBarangay ? barangayRecords : records;
+    return BRACKETS.map((b) => ({
+      name: b.label,
+      value: src.filter((r) => b.test(r.yield)).length,
+      color: b.color,
+    })).filter((d) => d.value > 0);
+  }, [onBarangay, barangayRecords, records]);
 
   const yieldByMuni = useMemo(() => {
     const out = {};
@@ -135,7 +172,22 @@ export default function YieldMonitoring() {
     return out;
   }, [records]);
 
+  // Barangay choropleth for the map, on a local (per-municipality) colour scale
+  // so intra-municipality variation is visible.
+  const yieldByBarangay = useMemo(() => {
+    const out = {};
+    for (const r of barangayRecords) out[r.barangay_id] = { yield: r.yield };
+    return out;
+  }, [barangayRecords]);
+  const barangayScale = useMemo(
+    () => (barangayStats?.min != null ? { min: barangayStats.min, max: barangayStats.max } : null),
+    [barangayStats]
+  );
+
   const trendLabel = selection?.level === "municipality" ? selection.name : "Laguna Province";
+  // Short municipality name for the scope tab (drop the "City of " prefix).
+  const shortCity = drilled ? selection.name.replace(/^City of\s+/i, "") : "";
+  const unitLabel = onBarangay ? "Barangay" : "Municipality";
 
   return (
     <div className="flex w-full h-screen bg-[#F8FAF5] font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -214,13 +266,53 @@ export default function YieldMonitoring() {
                 </div>
               </div>
 
-              {/* Stat cards */}
-              {stats && (
-                <div className="grid grid-cols-3 gap-3">
-                  <StatCard label="Average" value={stats.avg ?? "N/A"} unit="mt/ha" />
-                  <StatCard label="Highest" value={stats.max ?? "N/A"} unit="mt/ha" />
-                  <StatCard label="Lowest" value={stats.min ?? "N/A"} unit="mt/ha" />
+              {/* Scope tab — appears once a municipality is drilled into on the map,
+                  letting the panel switch between the province-wide municipality
+                  comparison and that municipality's barangays. */}
+              {drilled && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex p-1 gap-1 bg-[#ECEFEA] rounded-lg">
+                    <button
+                      type="button"
+                      onClick={() => setScope("municipality")}
+                      className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
+                        scope === "municipality" ? "bg-[#3B9E1C] text-white shadow-sm" : "text-[#4B5563]"
+                      }`}
+                    >
+                      Municipalities
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScope("barangay")}
+                      className={`flex-1 py-2 rounded text-sm font-medium transition-colors ${
+                        scope === "barangay" ? "bg-[#3B9E1C] text-white shadow-sm" : "text-[#4B5563]"
+                      }`}
+                    >
+                      {shortCity} barangays
+                    </button>
+                  </div>
+                  {onBarangay && (
+                    <p className="text-[11px] leading-4 text-[#6B7280]">
+                      Observed per-barangay yields from the City Agriculture Office harvest
+                      reports. Barangays with no reported harvest are greyed on the map.
+                    </p>
+                  )}
                 </div>
+              )}
+
+              {/* Stat cards — for whichever scope the panel is showing */}
+              {onBarangay && !hasBarangayData ? (
+                <p className="text-sm text-[#6B7280] px-1">
+                  No per-barangay data collected for {shortCity} in {season} {year} yet.
+                </p>
+              ) : (
+                panelStats && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <StatCard label="Average" value={panelStats.avg ?? "N/A"} unit="mt/ha" />
+                    <StatCard label="Highest" value={panelStats.max ?? "N/A"} unit="mt/ha" />
+                    <StatCard label="Lowest" value={panelStats.min ?? "N/A"} unit="mt/ha" />
+                  </div>
+                )
               )}
 
               {/* View switcher */}
@@ -243,10 +335,10 @@ export default function YieldMonitoring() {
                 ))}
               </div>
 
-              {/* Bar chart — yield by municipality */}
+              {/* Bar chart — yield by municipality (or barangay when drilled in) */}
               {tab === "bar" && (
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-[#6B7280] uppercase">Yield by Municipality (mt/ha)</label>
+                <label className="text-xs font-semibold text-[#6B7280] uppercase">Yield by {unitLabel} (mt/ha)</label>
                 <div className="bg-[#F9FAFB] border border-[#F3F4F6] rounded-lg p-2">
                   {barData.length ? (
                     <ResponsiveContainer width="100%" height={Math.max(320, barData.length * 20)}>
@@ -259,7 +351,7 @@ export default function YieldMonitoring() {
                         />
                         <Bar dataKey="yield" radius={[0, 3, 3, 0]}>
                           {barData.map((d, i) => (
-                            <Cell key={i} fill={yieldColor(d.yield, stats?.min, stats?.max)} />
+                            <Cell key={i} fill={yieldColor(d.yield, panelStats?.min, panelStats?.max)} />
                           ))}
                         </Bar>
                       </BarChart>
@@ -283,7 +375,7 @@ export default function YieldMonitoring() {
                           <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={30} outerRadius={58} paddingAngle={2}>
                             {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
                           </Pie>
-                          <Tooltip formatter={(v, n) => [`${v} municipalities`, n]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                          <Tooltip formatter={(v, n) => [`${v} ${onBarangay ? "barangays" : "municipalities"}`, n]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="flex flex-col gap-1.5 flex-1">
@@ -306,19 +398,19 @@ export default function YieldMonitoring() {
               {/* Table — ranked */}
               {tab === "table" && (
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-[#6B7280] uppercase">Ranked Municipalities</label>
+                <label className="text-xs font-semibold text-[#6B7280] uppercase">Ranked {unitLabel === "Barangay" ? "Barangays" : "Municipalities"}</label>
                 <div className="border border-[#F3F4F6] rounded-lg overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-[#F3F4F6] text-[#6B7280]">
                       <tr>
                         <th className="text-left font-semibold px-3 py-2 w-8">#</th>
-                        <th className="text-left font-semibold px-3 py-2">Municipality</th>
+                        <th className="text-left font-semibold px-3 py-2">{unitLabel}</th>
                         <th className="text-right font-semibold px-3 py-2">mt/ha</th>
                       </tr>
                     </thead>
                     <tbody>
                       {barData.map((d, i) => (
-                        <tr key={d.name} className="border-t border-[#F3F4F6]">
+                        <tr key={d.id ?? d.name} className="border-t border-[#F3F4F6]">
                           <td className="px-3 py-1.5 text-[#9CA3AF]">{i + 1}</td>
                           <td className="px-3 py-1.5 text-[#191C1A]">
                             {d.name}
@@ -344,6 +436,9 @@ export default function YieldMonitoring() {
             yieldByMuni={yieldByMuni}
             colorScale={stats ? { min: stats.min, max: stats.max } : null}
             yieldKey={`${year}-${season}`}
+            yieldByBarangay={hasBarangayData ? yieldByBarangay : null}
+            barangayColorScale={barangayScale}
+            barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayStats?.count ?? 0}`}
             onSelectionChange={setSelection}
           />
 
