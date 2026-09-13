@@ -699,15 +699,10 @@ export default function SpatialGIS() {
                         {selectedYield.is_proxy && " (Estimated, source proxy value.)"}
                       </span>
                       {barangayHeatmapOn && barangayResp?.stats?.count > 0 && (
-                        <div className="mt-1 flex items-start gap-2 rounded-lg bg-[#ECFDF3] border border-[#A7E1A1] px-3 py-2">
-                          <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-[#3B9E1C] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                            Real
-                          </span>
-                          <span className="text-xs leading-4 text-[#1B6D24]">
-                            Per-barangay colours are <b>real observed yields</b> from the City
-                            Agriculture Office harvest reports. Barangays with no reported harvest are greyed.
-                          </span>
-                        </div>
+                        <p className="mt-1 text-xs leading-4 text-[#6B7280]">
+                          Per-barangay colours are observed yields from the City Agriculture
+                          Office harvest reports. Barangays with no reported harvest are greyed.
+                        </p>
                       )}
                     </div>
                   ) : (
