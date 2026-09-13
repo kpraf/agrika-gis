@@ -168,6 +168,25 @@ CREATE TABLE satellite_monthly (
 );
 
 -- ------------------------------------------------------------
+--  BARANGAY_YIELD  (real observed yield per barangay per season, collected
+--  manually from the City Agriculture Offices' Planting & Harvesting reports).
+--  yield_mt_ha = production_mt / area_ha. Only rice-producing barangays that
+--  reported a harvest appear here; everything else is "no data" (absent).
+--  This is the real barangay-level ground truth (supersedes the synthetic
+--  per-barangay values the map used as a placeholder).
+-- ------------------------------------------------------------
+CREATE TABLE barangay_yield (
+    brgy_yield_id  SERIAL PRIMARY KEY,
+    barangay_id    INTEGER NOT NULL REFERENCES barangays(barangay_id),
+    season_id      INTEGER NOT NULL REFERENCES seasons(season_id),
+    yield_mt_ha    DOUBLE PRECISION,
+    area_ha        DOUBLE PRECISION,
+    production_mt  DOUBLE PRECISION,
+    source         VARCHAR(120),
+    UNIQUE (barangay_id, season_id)
+);
+
+-- ------------------------------------------------------------
 --  RESIDUALS  (observed - predicted; ties a prediction to its actual)
 -- ------------------------------------------------------------
 CREATE TABLE residuals (
@@ -191,3 +210,5 @@ CREATE INDEX idx_muni_pred_muni        ON municipality_predictions(municipality_
 CREATE INDEX idx_muni_pred_season      ON municipality_predictions(season_id);
 CREATE INDEX idx_weather_monthly_muni   ON weather_monthly(municipality_id);
 CREATE INDEX idx_satellite_monthly_muni ON satellite_monthly(municipality_id);
+CREATE INDEX idx_barangay_yield_brgy     ON barangay_yield(barangay_id);
+CREATE INDEX idx_barangay_yield_season   ON barangay_yield(season_id);
