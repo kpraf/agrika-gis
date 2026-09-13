@@ -109,6 +109,13 @@ export const yieldApi = {
     request(
       `/yield/barangays?municipality_id=${municipalityId}&year=${year}&season=${encodeURIComponent(season)}`
     ),
+  // Municipalities that have any per-barangay data (Analytics barangay picker).
+  barangayMunicipalities: () => request("/yield/barangays/municipalities"),
+  // Year-over-year yield per barangay of one municipality, for a season.
+  barangaySeries: (municipalityId, season) =>
+    request(
+      `/yield/barangays/series?municipality_id=${municipalityId}&season=${encodeURIComponent(season)}`
+    ),
   trend: (season, municipalityId) =>
     request(
       `/yield/trend?season=${encodeURIComponent(season)}${

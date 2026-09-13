@@ -16,10 +16,11 @@ import {
 import DashboardSidebar from "../layout/DashboardSidebar";
 import { yieldApi } from "../../lib/api";
 
-// Distinct series colours, cycled if more municipalities are selected than colours.
+// Distinct series colours, cycled if more entities are selected than colours.
 const PALETTE = [
   "#0D9488", "#F97316", "#3B82F6", "#7C3AED", "#DB2777",
   "#16A34A", "#CA8A04", "#0EA5E9", "#DC2626", "#4B5563",
+  "#0891B2", "#9333EA",
 ];
 
 function IconLine() {
@@ -69,26 +70,46 @@ function ControlButton({ active, onClick, disabled, children }) {
   );
 }
 
+// Pick the N highest-average series ids for a sensible default view.
+function topByAverage(seriesById, ids, n) {
+  const avg = (id) => {
+    const vals = Object.values(seriesById[id] || {});
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : -Infinity;
+  };
+  return [...ids].sort((a, b) => avg(b) - avg(a)).slice(0, n);
+}
+
 export default function RiceYieldAnalytics() {
   const { city } = useParams();
 
   const [meta, setMeta] = useState({ years: [], seasons: [] });
   const [season, setSeason] = useState(null);
-  const [munis, setMunis] = useState([]); // [{ id, name }]
-  const [selected, setSelected] = useState(new Set()); // municipality ids
-  const [seriesByMuni, setSeriesByMuni] = useState({}); // { id: { year: yield } }
+  const [level, setLevel] = useState("municipality"); // "municipality" | "barangay"
   const [chartType, setChartType] = useState("line");
   const [showAverage, setShowAverage] = useState(false);
   const [zoomEnabled, setZoomEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [level, setLevel] = useState("municipality"); // "municipality" | "barangay" (barangay pending data)
+
+  // Municipality comparison (province-wide).
+  const [munis, setMunis] = useState([]); // [{ id, name }]
+  const [selectedMuni, setSelectedMuni] = useState(new Set()); // municipality ids
+  const [seriesByMuni, setSeriesByMuni] = useState({}); // { id: { year: yield } }
+
+  // Barangay comparison — always scoped to ONE municipality.
+  const [brgyMunis, setBrgyMunis] = useState([]); // municipalities that have barangay data
+  const [brgyMuniId, setBrgyMuniId] = useState(null); // the municipality whose barangays we compare
+  const [brgys, setBrgys] = useState([]); // [{ id, name }] of that municipality
+  const [selectedBrgy, setSelectedBrgy] = useState(new Set()); // barangay ids
+  const [brgySeries, setBrgySeries] = useState({}); // { barangay_id: { year: yield } }
+  const [brgyYears, setBrgyYears] = useState([]); // years present in the barangay data
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
     [city]
   );
 
-  // Load filter options + the municipality list, and pick a sensible default set.
+  // Load filter options + the municipality list, pick a default set, and find out
+  // which municipalities have barangay-level data (to enable the Barangay tab).
   useEffect(() => {
     let active = true;
     yieldApi.meta().then((m) => {
@@ -103,23 +124,25 @@ export default function RiceYieldAnalytics() {
         const list = (r.records || []).map((x) => ({ id: x.municipality_id, name: x.name }));
         list.sort((a, b) => a.name.localeCompare(b.name));
         setMunis(list);
-        // default: the 4 highest-yielding municipalities that year, for a useful first view
         const top = [...(r.records || [])].sort((a, b) => b.yield - a.yield).slice(0, 4);
-        setSelected(new Set(top.map((x) => x.municipality_id)));
+        setSelectedMuni(new Set(top.map((x) => x.municipality_id)));
       });
+    }).catch(() => {});
+    yieldApi.barangayMunicipalities().then((r) => {
+      if (!active) return;
+      const list = r.municipalities || [];
+      setBrgyMunis(list);
+      if (list.length) setBrgyMuniId(list[0].municipality_id);
     }).catch(() => {});
     return () => { active = false; };
   }, []);
 
-  // Fetch the year-over-year series for each selected municipality in the chosen season.
+  // Municipality series: year-over-year for each selected municipality in the season.
   useEffect(() => {
-    if (!season || selected.size === 0) {
-      setSeriesByMuni({});
-      return;
-    }
+    if (level !== "municipality" || !season || selectedMuni.size === 0) return;
     let active = true;
     setLoading(true);
-    const ids = [...selected];
+    const ids = [...selectedMuni];
     Promise.all(ids.map((id) => yieldApi.trend(season, id).then((r) => [id, r.series || []])))
       .then((pairs) => {
         if (!active) return;
@@ -133,18 +156,54 @@ export default function RiceYieldAnalytics() {
       .catch(() => active && setSeriesByMuni({}))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [season, selected]);
+  }, [level, season, selectedMuni]);
+
+  // Barangay series: all barangays of the chosen municipality, for the season.
+  useEffect(() => {
+    if (level !== "barangay" || !season || !brgyMuniId) return;
+    let active = true;
+    setLoading(true);
+    yieldApi.barangaySeries(brgyMuniId, season)
+      .then((r) => {
+        if (!active) return;
+        const list = (r.barangays || []).map((b) => ({ id: b.barangay_id, name: b.name }));
+        list.sort((a, b) => a.name.localeCompare(b.name));
+        const series = {};
+        for (const b of r.barangays || []) series[b.barangay_id] = b.series || {};
+        setBrgys(list);
+        setBrgySeries(series);
+        setBrgyYears(r.years || []);
+        // Default to the 6 highest-average barangays for a legible first view.
+        setSelectedBrgy(new Set(topByAverage(series, list.map((b) => b.id), 6)));
+      })
+      .catch(() => {
+        if (!active) return;
+        setBrgys([]); setBrgySeries({}); setBrgyYears([]); setSelectedBrgy(new Set());
+      })
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [level, season, brgyMuniId]);
+
+  // Generic view over whichever level is active.
+  const isBarangay = level === "barangay";
+  const entities = isBarangay ? brgys : munis;
+  const selected = isBarangay ? selectedBrgy : selectedMuni;
+  const seriesById = isBarangay ? brgySeries : seriesByMuni;
+  const years = isBarangay ? brgyYears : meta.years;
+  const entityWord = isBarangay ? "barangay" : "municipality";
+  const entityWordPlural = isBarangay ? "barangays" : "municipalities";
 
   const colorFor = useMemo(() => {
     const map = {};
-    munis.forEach((m, i) => { map[m.id] = PALETTE[i % PALETTE.length]; });
+    entities.forEach((e, i) => { map[e.id] = PALETTE[i % PALETTE.length]; });
     return map;
-  }, [munis]);
+  }, [entities]);
 
-  const selectedMunis = munis.filter((m) => selected.has(m.id));
+  const selectedEntities = entities.filter((e) => selected.has(e.id));
 
-  const toggleMunicipality = (id) => {
-    setSelected((prev) => {
+  const toggleEntity = (id) => {
+    const setter = isBarangay ? setSelectedBrgy : setSelectedMuni;
+    setter((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         if (next.size === 1) return prev; // keep at least one
@@ -156,22 +215,26 @@ export default function RiceYieldAnalytics() {
     });
   };
 
-  // Build [{ year, m<id>: yield, ..., average }] across all years.
+  const barangayAvailable = brgyMunis.length > 0;
+  const activeBrgyMuniName =
+    brgyMunis.find((m) => m.municipality_id === brgyMuniId)?.name ?? "";
+
+  // Build [{ year, e<id>: yield, ..., average }] across the active year range.
   const chartData = useMemo(() => {
-    return meta.years.map((year) => {
+    return years.map((year) => {
       const row = { year };
       const vals = [];
-      for (const m of selectedMunis) {
-        const v = seriesByMuni[m.id]?.[year];
+      for (const e of selectedEntities) {
+        const v = seriesById[e.id]?.[year];
         if (v != null) {
-          row[`m${m.id}`] = v;
+          row[`e${e.id}`] = v;
           vals.push(v);
         }
       }
       row.average = vals.length ? Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(3)) : null;
       return row;
     });
-  }, [meta.years, selectedMunis, seriesByMuni]);
+  }, [years, selectedEntities, seriesById]);
 
   const ChartComponent = chartType === "line" ? LineChart : BarChart;
 
@@ -194,7 +257,7 @@ export default function RiceYieldAnalytics() {
           <div className="flex flex-col gap-6 p-6 bg-white border border-[#F3F4F6] shadow-sm rounded-2xl">
             {/* Level + Season filters */}
             <div className="flex flex-wrap items-center gap-6">
-              {/* Compare level — Municipality is live; Barangay awaits barangay-level data. */}
+              {/* Compare level — Municipality (province-wide) or Barangay (within one municipality). */}
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-[#374151]">Compare by</span>
                 <div className="flex p-1 gap-1 bg-[#F3F4F6] rounded-lg">
@@ -209,15 +272,39 @@ export default function RiceYieldAnalytics() {
                   </button>
                   <button
                     type="button"
-                    disabled
-                    title="Barangay-level yield data not available yet"
-                    className="px-3 py-1.5 rounded text-sm font-medium text-[#4B5563] opacity-40 cursor-not-allowed"
+                    onClick={() => barangayAvailable && setLevel("barangay")}
+                    disabled={!barangayAvailable}
+                    title={barangayAvailable ? "Compare barangays within one municipality" : "Barangay-level yield data not available yet"}
+                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                      level === "barangay" ? "bg-white text-[#1B3315] shadow-sm" : "text-[#4B5563]"
+                    } ${!barangayAvailable ? "opacity-40 cursor-not-allowed" : ""}`}
                   >
                     Barangay
                   </button>
                 </div>
-                <span className="text-[11px] text-[#9CA3AF]">Barangay: needs data</span>
+                {!barangayAvailable && <span className="text-[11px] text-[#9CA3AF]">Barangay: needs data</span>}
               </div>
+
+              {/* Municipality picker — only when comparing barangays (scopes to one). */}
+              {isBarangay && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#374151]">Municipality</span>
+                  <div className="relative">
+                    <select
+                      value={brgyMuniId ?? ""}
+                      onChange={(e) => setBrgyMuniId(e.target.value ? Number(e.target.value) : null)}
+                      className="appearance-none pl-3 pr-9 py-1.5 bg-white border border-[#C3C8BD] rounded-lg text-sm text-[#191C1A] outline-none focus:border-[#3B9E1C] cursor-pointer"
+                    >
+                      {brgyMunis.map((m) => (
+                        <option key={m.municipality_id} value={m.municipality_id}>{m.name}</option>
+                      ))}
+                    </select>
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                      <path d="M2 4l5 5 5-5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-[#374151]">Season</span>
@@ -240,30 +327,39 @@ export default function RiceYieldAnalytics() {
               </div>
             </div>
 
-            {/* Municipality Selection */}
+            {/* Entity selection */}
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-medium text-[#374151]">
-                Compare municipalities <span className="text-[#9CA3AF]">({selected.size} selected)</span>
+                {isBarangay ? (
+                  <>Compare barangays in <b>{activeBrgyMuniName}</b></>
+                ) : (
+                  <>Compare municipalities</>
+                )}{" "}
+                <span className="text-[#9CA3AF]">({selected.size} selected)</span>
               </h3>
               <div className="flex flex-wrap gap-2 px-4 py-3 bg-[#F9FAFB]/80 border border-[#F3F4F6] rounded-lg max-h-[132px] overflow-y-auto">
-                {munis.length === 0 && <span className="text-sm text-[#9CA3AF]">Loading municipalities…</span>}
-                {munis.map((m) => {
-                  const on = selected.has(m.id);
+                {entities.length === 0 && (
+                  <span className="text-sm text-[#9CA3AF]">
+                    {loading ? "Loading…" : isBarangay ? `No barangay data for ${activeBrgyMuniName}.` : "Loading municipalities…"}
+                  </span>
+                )}
+                {entities.map((e) => {
+                  const on = selected.has(e.id);
                   return (
                     <button
-                      key={m.id}
+                      key={e.id}
                       type="button"
-                      onClick={() => toggleMunicipality(m.id)}
+                      onClick={() => toggleEntity(e.id)}
                       className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-sm transition-colors ${
                         on ? "border-transparent text-white" : "bg-white border-[#E5E7EB] text-[#6B7280]"
                       }`}
-                      style={on ? { background: colorFor[m.id] } : undefined}
+                      style={on ? { background: colorFor[e.id] } : undefined}
                     >
                       <span
                         className="w-2.5 h-2.5 rounded-full"
-                        style={{ background: on ? "rgba(255,255,255,0.9)" : colorFor[m.id] }}
+                        style={{ background: on ? "rgba(255,255,255,0.9)" : colorFor[e.id] }}
                       />
-                      {m.name}
+                      {e.name}
                     </button>
                   );
                 })}
@@ -308,21 +404,21 @@ export default function RiceYieldAnalytics() {
                       formatter={(v) => (v == null ? "N/A" : `${v} mt/ha`)}
                     />
                     <Legend wrapperStyle={{ fontSize: 13 }} />
-                    {selectedMunis.map((m) =>
+                    {selectedEntities.map((e) =>
                       chartType === "line" ? (
                         <Line
-                          key={m.id}
+                          key={e.id}
                           type="monotone"
-                          dataKey={`m${m.id}`}
-                          name={m.name}
-                          stroke={colorFor[m.id]}
+                          dataKey={`e${e.id}`}
+                          name={e.name}
+                          stroke={colorFor[e.id]}
                           strokeWidth={2.5}
                           dot={{ r: 3 }}
                           activeDot={{ r: 5 }}
                           connectNulls
                         />
                       ) : (
-                        <Bar key={m.id} dataKey={`m${m.id}`} name={m.name} fill={colorFor[m.id]} radius={[4, 4, 0, 0]} />
+                        <Bar key={e.id} dataKey={`e${e.id}`} name={e.name} fill={colorFor[e.id]} radius={[4, 4, 0, 0]} />
                       )
                     )}
                     {showAverage && (
@@ -345,12 +441,12 @@ export default function RiceYieldAnalytics() {
               )}
             </div>
 
-            {/* Summary table — per selected municipality across the year range */}
+            {/* Summary table — per selected entity across the year range */}
             <div className="border border-[#F3F4F6] rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-[#F9FAFB] text-[#6B7280]">
                   <tr>
-                    <th className="text-left font-semibold px-4 py-2">Municipality</th>
+                    <th className="text-left font-semibold px-4 py-2 capitalize">{entityWord}</th>
                     <th className="text-right font-semibold px-4 py-2">Avg</th>
                     <th className="text-right font-semibold px-4 py-2">Min</th>
                     <th className="text-right font-semibold px-4 py-2">Max</th>
@@ -358,16 +454,16 @@ export default function RiceYieldAnalytics() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedMunis.map((m) => {
-                    const vals = meta.years.map((y) => seriesByMuni[m.id]?.[y]).filter((v) => v != null);
+                  {selectedEntities.map((e) => {
+                    const vals = years.map((y) => seriesById[e.id]?.[y]).filter((v) => v != null);
                     if (!vals.length) return null;
                     const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(3);
-                    const latest = seriesByMuni[m.id]?.[meta.years[meta.years.length - 1]];
+                    const latest = seriesById[e.id]?.[years[years.length - 1]];
                     return (
-                      <tr key={m.id} className="border-t border-[#F3F4F6]">
+                      <tr key={e.id} className="border-t border-[#F3F4F6]">
                         <td className="px-4 py-2 text-[#191C1A]">
-                          <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ background: colorFor[m.id] }} />
-                          {m.name}
+                          <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ background: colorFor[e.id] }} />
+                          {e.name}
                         </td>
                         <td className="px-4 py-2 text-right font-semibold text-[#1B3315]">{avg}</td>
                         <td className="px-4 py-2 text-right text-[#6B7280]">{Math.min(...vals).toFixed(3)}</td>
@@ -381,8 +477,13 @@ export default function RiceYieldAnalytics() {
             </div>
 
             <p className="text-[11px] leading-4 text-[#9CA3AF]">
-              Year-over-year observed average yield (mt/ha) per municipality, {season} season.
-              Source: PRiSM / Ricelytics (2018–2025). Some municipalities have gaps in a few semesters.
+              {isBarangay ? (
+                <>Year-over-year observed average yield (mt/ha) per barangay in {activeBrgyMuniName}, {season} season.
+                  Source: City Agriculture Office harvest reports. Barangays are compared only within their own municipality.</>
+              ) : (
+                <>Year-over-year observed average yield (mt/ha) per municipality, {season} season.
+                  Source: PRiSM / Ricelytics (2018–2025). Some municipalities have gaps in a few semesters.</>
+              )}
             </p>
           </div>
         </div>
