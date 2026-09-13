@@ -275,10 +275,12 @@ export default function SpatialGIS() {
       : showingPredicted
       ? !!predScale
       : !!yieldResp);
-  // Barangay choropleth only in the observed heatmap view.
-  const barangayHeatmapOn =
-    heatmapOn && !showingEnvironment && !showingPredicted && !showingResidual && !!barangayScale;
-  const mapYieldByBarangay = barangayHeatmapOn ? yieldByBarangay : null;
+  // Barangay choropleth only in the observed heatmap view. Active regardless of
+  // whether data exists for the drilled-in municipality, so no-data barangays grey
+  // out instead of falling back to the plain green outline.
+  const barangayYieldMode =
+    heatmapOn && !showingEnvironment && !showingPredicted && !showingResidual;
+  const mapYieldByBarangay = barangayYieldMode ? yieldByBarangay : null;
   const selectedYield = selection?.level === "municipality" ? yieldByMuni[selection.id] : null;
   const selectedCompare =
     selection?.level === "municipality"
@@ -588,6 +590,7 @@ export default function SpatialGIS() {
             valueUnit={mapValueUnit}
             yieldByBarangay={mapYieldByBarangay}
             barangayColorScale={barangayScale}
+            barangayHeatmap={barangayYieldMode}
             yieldKey={`${
               showingEnvironment
                 ? `env-${envMetric}`
@@ -698,7 +701,7 @@ export default function SpatialGIS() {
                         Observed average yield for {selection.name}.
                         {selectedYield.is_proxy && " (Estimated, source proxy value.)"}
                       </span>
-                      {barangayHeatmapOn && barangayResp?.stats?.count > 0 && (
+                      {barangayYieldMode && barangayResp?.stats?.count > 0 && (
                         <p className="mt-1 text-xs leading-4 text-[#6B7280]">
                           Per-barangay colours are observed yields from the City Agriculture
                           Office harvest reports. Barangays with no reported harvest are greyed.

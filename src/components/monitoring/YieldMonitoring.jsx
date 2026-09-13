@@ -438,6 +438,7 @@ export default function YieldMonitoring() {
             yieldKey={`${year}-${season}`}
             yieldByBarangay={hasBarangayData ? yieldByBarangay : null}
             barangayColorScale={barangayScale}
+            barangayHeatmap={drilled}
             barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayStats?.count ?? 0}`}
             onSelectionChange={setSelection}
           />

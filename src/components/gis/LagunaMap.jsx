@@ -87,6 +87,7 @@ export default function LagunaMap({
   valueUnit = "mt/ha", // unit shown in tooltips ("" for unitless indices like NDVI)
   yieldByBarangay = null, // { [barangay_id]: { yield } } — real observed barangay_yield
   barangayColorScale = null, // { min, max } local to the drilled-in municipality
+  barangayHeatmap = false, // yield mode on drill-in: colour barangays by yield, grey the no-data ones
   yieldKey = "", // changes (e.g. "2024-Dry") force the choropleth to restyle
   barangayKey = "", // changes force the barangay choropleth to restyle
 }) {
@@ -206,14 +207,15 @@ export default function LagunaMap({
     ? { color: "#FDE047", weight: 1.2, fillColor: "#FDE047", fillOpacity: 0 }
     : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
 
-  // Per-barangay choropleth: colour each barangay by its real observed yield on a
-  // local scale, grey where there's no value. Falls back to the flat outline style
-  // when no barangay data is provided.
-  const brgyHeatmapActive = !!yieldByBarangay && !!barangayColorScale;
+  // Per-barangay choropleth: in yield mode (barangayHeatmap), colour each barangay
+  // by its real observed yield on a local scale and grey the ones with no value —
+  // including whole municipalities where none was collected. Outside yield mode,
+  // fall back to the flat outline style.
+  const brgyHeatmapActive = barangayHeatmap;
   const brgyStyleFor = (feature) => {
     if (!brgyHeatmapActive) return brgyStyle;
-    const rec = yieldByBarangay[feature.properties.barangay_id];
-    if (!rec || rec.yield == null) {
+    const rec = yieldByBarangay?.[feature.properties.barangay_id];
+    if (!rec || rec.yield == null || !barangayColorScale) {
       return { color: sat ? "#FFFFFF" : "#9CA3AF", weight: 0.8, fillColor: "#D1D5DB", fillOpacity: sat ? 0.3 : 0.45 };
     }
     return {
@@ -226,7 +228,7 @@ export default function LagunaMap({
   const brgyTooltip = (feature) => {
     const name = feature.properties?.name ?? "";
     if (!brgyHeatmapActive) return name;
-    const rec = yieldByBarangay[feature.properties.barangay_id];
+    const rec = yieldByBarangay?.[feature.properties.barangay_id];
     if (!rec || rec.yield == null) return `${name}: no data`;
     return `${name}: ${rec.yield} mt/ha`;
   };
