@@ -269,16 +269,9 @@ export default function YieldMonitoring() {
                   selected on the map. */}
               {drilled && (
                 <div className="flex flex-col gap-3 p-4 bg-[#F0FDF4] border border-[#A7E1A1] rounded-lg">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[#1B6D24]">
-                      {selection.name} · Barangays
-                    </span>
-                    {hasBarangayData && (
-                      <span className="inline-flex items-center rounded-full bg-[#3B9E1C] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                        Real
-                      </span>
-                    )}
-                  </div>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[#1B6D24]">
+                    {selection.name} · Barangays
+                  </span>
 
                   {hasBarangayData ? (
                     <>
