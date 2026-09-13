@@ -144,6 +144,74 @@ def barangays_yield():
     })
 
 
+@yields_bp.get("/barangays/municipalities")
+def barangays_municipalities():
+    """Municipalities that actually have per-barangay yield data collected.
+
+    Drives the Analytics "compare barangays" municipality picker — barangays are
+    only ever compared within their own municipality.
+    """
+    rows = db.session.execute(
+        text(
+            "SELECT DISTINCT m.municipality_id, m.municipality_name "
+            "FROM barangay_yield y "
+            "JOIN barangays b ON b.barangay_id = y.barangay_id "
+            "JOIN municipalities m ON m.municipality_id = b.municipality_id "
+            "WHERE y.yield_mt_ha IS NOT NULL "
+            "ORDER BY m.municipality_name"
+        )
+    ).all()
+    return jsonify({
+        "municipalities": [
+            {"municipality_id": r.municipality_id, "name": r.municipality_name} for r in rows
+        ]
+    })
+
+
+@yields_bp.get("/barangays/series")
+def barangays_series():
+    """Year-over-year observed yield for every barangay of one municipality, in a
+    season — for the Analytics barangay comparison (scoped to one municipality).
+
+    Query params: municipality_id (int), season (str) — both required.
+
+    Returns { municipality_id, season, years: [...], barangays: [
+        { barangay_id, name, series: { <year>: yield_mt_ha } } ] }.
+    """
+    mid = request.args.get("municipality_id", type=int)
+    season = request.args.get("season", type=str)
+    if not mid or not season:
+        return jsonify({"error": "municipality_id and season are required"}), 400
+
+    rows = db.session.execute(
+        text(
+            "SELECT b.barangay_id, b.barangay_name, s.year, y.yield_mt_ha "
+            "FROM barangay_yield y "
+            "JOIN barangays b ON b.barangay_id = y.barangay_id "
+            "JOIN seasons s ON s.season_id = y.season_id "
+            "WHERE b.municipality_id = :m AND s.season_type = :sea "
+            "AND y.yield_mt_ha IS NOT NULL "
+            "ORDER BY b.barangay_name, s.year"
+        ),
+        {"m": mid, "sea": season},
+    ).all()
+
+    years = sorted({r.year for r in rows})
+    bmap = {}
+    for r in rows:
+        e = bmap.setdefault(
+            r.barangay_id,
+            {"barangay_id": r.barangay_id, "name": r.barangay_name, "series": {}},
+        )
+        e["series"][r.year] = round(r.yield_mt_ha, 3)
+    return jsonify({
+        "municipality_id": mid,
+        "season": season,
+        "years": years,
+        "barangays": list(bmap.values()),
+    })
+
+
 @yields_bp.get("/records")
 def records():
     """Flat list of every observed municipality yield — for the Reports page.
