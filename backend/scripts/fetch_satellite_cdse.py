@@ -145,10 +145,10 @@ def make_config():
     return cfg
 
 
-def load_geometries(level):
-    """[(name, shapely_geometry)] from the level's GeoJSON."""
+def load_geometries(level, path=None):
+    """[(name, shapely_geometry)] from the level's GeoJSON (or an override path)."""
     from shapely.geometry import shape
-    with open(GEOJSON[level], encoding="utf-8") as fh:
+    with open(path or GEOJSON[level], encoding="utf-8") as fh:
         data = json.load(fh)
     out = []
     for feat in data["features"]:
@@ -224,6 +224,9 @@ def main():
     ap.add_argument("--resume", action="store_true",
                     help="Keep rows already in the output CSV and only fetch missing areas "
                          "(lets a second CDSE account finish what the first ran out of PU on).")
+    ap.add_argument("--geojson", default=None,
+                    help="Override the GeoJSON path (e.g. a subset of barangays to conserve PU).")
+    ap.add_argument("--out", default=None, help="Override the output CSV path.")
     args = ap.parse_args()
 
     from sentinelhub import DataCollection
@@ -237,11 +240,11 @@ def main():
         "processing": {"backCoeff": "GAMMA0_TERRAIN", "orthorectify": True},
     }
 
-    areas = load_geometries(args.level)
+    areas = load_geometries(args.level, args.geojson)
     if args.limit:
         areas = areas[: args.limit]
     name_col = args.level
-    out_path = OUT[args.level]
+    out_path = args.out or OUT[args.level]
 
     # Resume: carry over rows already fetched, skip those areas.
     rows = []

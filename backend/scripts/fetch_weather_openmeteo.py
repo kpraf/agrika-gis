@@ -104,9 +104,9 @@ def centroid(geometry):
     return round(tot_x / tot_a, 5), round(tot_y / tot_a, 5)  # lon, lat
 
 
-def load_points(level):
-    """[(name, lon, lat)] for each feature in the level's GeoJSON."""
-    with open(GEOJSON[level], encoding="utf-8") as fh:
+def load_points(level, path=None):
+    """[(name, lon, lat)] for each feature in the level's GeoJSON (or an override path)."""
+    with open(path or GEOJSON[level], encoding="utf-8") as fh:
         data = json.load(fh)
     points = []
     for feat in data["features"]:
@@ -197,12 +197,15 @@ def main():
     ap.add_argument("--sleep", type=float, default=1.0, help="Seconds between API calls.")
     ap.add_argument("--resume", action="store_true",
                     help="Keep rows already in the output CSV and only fetch missing names.")
+    ap.add_argument("--geojson", default=None,
+                    help="Override the GeoJSON path (e.g. a subset of barangays).")
+    ap.add_argument("--out", default=None, help="Override the output CSV path.")
     args = ap.parse_args()
 
     start_date = f"{args.start}-01-01"
     end_date = f"{args.end}-12-31"
-    points = load_points(args.level)
-    out_path = OUT[args.level]
+    points = load_points(args.level, args.geojson)
+    out_path = args.out or OUT[args.level]
     name_col = "municipality" if args.level == "municipality" else "barangay"
 
     # Resume: carry over existing rows, skip names we already have.
