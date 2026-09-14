@@ -25,6 +25,7 @@ redistributed "Adjusted Yield" (~1.2 t/ha mean); ours are on real seasonal yield
 Usage
     python backend/scripts/baseline_model.py
 """
+import argparse
 import os
 
 import numpy as np
@@ -42,23 +43,24 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DB_DIR = os.path.abspath(os.path.join(HERE, "..", "db"))
 WIDE_CSV = os.path.join(DB_DIR, "training_features_wide.csv")
 
-SENSOR_PREFIXES = ["rain", "temp", "ndvi", "vv", "vh"]
 STEPS = 6
 
 
-def load_xy():
-    df = pd.read_csv(WIDE_CSV)
-    sensor_cols = [f"{p}_m{i}" for p in SENSOR_PREFIXES for i in range(1, STEPS + 1)]
+def load_xy(wide_csv, id_col, prefixes):
+    df = pd.read_csv(wide_csv)
+    # Only keep sensor prefixes actually present in this file.
+    prefixes = [p for p in prefixes if f"{p}_m1" in df.columns]
+    sensor_cols = [f"{p}_m{i}" for p in prefixes for i in range(1, STEPS + 1)]
     X_sensor = df[sensor_cols].copy()
 
-    # season as binary, municipality as one-hot (matches the identity info the
-    # previous model also had access to).
+    # season as binary; identity (municipality) as one-hot — matches the identity
+    # info the previous model also had access to.
     season = (df["season"] == "Wet").astype(int).rename("season_wet")
-    muni = pd.get_dummies(df["municipality"], prefix="muni")
+    ident = pd.get_dummies(df[id_col], prefix=id_col)
 
     y = df["yield_mt_ha"].to_numpy()
     groups = df["year"].to_numpy()
-    return X_sensor, season, muni, y, groups, sensor_cols
+    return X_sensor, season, ident, y, groups, sensor_cols
 
 
 def evaluate(model, X, y, groups, n_years):
@@ -78,16 +80,27 @@ def evaluate(model, X, y, groups, n_years):
 
 
 def main():
-    X_sensor, season, muni, y, groups, sensor_cols = load_xy()
+    ap = argparse.ArgumentParser(description="Leave-one-year-out baselines for rice-yield prediction.")
+    ap.add_argument("--wide", default=WIDE_CSV, help="Training wide CSV (municipality or barangay).")
+    ap.add_argument("--id-col", default="municipality",
+                    help="Identity column to one-hot (e.g. municipality).")
+    ap.add_argument("--prefixes", default="rain,temp,ndvi,vv,vh",
+                    help="Comma-separated sensor prefixes (present ones are used).")
+    args = ap.parse_args()
+    prefixes = [p.strip() for p in args.prefixes.split(",") if p.strip()]
+
+    X_sensor, season, ident, y, groups, sensor_cols = load_xy(args.wide, args.id_col, prefixes)
     n_years = len(np.unique(groups))
-    print(f"samples: {len(y)} | years: {n_years} | sensor features: {len(sensor_cols)}")
+    print(f"file: {os.path.basename(args.wide)}")
+    print(f"samples: {len(y)} | years: {n_years} | sensor features: {len(sensor_cols)} "
+          f"({','.join(prefixes)})")
     print(f"target yield_mt_ha: mean {y.mean():.3f}, std {y.std():.3f}, "
           f"range {y.min():.2f}-{y.max():.2f}\n")
 
-    # Two feature sets: environmental only, vs environmental + identity.
+    id_label = args.id_col
     feat_sets = {
         "sensors only": X_sensor,
-        "sensors + season + municipality": pd.concat([X_sensor, season, muni], axis=1),
+        f"sensors + season + {id_label}": pd.concat([X_sensor, season, ident], axis=1),
     }
 
     def ridge():
@@ -120,7 +133,7 @@ def main():
         print(f"{name:<16}{feats:<34}{rmse:>8.3f}{mae:>8.3f}{r2:>8.3f}")
 
     # Per-year spread for the strongest baseline (RF, full features).
-    _, _, _, per_year = evaluate(rf(), feat_sets["sensors + season + municipality"].to_numpy(),
+    _, _, _, per_year = evaluate(rf(), feat_sets[f"sensors + season + {id_label}"].to_numpy(),
                                  y, groups, n_years)
     print("\nRandomForest (full) per-year R2 (leave-that-year-out):")
     for yr in sorted(per_year):
