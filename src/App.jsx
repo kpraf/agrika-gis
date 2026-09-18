@@ -6,6 +6,8 @@ import About from "./components/About";
 import FAQ from "./components/FAQ";
 import Contact from "./components/Contact";
 import PortalAccess from "./components/PortalAccess";
+import YieldMonitoring from "./components/monitoring/YieldMonitoring";
+import SpatialGIS from "./components/gis/SpatialGIS";
 import UserAccessManagement from "./components/admin/UserAccessManagement";
 
 // Simple placeholder page (e.g. the unauthorized screen).
@@ -53,8 +55,39 @@ export default function App() {
         <Route path="/portal-access" element={<PortalAccess />} />
         <Route path="/unauthorized" element={<Placeholder title="Unauthorized" />} />
 
-        {/* Modules 2-5 (Monitoring, Spatial GIS, Analytics, Reports) are scheduled
-            for the succeeding reporting periods and are not part of this build. */}
+        {/* Module 2 — Real-Time and Historical Yield Monitoring (Agriculturist, Rice Technician, Admin) */}
+        <Route
+          path="/monitoring/:city"
+          element={
+            <RequireRole allowedRoles={["agriculturist", "rice_technician"]}>
+              <YieldMonitoring />
+            </RequireRole>
+          }
+        />
+        {/* Province-wide view (administrator only, no city scope) */}
+        <Route
+          path="/monitoring"
+          element={
+            <RequireRole allowedRoles={[]}>
+              <YieldMonitoring />
+            </RequireRole>
+          }
+        />
+
+        {/* Module 3 — Spatial GIS Visualization and Analysis */}
+        {/* Yield map. SpatialGIS itself decides chrome by auth state: logged in = side nav, public = top nav. */}
+        <Route path="/yield-map" element={<SpatialGIS />} />
+        <Route
+          path="/yield-map/:city"
+          element={
+            <RequireRole allowedRoles={["agriculturist", "rice_technician"]}>
+              <SpatialGIS />
+            </RequireRole>
+          }
+        />
+
+        {/* Modules 4-5 (Analytics, Reports) are scheduled for the succeeding
+            reporting periods (9/22, 9/24) and are not part of this build. */}
 
         {/* Module 6 — User Access Management and System Configuration (Admin only) */}
         <Route

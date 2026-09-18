@@ -80,10 +80,10 @@ export default function Home() {
               </span>
             </Link>
             <Link
-              to="/portal-access"
+              to="/yield-map"
               className="flex items-center gap-2 px-8 py-4 rounded-full border border-[#FACC15] text-[#FACC15] font-semibold hover:bg-[#FACC15]/10 transition-colors"
             >
-              Access the Portal
+              See Yield Map
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M2 8h12M9 4l4 4-4 4" stroke="#FACC15" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>

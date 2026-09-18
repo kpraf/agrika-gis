@@ -72,15 +72,16 @@ function MobileNavItem({ to, icon, label, active }) {
 }
 
 // Which modules each role may open (matches the route guards in App.jsx).
-// This build delivers only Module 6 (User Access Management), which is admin-only.
+// This build covers Modules 1, 2, 3 and 6; Analytics/Reports (compare, reports)
+// are scheduled for the succeeding reports and are omitted here.
 const NAV_BY_ROLE = {
-  administrator: ["settings"],
-  agriculturist: [],
-  rice_technician: [],
+  administrator: ["monitoring", "map", "settings"],
+  agriculturist: ["monitoring", "map"],
+  rice_technician: ["monitoring", "map"],
 };
 
 export default function DashboardSidebar({ active }) {
-  const { role, logout, user } = useAuth();
+  const { role, municipality, logout, user } = useAuth();
   const navigate = useNavigate();
   const [confirmLogout, setConfirmLogout] = useState(false);
 
@@ -96,11 +97,17 @@ export default function DashboardSidebar({ active }) {
     ? (nameParts[0][0] + (nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : "")).toUpperCase()
     : (user?.username?.[0]?.toUpperCase() || "?");
 
+  // Admin is province-wide (no city in the path); scoped roles use their municipality slug.
+  const slug = (municipality || "").toLowerCase().trim().replace(/\s+/g, "-");
+  const base = role === "administrator" || !slug ? "" : `/${slug}`;
+
   const ITEMS = {
+    monitoring: { label: "Monitor", to: `/monitoring${base}` },
+    map: { label: "Map", to: `/yield-map${base}` },
     settings: { label: "Settings", to: "/admin/users" },
   };
 
-  const keys = NAV_BY_ROLE[role] || [];
+  const keys = NAV_BY_ROLE[role] || ["monitoring", "map"];
   const NAV = keys.map((key) => ({ key, ...ITEMS[key] }));
 
   return (

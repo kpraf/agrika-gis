@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 const NAV_LINKS = [
   { label: "Home", to: "/" },
   { label: "About", to: "/about" },
+  { label: "Yield Map", to: "/yield-map" },
   { label: "FAQs", to: "/faq" },
   { label: "Contact", to: "/contact" },
 ];

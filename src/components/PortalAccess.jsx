@@ -3,10 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { pingHealth } from "../lib/api";
 
-// Where users land right after signing in. This build delivers Module 6
-// (User Access Management), which is administrator-only.
+const slugify = (name) => (name || "").toLowerCase().trim().replace(/\s+/g, "-");
+
+// Where each role lands right after signing in — everyone starts on Monitoring.
+// Admin sees the province-wide view; scoped roles see their own municipality.
 function landingPathFor(user) {
-  return "/admin/users";
+  if (user.role === "administrator") return "/monitoring";
+  const city = slugify(user.municipality);
+  return city ? `/monitoring/${city}` : "/yield-map";
 }
 
 export default function PortalAccess() {
