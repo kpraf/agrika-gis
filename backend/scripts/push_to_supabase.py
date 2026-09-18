@@ -37,6 +37,7 @@ MODEL_VERSION = "cnn-lstm-s2s1"
 BARANGAY_CSVS = [
     ("db/barangay_yield_city-of-santa-rosa.csv", "Santa Rosa CAO (Planting & Harvesting report)"),
     ("db/barangay_yield_city-of-cabuyao.csv", "Cabuyao CAO (Harvesting Accomplishment Report)"),
+    ("db/barangay_yield_city-of-binan.csv", "Biñan CAO (Harvesting Accomplishment Report)"),
 ]
 
 
