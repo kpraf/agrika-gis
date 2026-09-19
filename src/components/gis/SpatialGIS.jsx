@@ -111,6 +111,18 @@ export default function SpatialGIS() {
       .catch(() => {});
   }, []);
 
+  // Year options depend on what you're looking at: drilled into a municipality
+  // you're viewing barangays (data starts 2020), otherwise the province
+  // choropleth (municipality data back to 2018).
+  const yearOptions =
+    activeCityId && meta.barangay_years?.length ? meta.barangay_years : meta.years;
+  // If the current year isn't offered for this scope, clamp to the nearest one.
+  useEffect(() => {
+    if (!year || !yearOptions?.length || yearOptions.includes(year)) return;
+    const below = yearOptions.filter((y) => y <= year);
+    setYear(below.length ? Math.max(...below) : Math.min(...yearOptions));
+  }, [yearOptions, year]);
+
   // Fetch observed yields whenever the year/season selection changes.
   useEffect(() => {
     if (!year || !season) return;
@@ -527,11 +539,11 @@ export default function SpatialGIS() {
                         id="year-filter"
                         value={year ?? ""}
                         onChange={(e) => setYear(e.target.value ? Number(e.target.value) : null)}
-                        disabled={!meta.years.length}
+                        disabled={!yearOptions?.length}
                         className="w-full appearance-none px-3 py-3 pr-9 bg-white border border-[#C3C8BD] rounded-lg text-base text-[#191C1A] outline-none focus:border-[#3B9E1C] cursor-pointer disabled:opacity-50"
                       >
-                        {meta.years.length ? (
-                          meta.years.map((y) => (
+                        {yearOptions?.length ? (
+                          yearOptions.map((y) => (
                             <option key={y} value={y}>
                               {y}
                             </option>
