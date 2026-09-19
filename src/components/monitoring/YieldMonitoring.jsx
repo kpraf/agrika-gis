@@ -93,6 +93,17 @@ export default function YieldMonitoring() {
     }).catch(() => {});
   }, []);
 
+  // On the Barangays scope, only offer years that have barangay data (2020+);
+  // municipality scope keeps the full range (2018+). Clamp if the current year
+  // isn't offered for the active scope.
+  const yearOptions =
+    scope === "barangay" && meta.barangay_years?.length ? meta.barangay_years : meta.years;
+  useEffect(() => {
+    if (!year || !yearOptions?.length || yearOptions.includes(year)) return;
+    const below = yearOptions.filter((y) => y <= year);
+    setYear(below.length ? Math.max(...below) : Math.min(...yearOptions));
+  }, [yearOptions, year]);
+
   // Snapshot for the selected year + season (drives bar, pie, table, map).
   useEffect(() => {
     if (!year || !season) return;
@@ -254,10 +265,10 @@ export default function YieldMonitoring() {
                       id="mon-year"
                       value={year ?? ""}
                       onChange={(e) => setYear(e.target.value ? Number(e.target.value) : null)}
-                      disabled={!meta.years.length}
+                      disabled={!yearOptions?.length}
                       className="w-full appearance-none px-3 py-2.5 pr-9 bg-white border border-[#E5E7EB] rounded-lg text-sm text-[#374151] outline-none focus:border-[#3B9E1C] cursor-pointer disabled:opacity-50"
                     >
-                      {meta.years.length ? meta.years.map((y) => <option key={y} value={y}>{y}</option>) : <option>Loading…</option>}
+                      {yearOptions?.length ? yearOptions.map((y) => <option key={y} value={y}>{y}</option>) : <option>Loading…</option>}
                     </select>
                     <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
                       <path d="M2 4l5 5 5-5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
