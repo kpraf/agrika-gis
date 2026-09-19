@@ -34,7 +34,19 @@ def meta():
             )
         )
     ]
-    return jsonify({"years": years, "seasons": seasons})
+    # Barangay ground truth starts later (collected 2020+), so barangay-scoped
+    # year pickers use this narrower list instead of the municipality years.
+    barangay_years = [
+        r.year
+        for r in db.session.execute(
+            text(
+                "SELECT DISTINCT s.year FROM barangay_yield y "
+                "JOIN seasons s ON s.season_id = y.season_id "
+                "WHERE y.yield_mt_ha IS NOT NULL ORDER BY s.year"
+            )
+        )
+    ]
+    return jsonify({"years": years, "seasons": seasons, "barangay_years": barangay_years})
 
 
 @yields_bp.get("/municipalities")
