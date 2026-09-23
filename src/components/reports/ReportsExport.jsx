@@ -105,7 +105,17 @@ export default function ReportsExport() {
   const [fromYear, setFromYear] = useState(null);
   const [toYear, setToYear] = useState(null);
   const [exportFormat, setExportFormat] = useState("csv");
-  const [chartGroupBy, setChartGroupBy] = useState("municipality");
+  const [chartGroupBy, setChartGroupBy] = useState("area"); // "area" (muni/brgy) | "year"
+
+  // --- Report scope: the whole page (preview, records, export) is scoped by a
+  // level and, optionally, a single municipality. Barangay level always targets
+  // one municipality (that has barangay data) and shows its barangays.
+  const [viewLevel, setViewLevel] = useState("municipality"); // "municipality" | "barangay"
+  const [viewMuni, setViewMuni] = useState(""); // municipality level: "" = all, else a name
+  const [viewBrgyMuni, setViewBrgyMuni] = useState(null); // barangay level: municipality_id
+  const [barangayMunis, setBarangayMunis] = useState([]); // [{ municipality_id, name }] with barangay data
+  const [barangayRows, setBarangayRows] = useState([]); // scoped barangay records (name = barangay)
+  const [scopeLoading, setScopeLoading] = useState(false);
 
   // Map an API /yield/records payload into local rows and frame the year range.
   const applyRecords = (r) => {
@@ -137,39 +147,118 @@ export default function ReportsExport() {
     };
   }, []);
 
+  // Municipalities that actually have barangay yield data (barangay-level picker).
+  useEffect(() => {
+    yieldApi
+      .barangayMunicipalities()
+      .then((d) => setBarangayMunis(d.municipalities || []))
+      .catch(() => {});
+  }, []);
+
+  // Default the barangay-level municipality once the list is known.
+  useEffect(() => {
+    if (viewLevel === "barangay" && viewBrgyMuni == null && barangayMunis.length) {
+      setViewBrgyMuni(barangayMunis[0].municipality_id);
+    }
+  }, [viewLevel, barangayMunis, viewBrgyMuni]);
+
+  // Fetch the selected municipality's barangay records for barangay level.
+  useEffect(() => {
+    if (viewLevel !== "barangay" || viewBrgyMuni == null) {
+      setBarangayRows([]);
+      return;
+    }
+    let active = true;
+    setScopeLoading(true);
+    yieldApi
+      .barangayRecords(viewBrgyMuni)
+      .then((d) => {
+        if (!active) return;
+        setBarangayRows(
+          (d.records || []).map((x) => ({
+            name: x.barangay,
+            municipality: x.municipality,
+            year: x.year,
+            season: x.season,
+            yield: x.yield,
+            status: deriveStatus(x.yield),
+          }))
+        );
+      })
+      .catch(() => active && setBarangayRows([]))
+      .finally(() => active && setScopeLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [viewLevel, viewBrgyMuni]);
+
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
     [city]
   );
 
-  const yearOptions = useMemo(() => Array.from(new Set(records.map((r) => r.year))).sort(), [records]);
+  const isBarangay = viewLevel === "barangay";
+  const areaLabel = isBarangay ? "barangays" : "municipalities";
+  const areaColLabel = isBarangay ? "Barangay" : "Municipality";
+  const areaCountLabel = (n) =>
+    `${n} ${n === 1 ? (isBarangay ? "barangay" : "municipality") : areaLabel}`;
+
+  // Base rows for the current scope, each carrying a generic `name` (municipality
+  // name, or barangay name at barangay level).
+  const scopedRecords = useMemo(() => {
+    if (isBarangay) return barangayRows; // already scoped to one municipality, name = barangay
+    const base = viewMuni ? records.filter((r) => r.municipality === viewMuni) : records;
+    return base.map((r) => ({ ...r, name: r.municipality }));
+  }, [isBarangay, barangayRows, records, viewMuni]);
+
+  const yearOptions = useMemo(
+    () => Array.from(new Set(scopedRecords.map((r) => r.year))).sort(),
+    [scopedRecords]
+  );
+
+  // All municipality names (for the municipality-level scope dropdown).
+  const muniOptions = useMemo(
+    () => Array.from(new Set(records.map((r) => r.municipality))).sort(),
+    [records]
+  );
+
+  // When the scope changes, reset the year window to the scoped data's range
+  // (municipality years are 2018+, barangay years 2020+).
+  useEffect(() => {
+    const ys = Array.from(new Set(scopedRecords.map((r) => r.year)));
+    if (ys.length) {
+      setFromYear(Math.min(...ys));
+      setToYear(Math.max(...ys));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewLevel, viewMuni, viewBrgyMuni, barangayRows]);
 
   const filtered = useMemo(
     () =>
-      records.filter(
+      scopedRecords.filter(
         (r) =>
           (season === "All" || r.season === season) &&
           (fromYear == null || r.year >= fromYear) &&
           (toYear == null || r.year <= toYear)
       ),
-    [records, season, fromYear, toYear]
+    [scopedRecords, season, fromYear, toYear]
   );
 
   const stats = useMemo(() => {
     if (!filtered.length) {
-      return { total: 0, cities: 0, highest: null, lowest: null, goodPct: 0 };
+      return { total: 0, areas: 0, highest: null, lowest: null, goodPct: 0 };
     }
-    const cities = new Set(filtered.map((r) => r.municipality)).size;
+    const areas = new Set(filtered.map((r) => r.name)).size;
     const highest = filtered.reduce((a, b) => (b.yield > a.yield ? b : a));
     const lowest = filtered.reduce((a, b) => (b.yield < a.yield ? b : a));
     const goodPct = Math.round((filtered.filter((r) => r.status === "Good").length / filtered.length) * 100);
-    return { total: filtered.length, cities, highest, lowest, goodPct };
+    return { total: filtered.length, areas, highest, lowest, goodPct };
   }, [filtered]);
 
   const chartData = useMemo(() => {
     const groups = new Map();
     filtered.forEach((r) => {
-      const key = chartGroupBy === "municipality" ? r.municipality : String(r.year);
+      const key = chartGroupBy === "year" ? String(r.year) : r.name;
       const entry = groups.get(key) || { key, total: 0, count: 0 };
       entry.total += r.yield;
       entry.count += 1;
@@ -178,8 +267,14 @@ export default function ReportsExport() {
     return Array.from(groups.values()).map((g) => ({ key: g.key, yield: Number((g.total / g.count).toFixed(2)) }));
   }, [filtered, chartGroupBy]);
 
+  // Names the current scope for report titles ("Laguna Province", a municipality,
+  // or a municipality's barangays).
+  const scopeTitle = isBarangay
+    ? `${barangayMunis.find((m) => m.municipality_id === viewBrgyMuni)?.name || "Barangays"} — Barangays`
+    : viewMuni || "Laguna Province";
+
   const exportColumns = [
-    { key: "municipality", label: "Municipality" },
+    { key: "name", label: areaColLabel },
     { key: "year", label: "Year" },
     { key: "season", label: "Season" },
     { key: "yield", label: "Yield (MT/ha)" },
@@ -201,27 +296,27 @@ export default function ReportsExport() {
     if (reportType === "comparison") {
       const groups = new Map();
       filtered.forEach((r) => {
-        const entry = groups.get(r.municipality) || { municipality: r.municipality, total: 0, count: 0 };
+        const entry = groups.get(r.name) || { name: r.name, total: 0, count: 0 };
         entry.total += r.yield;
         entry.count += 1;
-        groups.set(r.municipality, entry);
+        groups.set(r.name, entry);
       });
       const rows = Array.from(groups.values()).map((g) => ({
-        municipality: g.municipality,
+        name: g.name,
         avgYield: Number((g.total / g.count).toFixed(2)),
         records: g.count,
       }));
       return {
         rows,
         columns: [
-          { key: "municipality", label: "Municipality" },
+          { key: "name", label: areaColLabel },
           { key: "avgYield", label: "Avg Yield (MT/ha)" },
           { key: "records", label: "Records" },
         ],
-        title: "Municipality Comparison Report",
+        title: `${areaColLabel} Comparison — ${scopeTitle}`,
       };
     }
-    return { rows: filtered, columns: exportColumns, title: "Yield Summary Report" };
+    return { rows: filtered, columns: exportColumns, title: `Yield Summary — ${scopeTitle}` };
   };
 
   const handleGenerate = () => {
@@ -318,7 +413,7 @@ export default function ReportsExport() {
             <StatCard
               label="Total Records"
               value={String(stats.total)}
-              caption={`${stats.cities} municipalities`}
+              caption={areaCountLabel(stats.areas)}
               captionColor="text-[#22C55E]"
               iconBg="bg-[#F9FAFB]"
               iconColor="#9CA3AF"
@@ -326,7 +421,7 @@ export default function ReportsExport() {
             <StatCard
               label="Highest Yield"
               value={stats.highest ? `${stats.highest.yield.toFixed(1)} MT/ha` : "N/A"}
-              caption={stats.highest?.municipality || "No data"}
+              caption={stats.highest?.name || "No data"}
               captionColor="text-[#9CA3AF]"
               iconBg="bg-[#F0FDF4]"
               iconColor="#22C55E"
@@ -334,7 +429,7 @@ export default function ReportsExport() {
             <StatCard
               label="Lowest Yield"
               value={stats.lowest ? `${stats.lowest.yield.toFixed(1)} MT/ha` : "N/A"}
-              caption={stats.lowest?.municipality || "No data"}
+              caption={stats.lowest?.name || "No data"}
               captionColor="text-[#9CA3AF]"
               iconBg="bg-[#FFF7ED]"
               iconColor="#F97316"
@@ -480,8 +575,11 @@ export default function ReportsExport() {
 
               {/* Report Preview Chart */}
               <div className="bg-white border border-[#F3F4F6] shadow-sm rounded-xl p-6 flex flex-col gap-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-[#1F2937]">Report Preview</h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#1F2937]">Report Preview</h2>
+                    <p className="text-xs text-[#6B7280]">{scopeTitle}</p>
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium uppercase text-[#9CA3AF]">Group by</span>
                     <select
@@ -489,7 +587,7 @@ export default function ReportsExport() {
                       onChange={(e) => setChartGroupBy(e.target.value)}
                       className="px-2 py-1 text-xs text-[#4B5563] bg-white border border-[#E5E7EB] rounded-lg outline-none"
                     >
-                      <option value="municipality">City</option>
+                      <option value="area">{areaColLabel}</option>
                       <option value="year">Year</option>
                     </select>
                   </div>
@@ -550,14 +648,16 @@ export default function ReportsExport() {
                 <div className="flex items-center justify-between px-6 py-4 border-b border-[#F3F4F6]">
                   <div>
                     <h2 className="text-lg font-bold text-[#1F2937]">Detailed Records</h2>
-                    <p className="text-xs text-[#6B7280]">{filtered.length} record(s) match current filters</p>
+                    <p className="text-xs text-[#6B7280]">
+                      {scopeTitle} · {filtered.length} record(s) match current filters
+                    </p>
                   </div>
                 </div>
                 <div className="max-h-[260px] overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-[#F9FAFB] sticky top-0">
                       <tr>
-                        {["Municipality", "Year", "Season", "Yield (MT/ha)", "Status"].map((h) => (
+                        {[areaColLabel, "Year", "Season", "Yield (MT/ha)", "Status"].map((h) => (
                           <th key={h} className="px-6 py-3 text-left text-xs font-semibold tracking-wide uppercase text-[#6B7280]">
                             {h}
                           </th>
@@ -567,7 +667,7 @@ export default function ReportsExport() {
                     <tbody>
                       {filtered.map((r, i) => (
                         <tr key={i} className="border-t border-[#F3F4F6]">
-                          <td className="px-6 py-3 font-medium text-[#1F2937]">{r.municipality}</td>
+                          <td className="px-6 py-3 font-medium text-[#1F2937]">{r.name}</td>
                           <td className="px-6 py-3 text-[#4B5563]">{r.year}</td>
                           <td className="px-6 py-3 text-[#4B5563]">{r.season}</td>
                           <td className="px-6 py-3 font-semibold text-[#1F2937]">{r.yield.toFixed(1)}</td>
@@ -581,7 +681,9 @@ export default function ReportsExport() {
                       {!filtered.length && (
                         <tr>
                           <td colSpan={5} className="px-6 py-8 text-center text-sm text-[#9CA3AF]">
-                            {loading ? "Loading records…" : "No records match the current filters."}
+                            {loading || scopeLoading
+                              ? "Loading records…"
+                              : "No records match the current filters."}
                           </td>
                         </tr>
                       )}
@@ -594,6 +696,59 @@ export default function ReportsExport() {
             {/* Right Column — Report Settings */}
             <div className="bg-white border border-[#F3F4F6] shadow-sm rounded-xl p-6 flex flex-col gap-6 h-fit">
               <h2 className="text-xl font-bold text-[#1F2937]">Report Settings</h2>
+
+              {/* Scope — drives the preview, records and export together */}
+              <div className="flex flex-col gap-3">
+                <h3 className="text-xs font-semibold tracking-wide uppercase text-[#9CA3AF]">Scope</h3>
+                <div className="flex p-1 gap-1 bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg">
+                  {[
+                    { key: "municipality", label: "Municipality" },
+                    { key: "barangay", label: "Barangay" },
+                  ].map((l) => (
+                    <button
+                      key={l.key}
+                      type="button"
+                      onClick={() => {
+                        setViewLevel(l.key);
+                        setChartGroupBy("area");
+                      }}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        viewLevel === l.key ? "bg-white text-[#1F6306] shadow-sm" : "text-[#6B7280]"
+                      }`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+                {viewLevel === "municipality" ? (
+                  <select
+                    value={viewMuni}
+                    onChange={(e) => setViewMuni(e.target.value)}
+                    className="px-3 py-2 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
+                  >
+                    <option value="">All municipalities</option>
+                    {muniOptions.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                ) : barangayMunis.length ? (
+                  <select
+                    value={viewBrgyMuni ?? ""}
+                    onChange={(e) => setViewBrgyMuni(Number(e.target.value))}
+                    className="px-3 py-2 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
+                  >
+                    {barangayMunis.map((m) => (
+                      <option key={m.municipality_id} value={m.municipality_id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-[#9CA3AF]">No municipalities have barangay yield data yet.</p>
+                )}
+              </div>
 
               {/* Report Type */}
               <div className="flex flex-col gap-3">
