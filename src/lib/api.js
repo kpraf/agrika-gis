@@ -111,6 +111,9 @@ export const yieldApi = {
     ),
   // Municipalities that have any per-barangay data (Analytics barangay picker).
   barangayMunicipalities: () => request("/yield/barangays/municipalities"),
+  // Flat list of every observed barangay yield for one municipality (Reports).
+  barangayRecords: (municipalityId) =>
+    request(`/yield/barangays/records?municipality_id=${municipalityId}`),
   // Year-over-year yield per barangay of one municipality, for a season.
   barangaySeries: (municipalityId, season) =>
     request(
