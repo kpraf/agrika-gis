@@ -433,14 +433,11 @@ def trend():
 
 
 # --- CSV import -------------------------------------------------------------
-# Upsert observed municipality yields from a CSV upload. Built for adding new
-# seasons (e.g. 2026 Dry / Wet). Mirrors scripts/load_municipality_yield.py:
-# resolve the municipality by name, get-or-create the (season_type, year)
-# season, then upsert one row per (municipality, season) — the UNIQUE
-# (municipality_id, season_id) constraint keeps re-uploads idempotent.
-#
-# Expected CSV columns (case-insensitive, order-independent):
-#     municipality (or city), year, season, yield (or yield_mt_ha)
+# Upsert observed yields from a CSV upload — municipality or barangay level.
+# Built for adding new seasons (e.g. 2026 Dry / Wet). Mirrors the offline
+# loaders: resolve names to ids, get-or-create the (season_type, year) season,
+# then upsert per (target, season). UNIQUE constraints keep re-uploads
+# idempotent. Column headers are case-insensitive and order-independent.
 def _pick(row, *names):
     """Return the first matching column value: exact header first, then substring."""
     lowered = {(k or "").strip().lower(): v for k, v in row.items()}
@@ -456,6 +453,20 @@ def _pick(row, *names):
 @yields_bp.post("/import")
 @jwt_required()
 def import_yields():
+    """Import observed yields from a CSV upload — municipality or barangay level.
+
+    Body: { csv: str, level?: 'municipality'|'barangay', source?: str }.
+
+    Municipality level → municipality_yield_records, keyed (municipality, season).
+        Columns: municipality (or city), year, season, yield (or yield_mt_ha).
+    Barangay level → barangay_yield, keyed (barangay, season). The barangay is
+        resolved within its municipality (names aren't globally unique).
+        Columns: municipality (or city), barangay (or brgy), year, season, yield.
+
+    Both are idempotent upserts (UNIQUE constraints), validate each row, skip and
+    report bad rows, and commit the good ones (partial success). Only yield_mt_ha
+    is written for barangays (area_ha / production_mt are left untouched).
+    """
     if get_jwt().get("role") not in IMPORT_ROLES:
         return jsonify({"error": "You don't have permission to import yield data."}), 403
 
@@ -463,6 +474,9 @@ def import_yields():
     csv_text = payload.get("csv")
     if not isinstance(csv_text, str) or not csv_text.strip():
         return jsonify({"error": "No CSV content provided."}), 400
+    level = str(payload.get("level") or "municipality").strip().lower()
+    if level not in ("municipality", "barangay"):
+        return jsonify({"error": "level must be 'municipality' or 'barangay'."}), 400
     source = (str(payload.get("source") or "Manual import").strip() or "Manual import")[:50]
 
     try:
@@ -477,6 +491,14 @@ def import_yields():
         r.municipality_name.strip().lower(): r.municipality_id
         for r in db.session.execute(text("SELECT municipality_id, municipality_name FROM municipalities"))
     }
+    # (municipality_id, barangay name) -> barangay_id — barangay names repeat across
+    # municipalities, so they're only unique within one. Only loaded for barangay imports.
+    brgy = {}
+    if level == "barangay":
+        for r in db.session.execute(
+            text("SELECT barangay_id, barangay_name, municipality_id FROM barangays")
+        ):
+            brgy[(r.municipality_id, r.barangay_name.strip().lower())] = r.barangay_id
 
     season_cache = {}
 
@@ -501,18 +523,30 @@ def import_yields():
 
     for i, row in enumerate(rows, start=2):  # +1 for header, +1 for 1-based
         raw_muni = (str(_pick(row, "municipality", "city") or "")).strip()
+        raw_brgy = (str(_pick(row, "barangay", "brgy") or "")).strip()
         raw_year = (str(_pick(row, "year") or "")).strip()
         raw_season = (str(_pick(row, "season") or "")).strip()
         raw_yield = (str(_pick(row, "yield_mt_ha", "yield") or "")).strip()
 
         # Skip fully blank lines silently.
-        if not any([raw_muni, raw_year, raw_season, raw_yield]):
+        if not any([raw_muni, raw_brgy, raw_year, raw_season, raw_yield]):
             continue
 
         mid = muni.get(raw_muni.lower())
         if mid is None:
             errors.append({"row": i, "error": f"Unknown municipality '{raw_muni}'."})
             continue
+
+        # Barangay level: resolve the barangay within its municipality.
+        bid = None
+        if level == "barangay":
+            if not raw_brgy:
+                errors.append({"row": i, "error": "Missing barangay."})
+                continue
+            bid = brgy.get((mid, raw_brgy.lower()))
+            if bid is None:
+                errors.append({"row": i, "error": f"Unknown barangay '{raw_brgy}' in {raw_muni}."})
+                continue
 
         season_type = _VALID_SEASONS.get(raw_season.lower().replace(" season", "").strip())
         if season_type is None:
@@ -538,39 +572,63 @@ def import_yields():
             continue
 
         sid = season_id(season_type, year)
-        existing = db.session.execute(
-            text(
-                "SELECT muni_yield_id FROM municipality_yield_records "
-                "WHERE municipality_id = :m AND season_id = :s"
-            ),
-            {"m": mid, "s": sid},
-        ).scalar()
-        if existing:
-            db.session.execute(
-                text(
-                    "UPDATE municipality_yield_records "
-                    "SET observed_yield = :y, source = :src, is_proxy = FALSE "
-                    "WHERE muni_yield_id = :id"
-                ),
-                {"y": yld, "src": source, "id": existing},
-            )
-            updated += 1
+
+        if level == "barangay":
+            existing = db.session.execute(
+                text("SELECT brgy_yield_id FROM barangay_yield WHERE barangay_id = :b AND season_id = :s"),
+                {"b": bid, "s": sid},
+            ).scalar()
+            if existing:
+                db.session.execute(
+                    text("UPDATE barangay_yield SET yield_mt_ha = :y, source = :src WHERE brgy_yield_id = :id"),
+                    {"y": yld, "src": source, "id": existing},
+                )
+                updated += 1
+            else:
+                db.session.execute(
+                    text(
+                        "INSERT INTO barangay_yield (barangay_id, season_id, yield_mt_ha, source) "
+                        "VALUES (:b, :s, :y, :src)"
+                    ),
+                    {"b": bid, "s": sid, "y": yld, "src": source},
+                )
+                inserted += 1
         else:
-            db.session.execute(
+            existing = db.session.execute(
                 text(
-                    "INSERT INTO municipality_yield_records "
-                    "(observed_yield, municipality_id, season_id, source, is_proxy) "
-                    "VALUES (:y, :m, :s, :src, FALSE)"
+                    "SELECT muni_yield_id FROM municipality_yield_records "
+                    "WHERE municipality_id = :m AND season_id = :s"
                 ),
-                {"y": yld, "m": mid, "s": sid, "src": source},
-            )
-            inserted += 1
+                {"m": mid, "s": sid},
+            ).scalar()
+            if existing:
+                db.session.execute(
+                    text(
+                        "UPDATE municipality_yield_records "
+                        "SET observed_yield = :y, source = :src, is_proxy = FALSE "
+                        "WHERE muni_yield_id = :id"
+                    ),
+                    {"y": yld, "src": source, "id": existing},
+                )
+                updated += 1
+            else:
+                db.session.execute(
+                    text(
+                        "INSERT INTO municipality_yield_records "
+                        "(observed_yield, municipality_id, season_id, source, is_proxy) "
+                        "VALUES (:y, :m, :s, :src, FALSE)"
+                    ),
+                    {"y": yld, "m": mid, "s": sid, "src": source},
+                )
+                inserted += 1
 
     # Commit the valid rows (partial success); invalid rows are reported, not fatal.
     db.session.commit()
-    total = db.session.execute(text("SELECT COUNT(*) FROM municipality_yield_records")).scalar()
+    total_table = "barangay_yield" if level == "barangay" else "municipality_yield_records"
+    total = db.session.execute(text(f"SELECT COUNT(*) FROM {total_table}")).scalar()
     return jsonify(
         {
+            "level": level,
             "inserted": inserted,
             "updated": updated,
             "skipped": len(errors),
