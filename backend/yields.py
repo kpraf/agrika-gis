@@ -268,6 +268,45 @@ def records():
     })
 
 
+@yields_bp.get("/barangays/records")
+def barangay_records():
+    """Flat list of every observed barangay yield for one municipality — the
+    barangay-level counterpart to /records, for the Reports page.
+
+    Query param: municipality_id (int, required).
+    One row per barangay-year-season: { barangay, municipality, year, season, yield }.
+    """
+    mid = request.args.get("municipality_id", type=int)
+    if not mid:
+        return jsonify({"error": "municipality_id is required"}), 400
+
+    rows = db.session.execute(
+        text(
+            "SELECT b.barangay_name, m.municipality_name, s.year, s.season_type, y.yield_mt_ha "
+            "FROM barangay_yield y "
+            "JOIN barangays b ON b.barangay_id = y.barangay_id "
+            "JOIN municipalities m ON m.municipality_id = b.municipality_id "
+            "JOIN seasons s ON s.season_id = y.season_id "
+            "WHERE b.municipality_id = :m AND y.yield_mt_ha IS NOT NULL "
+            "ORDER BY s.year, s.season_type, b.barangay_name"
+        ),
+        {"m": mid},
+    ).all()
+    return jsonify({
+        "municipality_id": mid,
+        "records": [
+            {
+                "barangay": r.barangay_name,
+                "municipality": r.municipality_name,
+                "year": r.year,
+                "season": r.season_type,
+                "yield": round(r.yield_mt_ha, 3),
+            }
+            for r in rows
+        ],
+    })
+
+
 @yields_bp.get("/predictions/meta")
 def predictions_meta():
     """Years / seasons / model versions that have CNN-LSTM predictions.
