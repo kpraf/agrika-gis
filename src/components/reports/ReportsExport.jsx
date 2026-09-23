@@ -41,74 +41,6 @@ const REPORT_TYPES = [
 
 const SEASONS = ["All", "Wet", "Dry"];
 
-// Hand-written state machine — no regex/backtracking, safe against ReDoS on untrusted CSV input.
-function parseCSV(text) {
-  const rows = [];
-  let row = [];
-  let field = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (inQuotes) {
-      if (char === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += char;
-      }
-    } else if (char === '"') {
-      inQuotes = true;
-    } else if (char === ",") {
-      row.push(field);
-      field = "";
-    } else if (char === "\n" || char === "\r") {
-      if (char === "\r" && text[i + 1] === "\n") i++;
-      row.push(field);
-      field = "";
-      if (row.length > 1 || row[0] !== "") rows.push(row);
-      row = [];
-    } else {
-      field += char;
-    }
-  }
-  if (field !== "" || row.length) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows;
-}
-
-function recordsFromCSV(text) {
-  const rows = parseCSV(text);
-  if (!rows.length) return [];
-  const header = rows[0].map((h) => h.trim().toLowerCase());
-  const idx = {
-    municipality: header.findIndex((h) => h.includes("municipal") || h.includes("city")),
-    year: header.findIndex((h) => h.includes("year")),
-    season: header.findIndex((h) => h.includes("season")),
-    yield: header.findIndex((h) => h.includes("yield")),
-    status: header.findIndex((h) => h.includes("status")),
-  };
-  return rows
-    .slice(1)
-    .filter((r) => r.some((cell) => cell.trim() !== ""))
-    .map((r) => {
-      const yieldValue = Number(r[idx.yield]) || 0;
-      return {
-        municipality: idx.municipality >= 0 ? r[idx.municipality]?.trim() || "Unknown" : "Unknown",
-        year: idx.year >= 0 ? Number(r[idx.year]) || new Date().getFullYear() : new Date().getFullYear(),
-        season: idx.season >= 0 ? r[idx.season]?.trim() || "Wet" : "Wet",
-        yield: yieldValue,
-        status: idx.status >= 0 && r[idx.status]?.trim() ? r[idx.status].trim() : deriveStatus(yieldValue),
-      };
-    });
-}
-
 function toCSV(rows, columns) {
   const escape = (val) => {
     const str = String(val ?? "");
@@ -164,6 +96,9 @@ export default function ReportsExport() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [importLog, setImportLog] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null); // { inserted, updated, skipped, errors } | { error }
+  const [importLevel, setImportLevel] = useState("municipality"); // "municipality" | "barangay"
   const [isDragging, setIsDragging] = useState(false);
   const [reportType, setReportType] = useState("summary");
   const [season, setSeason] = useState("All");
@@ -172,27 +107,29 @@ export default function ReportsExport() {
   const [exportFormat, setExportFormat] = useState("csv");
   const [chartGroupBy, setChartGroupBy] = useState("municipality");
 
+  // Map an API /yield/records payload into local rows and frame the year range.
+  const applyRecords = (r) => {
+    const mapped = (r.records || []).map((x) => ({
+      municipality: x.municipality,
+      year: x.year,
+      season: x.season,
+      yield: x.yield,
+      status: deriveStatus(x.yield),
+    }));
+    setRecords(mapped);
+    const ys = mapped.map((m) => m.year);
+    if (ys.length) {
+      setFromYear(Math.min(...ys));
+      setToYear(Math.max(...ys));
+    }
+  };
+
   // Load the real observed-yield dataset and frame the year range around it.
   useEffect(() => {
     let active = true;
     yieldApi
       .records()
-      .then((r) => {
-        if (!active) return;
-        const mapped = (r.records || []).map((x) => ({
-          municipality: x.municipality,
-          year: x.year,
-          season: x.season,
-          yield: x.yield,
-          status: deriveStatus(x.yield),
-        }));
-        setRecords(mapped);
-        const ys = mapped.map((m) => m.year);
-        if (ys.length) {
-          setFromYear(Math.min(...ys));
-          setToYear(Math.max(...ys));
-        }
-      })
+      .then((r) => active && applyRecords(r))
       .catch(() => active && setRecords([]))
       .finally(() => active && setLoading(false));
     return () => {
@@ -300,24 +237,64 @@ export default function ReportsExport() {
   };
 
   const handleDownloadTemplate = () => {
-    const template = toCSV(
-      [{ municipality: "Calamba", year: 2024, season: "Wet", yield: 5.1, status: "Good" }],
-      exportColumns
-    );
-    downloadBlob(template, "agrika-gis-import-template.csv", "text/csv;charset=utf-8;");
+    // Focused import template for the current level — the columns the server
+    // expects, with new-season example rows (2026). Use a real municipality name
+    // from the dataset so it imports as-is (must match the DB exactly, e.g.
+    // "City of Calamba", not "Calamba"). For barangays, replace "Barangay 1" with
+    // real barangay names of that municipality.
+    const muniName =
+      (records.length ? [...new Set(records.map((r) => r.municipality))][0] : null) || "City of Calamba";
+    const q = (n) => (/[",\n]/.test(n) ? `"${n.replace(/"/g, '""')}"` : n);
+    const template =
+      importLevel === "barangay"
+        ? "municipality,barangay,year,season,yield\n" +
+          `${q(muniName)},Barangay 1,2026,Dry,5.2\n` +
+          `${q(muniName)},Barangay 1,2026,Wet,4.8\n`
+        : "municipality,year,season,yield\n" +
+          `${q(muniName)},2026,Dry,5.2\n` +
+          `${q(muniName)},2026,Wet,4.8\n`;
+    downloadBlob(template, `agrika-gis-import-template-${importLevel}.csv`, "text/csv;charset=utf-8;");
   };
 
+  // Send the CSV to the backend, which validates + upserts into the real
+  // dataset, then refresh what this page shows. Other screens pick up the new
+  // data on their next load.
   const ingestFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      const parsed = recordsFromCSV(String(reader.result || ""));
-      if (!parsed.length) return;
-      setRecords((prev) => [...prev, ...parsed]);
-      setImportLog((prev) => [
-        ...prev,
-        { fileName: file.name, rows: parsed.length, importedAt: new Date().toLocaleString() },
-      ]);
+    reader.onload = async () => {
+      const text = String(reader.result || "");
+      if (!text.trim()) {
+        setImportResult({ error: "That file looks empty." });
+        return;
+      }
+      setImporting(true);
+      setImportResult(null);
+      try {
+        const res = await yieldApi.importCsv(text, importLevel, `Manual import: ${file.name}`);
+        setImportResult(res);
+        const changed = (res.inserted || 0) + (res.updated || 0) > 0;
+        // Municipality imports change this page's dataset; barangay imports feed
+        // the Map/Analytics drill-down instead, so only refresh when relevant.
+        if (changed && importLevel === "municipality") {
+          applyRecords(await yieldApi.records());
+        }
+        if (changed) {
+          setImportLog((prev) => [
+            ...prev,
+            {
+              fileName: file.name,
+              rows: (res.inserted || 0) + (res.updated || 0),
+              importedAt: new Date().toLocaleString(),
+            },
+          ]);
+        }
+      } catch (e) {
+        setImportResult({ error: e.message || "Import failed." });
+      } finally {
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = ""; // allow re-selecting the same file
+      }
     };
     reader.readAsText(file);
   };
@@ -377,18 +354,41 @@ export default function ReportsExport() {
             <div className="flex flex-col gap-6 min-w-0">
               {/* Data Import Zone */}
               <div className="bg-white border border-[#F3F4F6] shadow-sm rounded-xl p-6 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-lg font-bold text-[#1F2937]">Import Data</h2>
-                  <button
-                    type="button"
-                    onClick={handleDownloadTemplate}
-                    className="flex items-center gap-2 text-sm font-semibold text-[#1F6306] hover:underline"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" />
-                    </svg>
-                    Download Template
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {/* Level toggle — decides the target table + template */}
+                    <div className="flex p-0.5 bg-[#F3F4F6] rounded-lg text-xs font-medium">
+                      {[
+                        { key: "municipality", label: "Municipality" },
+                        { key: "barangay", label: "Barangay" },
+                      ].map((lvl) => (
+                        <button
+                          key={lvl.key}
+                          type="button"
+                          onClick={() => {
+                            setImportLevel(lvl.key);
+                            setImportResult(null);
+                          }}
+                          className={`px-3 py-1.5 rounded-md transition-colors ${
+                            importLevel === lvl.key ? "bg-white text-[#1B3315] shadow-sm" : "text-[#6B7280]"
+                          }`}
+                        >
+                          {lvl.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadTemplate}
+                      className="flex items-center gap-2 text-sm font-semibold text-[#1F6306] hover:underline"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" />
+                      </svg>
+                      Template
+                    </button>
+                  </div>
                 </div>
 
                 <div
@@ -412,8 +412,14 @@ export default function ReportsExport() {
                     </svg>
                   </span>
                   <h3 className="text-base font-semibold text-[#1F2937]">Drag & drop your CSV here</h3>
-                  <p className="max-w-[320px] text-center text-sm text-[#6B7280]">
-                    Import municipality yield records to update the dataset used across this dashboard.
+                  <p className="max-w-[340px] text-center text-sm text-[#6B7280]">
+                    Importing <b>{importLevel === "barangay" ? "barangay" : "municipality"}</b> yields.
+                    Columns:{" "}
+                    <span className="font-mono text-xs">
+                      {importLevel === "barangay"
+                        ? "municipality, barangay, year, season, yield"
+                        : "municipality, year, season, yield"}
+                    </span>
                   </p>
                   <button
                     type="button"
@@ -430,6 +436,46 @@ export default function ReportsExport() {
                     onChange={(e) => ingestFile(e.target.files?.[0])}
                   />
                 </div>
+
+                {/* Import status / result */}
+                {importing && (
+                  <div className="flex items-center gap-2 text-sm text-[#6B7280]">
+                    <span className="inline-flex h-4 w-4 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
+                    Importing…
+                  </div>
+                )}
+                {importResult?.error && (
+                  <div className="rounded-lg bg-[#FEF2F2] border border-[#FECACA] px-4 py-3 text-sm text-[#B91C1C]">
+                    {importResult.error}
+                  </div>
+                )}
+                {importResult && !importResult.error && (
+                  <div className="rounded-lg bg-[#F0FDF4] border border-[#BBF7D0] px-4 py-3 text-sm text-[#166534] flex flex-col gap-1">
+                    <span>
+                      <b>{importResult.inserted}</b> new, <b>{importResult.updated}</b> updated
+                      {importResult.skipped ? (
+                        <>
+                          , <b>{importResult.skipped}</b> skipped
+                        </>
+                      ) : null}
+                      .
+                    </span>
+                    {importResult.errors?.length > 0 && (
+                      <details>
+                        <summary className="cursor-pointer text-[#B45309]">
+                          {importResult.skipped} row(s) skipped — see why
+                        </summary>
+                        <ul className="mt-1 list-disc pl-5 max-h-32 overflow-y-auto text-[#92400E]">
+                          {importResult.errors.map((e, i) => (
+                            <li key={i}>
+                              Row {e.row}: {e.error}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Report Preview Chart */}
