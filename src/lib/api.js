@@ -45,7 +45,26 @@ export function onServerSlow(cb) {
   return () => slowListeners.delete(cb);
 }
 
-async function request(path, { method = "GET", body, auth = false } = {}) {
+// --- GET response cache (module-level, per session) --------------------------
+// The reference data this app reads — municipality/barangay boundaries,
+// per-year/season yields, feature metrics, meta — is static within a session,
+// yet every screen refetches it on mount (React Router remounts re-run the
+// effects). We memoise GET responses by URL: concurrent callers share one
+// in-flight promise (dedupe), and later callers reuse the resolved value until
+// the cache is cleared. Any mutating request (POST/PUT/DELETE) clears the cache
+// so lists can't go stale, and clearApiCache() is called on login/logout.
+//
+// Note: cached responses are shared by reference — callers must treat them as
+// read-only (don't mutate the returned object in place).
+const getCache = new Map();
+
+/** Drop every cached GET response. Call on auth changes (login/logout). */
+export function clearApiCache() {
+  getCache.clear();
+}
+
+// The actual network call, plus the "server waking up" slow signal.
+async function performRequest(path, { method, body, auth }) {
   const headers = { "Content-Type": "application/json" };
   if (auth) {
     const token = getToken();
@@ -84,6 +103,29 @@ async function request(path, { method = "GET", body, auth = false } = {}) {
       emitSlow();
     }
   }
+}
+
+async function request(path, { method = "GET", body, auth = false, cache } = {}) {
+  // Cache GETs by default; never cache mutations. Pass `cache: false` to opt out.
+  const shouldCache = (cache ?? true) && method === "GET";
+  // Auth'd and anonymous reads of the same path are kept under separate keys.
+  const key = shouldCache ? `${auth ? "auth:" : ""}${path}` : null;
+
+  if (key && getCache.has(key)) return getCache.get(key);
+
+  const pending = performRequest(path, { method, body, auth });
+
+  if (key) {
+    // Store the promise so concurrent callers dedupe; evict on failure so a
+    // later call can retry instead of caching the rejection.
+    getCache.set(key, pending);
+    pending.catch(() => getCache.delete(key));
+  } else if (method !== "GET") {
+    // A successful mutation may have changed server state → drop cached reads.
+    pending.then(() => getCache.clear(), () => {});
+  }
+
+  return pending;
 }
 
 export const authApi = {

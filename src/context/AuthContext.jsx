@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { authApi, getToken, setToken, clearToken } from "../lib/api";
+import { authApi, getToken, setToken, clearToken, clearApiCache } from "../lib/api";
 
 const AuthContext = createContext(null);
 
@@ -32,6 +32,7 @@ export function AuthProvider({ children }) {
 
   const login = async (username, password) => {
     const { token, user } = await authApi.login(username, password);
+    clearApiCache(); // start this session with a clean cache (drop any prior user's reads)
     setToken(token);
     setUser(user);
     return user;
@@ -44,6 +45,7 @@ export function AuthProvider({ children }) {
       // ignore — we clear locally regardless
     }
     clearToken();
+    clearApiCache(); // don't leak cached reads into the next session
     setUser(null);
   };
 
