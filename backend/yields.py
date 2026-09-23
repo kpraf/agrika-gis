@@ -5,12 +5,25 @@ Backed by municipality_yield_records (real PRiSM/Ricelytics data, mt/ha),
 joined to seasons (season_type + year) and municipalities. No auth required:
 the public yield map consumes these.
 """
+import csv
+import io
+
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt
 from sqlalchemy import text
 
 from extensions import db
 
 yields_bp = Blueprint("yields", __name__, url_prefix="/api/yield")
+
+# Roles allowed to import observed-yield data. (The Reports module is already
+# gated to these roles on the frontend; the backend enforces it too.)
+IMPORT_ROLES = {"administrator", "agriculturist", "rice_technician"}
+
+# Validation bounds for an imported row.
+_VALID_SEASONS = {"wet": "Wet", "dry": "Dry"}
+_MIN_YEAR, _MAX_YEAR = 2000, 2100
+_MIN_YIELD, _MAX_YIELD = 0.0, 20.0  # mt/ha — palay averages sit well inside this
 
 
 @yields_bp.get("/meta")
@@ -417,3 +430,151 @@ def trend():
         for row in db.session.execute(text(sql), params)
     ]
     return jsonify({"season": season, "municipality_id": mid, "series": series})
+
+
+# --- CSV import -------------------------------------------------------------
+# Upsert observed municipality yields from a CSV upload. Built for adding new
+# seasons (e.g. 2026 Dry / Wet). Mirrors scripts/load_municipality_yield.py:
+# resolve the municipality by name, get-or-create the (season_type, year)
+# season, then upsert one row per (municipality, season) — the UNIQUE
+# (municipality_id, season_id) constraint keeps re-uploads idempotent.
+#
+# Expected CSV columns (case-insensitive, order-independent):
+#     municipality (or city), year, season, yield (or yield_mt_ha)
+def _pick(row, *names):
+    """Return the first matching column value: exact header first, then substring."""
+    lowered = {(k or "").strip().lower(): v for k, v in row.items()}
+    for n in names:
+        if n in lowered:
+            return lowered[n]
+    for key, val in lowered.items():
+        if any(n in key for n in names):
+            return val
+    return None
+
+
+@yields_bp.post("/import")
+@jwt_required()
+def import_yields():
+    if get_jwt().get("role") not in IMPORT_ROLES:
+        return jsonify({"error": "You don't have permission to import yield data."}), 403
+
+    payload = request.get_json(silent=True) or {}
+    csv_text = payload.get("csv")
+    if not isinstance(csv_text, str) or not csv_text.strip():
+        return jsonify({"error": "No CSV content provided."}), 400
+    source = (str(payload.get("source") or "Manual import").strip() or "Manual import")[:50]
+
+    try:
+        rows = list(csv.DictReader(io.StringIO(csv_text)))
+    except (csv.Error, ValueError):
+        return jsonify({"error": "Could not parse the CSV file."}), 400
+    if not rows:
+        return jsonify({"error": "The CSV has no data rows."}), 400
+
+    # municipality name -> id (normalised for spacing/case)
+    muni = {
+        r.municipality_name.strip().lower(): r.municipality_id
+        for r in db.session.execute(text("SELECT municipality_id, municipality_name FROM municipalities"))
+    }
+
+    season_cache = {}
+
+    def season_id(season_type, year):
+        key = (season_type, year)
+        if key in season_cache:
+            return season_cache[key]
+        sid = db.session.execute(
+            text("SELECT season_id FROM seasons WHERE season_type = :t AND year = :y"),
+            {"t": season_type, "y": year},
+        ).scalar()
+        if sid is None:
+            sid = db.session.execute(
+                text("INSERT INTO seasons (season_type, year) VALUES (:t, :y) RETURNING season_id"),
+                {"t": season_type, "y": year},
+            ).scalar()
+        season_cache[key] = sid
+        return sid
+
+    inserted = updated = 0
+    errors = []
+
+    for i, row in enumerate(rows, start=2):  # +1 for header, +1 for 1-based
+        raw_muni = (str(_pick(row, "municipality", "city") or "")).strip()
+        raw_year = (str(_pick(row, "year") or "")).strip()
+        raw_season = (str(_pick(row, "season") or "")).strip()
+        raw_yield = (str(_pick(row, "yield_mt_ha", "yield") or "")).strip()
+
+        # Skip fully blank lines silently.
+        if not any([raw_muni, raw_year, raw_season, raw_yield]):
+            continue
+
+        mid = muni.get(raw_muni.lower())
+        if mid is None:
+            errors.append({"row": i, "error": f"Unknown municipality '{raw_muni}'."})
+            continue
+
+        season_type = _VALID_SEASONS.get(raw_season.lower().replace(" season", "").strip())
+        if season_type is None:
+            errors.append({"row": i, "error": f"Season must be Wet or Dry (got '{raw_season}')."})
+            continue
+
+        try:
+            year = int(float(raw_year))
+        except ValueError:
+            errors.append({"row": i, "error": f"Invalid year '{raw_year}'."})
+            continue
+        if not (_MIN_YEAR <= year <= _MAX_YEAR):
+            errors.append({"row": i, "error": f"Year {year} is out of range ({_MIN_YEAR}-{_MAX_YEAR})."})
+            continue
+
+        try:
+            yld = float(raw_yield)
+        except ValueError:
+            errors.append({"row": i, "error": f"Invalid yield '{raw_yield}'."})
+            continue
+        if not (_MIN_YIELD < yld <= _MAX_YIELD):
+            errors.append({"row": i, "error": f"Yield {yld} is out of range (0-{_MAX_YIELD} mt/ha)."})
+            continue
+
+        sid = season_id(season_type, year)
+        existing = db.session.execute(
+            text(
+                "SELECT muni_yield_id FROM municipality_yield_records "
+                "WHERE municipality_id = :m AND season_id = :s"
+            ),
+            {"m": mid, "s": sid},
+        ).scalar()
+        if existing:
+            db.session.execute(
+                text(
+                    "UPDATE municipality_yield_records "
+                    "SET observed_yield = :y, source = :src, is_proxy = FALSE "
+                    "WHERE muni_yield_id = :id"
+                ),
+                {"y": yld, "src": source, "id": existing},
+            )
+            updated += 1
+        else:
+            db.session.execute(
+                text(
+                    "INSERT INTO municipality_yield_records "
+                    "(observed_yield, municipality_id, season_id, source, is_proxy) "
+                    "VALUES (:y, :m, :s, :src, FALSE)"
+                ),
+                {"y": yld, "m": mid, "s": sid, "src": source},
+            )
+            inserted += 1
+
+    # Commit the valid rows (partial success); invalid rows are reported, not fatal.
+    db.session.commit()
+    total = db.session.execute(text("SELECT COUNT(*) FROM municipality_yield_records")).scalar()
+    return jsonify(
+        {
+            "inserted": inserted,
+            "updated": updated,
+            "skipped": len(errors),
+            "errors": errors[:50],  # cap the payload; enough to diagnose a bad file
+            "total": total,
+        }
+    )
