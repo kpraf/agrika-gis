@@ -98,6 +98,7 @@ export default function ReportsExport() {
   const [importLog, setImportLog] = useState([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null); // { inserted, updated, skipped, errors } | { error }
+  const [importLevel, setImportLevel] = useState("municipality"); // "municipality" | "barangay"
   const [isDragging, setIsDragging] = useState(false);
   const [reportType, setReportType] = useState("summary");
   const [season, setSeason] = useState("All");
@@ -236,21 +237,23 @@ export default function ReportsExport() {
   };
 
   const handleDownloadTemplate = () => {
-    // Focused import template — the columns the server expects, with new-season
-    // example rows (2026). Only municipality, year, season, yield are read.
-    // Use real municipality names from the dataset so the sample rows import as-is.
-    // Names must match the database exactly (e.g. "City of Calamba", not "Calamba").
-    const sample = records.length
-      ? [...new Set(records.map((r) => r.municipality))].slice(0, 2)
-      : ["City of Calamba", "Bay"];
-    const [a, b] = [sample[0] || "City of Calamba", sample[1] || sample[0] || "Bay"];
+    // Focused import template for the current level — the columns the server
+    // expects, with new-season example rows (2026). Use a real municipality name
+    // from the dataset so it imports as-is (must match the DB exactly, e.g.
+    // "City of Calamba", not "Calamba"). For barangays, replace "Barangay 1" with
+    // real barangay names of that municipality.
+    const muniName =
+      (records.length ? [...new Set(records.map((r) => r.municipality))][0] : null) || "City of Calamba";
     const q = (n) => (/[",\n]/.test(n) ? `"${n.replace(/"/g, '""')}"` : n);
     const template =
-      "municipality,year,season,yield\n" +
-      `${q(a)},2026,Dry,5.2\n` +
-      `${q(a)},2026,Wet,4.8\n` +
-      `${q(b)},2026,Dry,4.1\n`;
-    downloadBlob(template, "agrika-gis-import-template.csv", "text/csv;charset=utf-8;");
+      importLevel === "barangay"
+        ? "municipality,barangay,year,season,yield\n" +
+          `${q(muniName)},Barangay 1,2026,Dry,5.2\n` +
+          `${q(muniName)},Barangay 1,2026,Wet,4.8\n`
+        : "municipality,year,season,yield\n" +
+          `${q(muniName)},2026,Dry,5.2\n` +
+          `${q(muniName)},2026,Wet,4.8\n`;
+    downloadBlob(template, `agrika-gis-import-template-${importLevel}.csv`, "text/csv;charset=utf-8;");
   };
 
   // Send the CSV to the backend, which validates + upserts into the real
@@ -268,10 +271,15 @@ export default function ReportsExport() {
       setImporting(true);
       setImportResult(null);
       try {
-        const res = await yieldApi.importCsv(text, `Manual import: ${file.name}`);
+        const res = await yieldApi.importCsv(text, importLevel, `Manual import: ${file.name}`);
         setImportResult(res);
-        if ((res.inserted || 0) + (res.updated || 0) > 0) {
+        const changed = (res.inserted || 0) + (res.updated || 0) > 0;
+        // Municipality imports change this page's dataset; barangay imports feed
+        // the Map/Analytics drill-down instead, so only refresh when relevant.
+        if (changed && importLevel === "municipality") {
           applyRecords(await yieldApi.records());
+        }
+        if (changed) {
           setImportLog((prev) => [
             ...prev,
             {
@@ -346,18 +354,41 @@ export default function ReportsExport() {
             <div className="flex flex-col gap-6 min-w-0">
               {/* Data Import Zone */}
               <div className="bg-white border border-[#F3F4F6] shadow-sm rounded-xl p-6 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-lg font-bold text-[#1F2937]">Import Data</h2>
-                  <button
-                    type="button"
-                    onClick={handleDownloadTemplate}
-                    className="flex items-center gap-2 text-sm font-semibold text-[#1F6306] hover:underline"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" />
-                    </svg>
-                    Download Template
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {/* Level toggle — decides the target table + template */}
+                    <div className="flex p-0.5 bg-[#F3F4F6] rounded-lg text-xs font-medium">
+                      {[
+                        { key: "municipality", label: "Municipality" },
+                        { key: "barangay", label: "Barangay" },
+                      ].map((lvl) => (
+                        <button
+                          key={lvl.key}
+                          type="button"
+                          onClick={() => {
+                            setImportLevel(lvl.key);
+                            setImportResult(null);
+                          }}
+                          className={`px-3 py-1.5 rounded-md transition-colors ${
+                            importLevel === lvl.key ? "bg-white text-[#1B3315] shadow-sm" : "text-[#6B7280]"
+                          }`}
+                        >
+                          {lvl.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadTemplate}
+                      className="flex items-center gap-2 text-sm font-semibold text-[#1F6306] hover:underline"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" />
+                      </svg>
+                      Template
+                    </button>
+                  </div>
                 </div>
 
                 <div
@@ -381,8 +412,14 @@ export default function ReportsExport() {
                     </svg>
                   </span>
                   <h3 className="text-base font-semibold text-[#1F2937]">Drag & drop your CSV here</h3>
-                  <p className="max-w-[320px] text-center text-sm text-[#6B7280]">
-                    Import municipality yield records to update the dataset used across this dashboard.
+                  <p className="max-w-[340px] text-center text-sm text-[#6B7280]">
+                    Importing <b>{importLevel === "barangay" ? "barangay" : "municipality"}</b> yields.
+                    Columns:{" "}
+                    <span className="font-mono text-xs">
+                      {importLevel === "barangay"
+                        ? "municipality, barangay, year, season, yield"
+                        : "municipality, year, season, yield"}
+                    </span>
                   </p>
                   <button
                     type="button"
