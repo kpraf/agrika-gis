@@ -28,6 +28,10 @@ METRICS = {
 # PSA-semester month windows, matching the training-set alignment.
 SEASON_MONTHS = {"Dry": [1, 2, 3, 4, 5, 6], "Wet": [7, 8, 9, 10, 11, 12]}
 
+# Barangay-level counterpart tables (research-locale cities only).
+BRGY_TABLE = {"weather_monthly": "weather_monthly_barangay",
+              "satellite_monthly": "satellite_monthly_barangay"}
+
 
 @features_bp.get("/meta")
 def meta():
@@ -82,5 +86,57 @@ def municipalities():
     }
     return jsonify({
         "metric": metric, "label": label, "unit": unit,
+        "year": year, "season": season, "stats": stats, "records": records,
+    })
+
+
+@features_bp.get("/barangays")
+def barangays():
+    """Per-barangay seasonal average of one feature for a municipality + year +
+    season — for the Environment layer on the map's barangay drill-in.
+
+    Only barangays that have an OBSERVED yield for this year+season are returned
+    (a barangay lights up only where we have ground truth; everything else greys).
+
+    Query params: municipality_id (int), metric, year (int), season ('Dry'|'Wet').
+    """
+    mid = request.args.get("municipality_id", type=int)
+    metric = request.args.get("metric", type=str)
+    year = request.args.get("year", type=int)
+    season = request.args.get("season", type=str)
+    if not mid or metric not in METRICS or not year or season not in SEASON_MONTHS:
+        return jsonify({"error": "municipality_id, valid metric, year and season are required"}), 400
+
+    table, col, label, unit = METRICS[metric]
+    btable = BRGY_TABLE[table]
+    months = SEASON_MONTHS[season]
+    rows = db.session.execute(
+        text(
+            f"SELECT b.barangay_id, b.barangay_name AS name, AVG(t.{col}) AS value "
+            f"FROM {btable} t "
+            f"JOIN barangays b ON b.barangay_id = t.barangay_id "
+            f"JOIN barangay_yield y ON y.barangay_id = b.barangay_id "
+            f"JOIN seasons s ON s.season_id = y.season_id "
+            f"WHERE b.municipality_id = :m AND t.year = :y AND t.month = ANY(:months) "
+            f"AND t.{col} IS NOT NULL AND y.yield_mt_ha IS NOT NULL "
+            f"AND s.year = :y AND s.season_type = :sea "
+            f"GROUP BY b.barangay_id, b.barangay_name ORDER BY b.barangay_name"
+        ),
+        {"m": mid, "y": year, "sea": season, "months": months},
+    ).all()
+
+    records = [
+        {"barangay_id": r.barangay_id, "name": r.name, "value": round(float(r.value), 3)}
+        for r in rows
+    ]
+    vals = [r["value"] for r in records]
+    stats = {
+        "count": len(vals),
+        "min": round(min(vals), 3) if vals else None,
+        "max": round(max(vals), 3) if vals else None,
+        "avg": round(sum(vals) / len(vals), 3) if vals else None,
+    }
+    return jsonify({
+        "municipality_id": mid, "metric": metric, "label": label, "unit": unit,
         "year": year, "season": season, "stats": stats, "records": records,
     })

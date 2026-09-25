@@ -90,6 +90,7 @@ export default function SpatialGIS() {
   // Environment (remote-sensing) layer: selected metric + its per-municipality values.
   const [envMetric, setEnvMetric] = useState("ndvi");
   const [featuresResp, setFeaturesResp] = useState(null); // { label, unit, stats, records }
+  const [barangayEnvResp, setBarangayEnvResp] = useState(null); // per-barangay env metric on drill-in
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
@@ -187,6 +188,22 @@ export default function SpatialGIS() {
     };
   }, [viewType, year, season, envMetric]);
 
+  // Environment drill-in: per-barangay seasonal metric for the selected city.
+  useEffect(() => {
+    if (viewType !== "environment" || !activeCityId || !year || !season) {
+      setBarangayEnvResp(null);
+      return;
+    }
+    let active = true;
+    featuresApi
+      .barangays(activeCityId, year, season, envMetric)
+      .then((r) => active && setBarangayEnvResp(r))
+      .catch(() => active && setBarangayEnvResp(null));
+    return () => {
+      active = false;
+    };
+  }, [viewType, activeCityId, year, season, envMetric]);
+
   // Shape the records for the map (id -> { yield, is_proxy }) and the panels.
   const yieldByMuni = useMemo(() => {
     const out = {};
@@ -252,6 +269,20 @@ export default function SpatialGIS() {
     [barangayResp]
   );
 
+  // Per-barangay Environment metric on drill-in (only barangays with observed data).
+  const envByBarangay = useMemo(() => {
+    const out = {};
+    for (const r of barangayEnvResp?.records ?? []) out[r.barangay_id] = { yield: r.value };
+    return out;
+  }, [barangayEnvResp]);
+  const envBarangayScale = useMemo(
+    () =>
+      barangayEnvResp?.stats?.min != null
+        ? { min: barangayEnvResp.stats.min, max: barangayEnvResp.stats.max }
+        : null,
+    [barangayEnvResp]
+  );
+
   const showingEnvironment = viewType === "environment";
   const showingPredicted = !showingEnvironment && dataSource === "predicted" && predMeta.has_predictions;
   const showingResidual = !showingEnvironment && dataSource === "residual" && predMeta.has_predictions;
@@ -287,12 +318,18 @@ export default function SpatialGIS() {
       : showingPredicted
       ? !!predScale
       : !!yieldResp);
-  // Barangay choropleth only in the observed heatmap view. Active regardless of
-  // whether data exists for the drilled-in municipality, so no-data barangays grey
-  // out instead of falling back to the plain green outline.
-  const barangayYieldMode =
+  // Barangay choropleth on drill-in: in the observed heatmap view (yields) or the
+  // Environment view (selected metric). Active regardless of whether data exists,
+  // so no-data barangays grey out instead of the plain green outline.
+  const barangayObservedMode =
     heatmapOn && !showingEnvironment && !showingPredicted && !showingResidual;
-  const mapYieldByBarangay = barangayYieldMode ? yieldByBarangay : null;
+  const barangayYieldMode = barangayObservedMode || showingEnvironment;
+  const mapYieldByBarangay = showingEnvironment
+    ? envByBarangay
+    : barangayObservedMode
+    ? yieldByBarangay
+    : null;
+  const mapBarangayScale = showingEnvironment ? envBarangayScale : barangayScale;
   const selectedYield = selection?.level === "municipality" ? yieldByMuni[selection.id] : null;
   const selectedCompare =
     selection?.level === "municipality"
@@ -601,7 +638,7 @@ export default function SpatialGIS() {
             legendLabel={mapLegendLabel}
             valueUnit={mapValueUnit}
             yieldByBarangay={mapYieldByBarangay}
-            barangayColorScale={barangayScale}
+            barangayColorScale={mapBarangayScale}
             barangayHeatmap={barangayYieldMode}
             yieldKey={`${
               showingEnvironment
@@ -612,7 +649,7 @@ export default function SpatialGIS() {
                 ? "pred"
                 : "obs"
             }-${year}-${season}`}
-            barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayResp?.stats?.count ?? 0}`}
+            barangayKey={`brgy-${showingEnvironment ? `env-${envMetric}` : "obs"}-${activeCityId}-${year}-${season}-${(showingEnvironment ? barangayEnvResp : barangayResp)?.stats?.count ?? 0}-${(showingEnvironment ? barangayEnvResp : barangayResp)?.stats?.avg ?? ""}`}
           />
 
           {/* Floating panel toggles — below lg only (the columns are always visible at lg+).

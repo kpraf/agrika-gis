@@ -185,6 +185,12 @@ export const featuresApi = {
     request(
       `/features/municipalities?metric=${encodeURIComponent(metric)}&year=${year}&season=${encodeURIComponent(season)}`
     ),
+  // Per-barangay seasonal metric for a municipality (Environment drill-in);
+  // only barangays with an observed yield that season are returned.
+  barangays: (municipalityId, year, season, metric) =>
+    request(
+      `/features/barangays?municipality_id=${municipalityId}&metric=${encodeURIComponent(metric)}&year=${year}&season=${encodeURIComponent(season)}`
+    ),
 };
 
 export const usersApi = {
