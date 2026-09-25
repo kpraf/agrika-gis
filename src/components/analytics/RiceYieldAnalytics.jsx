@@ -142,7 +142,6 @@ export default function RiceYieldAnalytics() {
   const [selectedMuni, setSelectedMuni] = useState(new Set()); // municipality ids
   const [seriesByMuni, setSeriesByMuni] = useState({}); // { id: { year: yield } }
 
-  // fixed
   // Predicted vs Recorded — from /yield/compare (CNN-LSTM predictions), municipality-level only.
   const [predMeta, setPredMeta] = useState({
     has_predictions: false,

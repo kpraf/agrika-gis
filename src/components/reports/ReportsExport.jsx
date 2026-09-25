@@ -354,17 +354,17 @@ export default function ReportsExport() {
     const { rows, columns, title } = buildExportRows();
     if (!rows.length) return;
     if (exportFormat === "pdf") {
-  printAsPDF(title, rows, columns);
-} else if (exportFormat === "excel") {
-  downloadXLSX(title, rows, columns);
-} else {
-  const csv = toCSV(rows, columns);
-  downloadBlob(
-    csv,
-    `${title.replace(/\s+/g, "-").toLowerCase()}.csv`,
-    "text/csv;charset=utf-8;"
-  );
-}
+      printAsPDF(title, rows, columns);
+    } else if (exportFormat === "excel") {
+      downloadXLSX(title, rows, columns);
+    } else {
+      const csv = toCSV(rows, columns);
+      downloadBlob(
+        csv,
+        `${title.replace(/\s+/g, "-").toLowerCase()}.csv`,
+        "text/csv;charset=utf-8;"
+      );
+    }
   };
 
   const handleDownloadTemplate = () => {

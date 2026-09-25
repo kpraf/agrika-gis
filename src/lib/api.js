@@ -180,11 +180,7 @@ export const yieldApi = {
   predictionsMeta: () => request("/yield/predictions/meta"),
   compare: (year, season) =>
     request(`/yield/compare?year=${year}&season=${encodeURIComponent(season)}`),
-  // Persists CSV-imported rows into municipality_yield_records. Requires login.
-  importRecords: (records) =>
-    request("/yield/import", { method: "POST", body: { records }, auth: true }),
 };
-
 
 // Remote-sensing / meteorological features (NDVI, rainfall, etc.) for the map's
 // Environment view — per-municipality seasonal averages from the feature tables.
