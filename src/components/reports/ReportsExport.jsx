@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import DashboardSidebar from "../layout/DashboardSidebar";
 
+import * as XLSX from "xlsx";
+
 // Green ramp so taller bars read darker — adds a second visual cue to height.
 const REPORT_RAMP = ["#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
 function rampColor(value, min, max) {
@@ -61,6 +63,35 @@ function downloadBlob(content, filename, type) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// Real .xlsx workbook (SheetJS) — one sheet, auto-sized columns.
+function downloadXLSX(title, rows, columns) {
+  const sheetRows = rows.map((row) =>
+    Object.fromEntries(
+      columns.map((c) => [c.label, row[c.key] ?? ""])
+    )
+  );
+
+  const ws = XLSX.utils.json_to_sheet(sheetRows, {
+    header: columns.map((c) => c.label),
+  });
+
+  ws["!cols"] = columns.map((c) => ({
+    wch:
+      Math.max(
+        c.label.length,
+        ...rows.map((r) => String(r[c.key] ?? "").length)
+      ) + 2,
+  }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Report");
+
+  XLSX.writeFile(
+    wb,
+    `${title.replace(/\s+/g, "-").toLowerCase()}.xlsx`
+  );
 }
 
 function printAsPDF(title, rows, columns) {
@@ -324,10 +355,15 @@ export default function ReportsExport() {
     if (!rows.length) return;
     if (exportFormat === "pdf") {
       printAsPDF(title, rows, columns);
+    } else if (exportFormat === "excel") {
+      downloadXLSX(title, rows, columns);
     } else {
       const csv = toCSV(rows, columns);
-      const suffix = exportFormat === "excel" ? "csv" : "csv"; // Excel opens CSV natively
-      downloadBlob(csv, `${title.replace(/\s+/g, "-").toLowerCase()}.${suffix}`, "text/csv;charset=utf-8;");
+      downloadBlob(
+        csv,
+        `${title.replace(/\s+/g, "-").toLowerCase()}.csv`,
+        "text/csv;charset=utf-8;"
+      );
     }
   };
 
