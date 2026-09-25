@@ -239,6 +239,12 @@ export default function LagunaMap({
     return `${name}: ${rec.yield}${valueUnit ? ` ${valueUnit}` : ""}`;
   };
 
+  // The colour-scale legend follows what the map is showing: the municipality
+  // choropleth at the province view, or the barangay choropleth (its own local
+  // scale) once drilled into a municipality.
+  const legendScale = selectedMuni ? barangayColorScale : colorScale;
+  const legendVisible = (selectedMuni ? brgyHeatmapActive : heatmapActive) && legendScale?.min != null;
+
   // react-leaflet applies `style`/`onEachFeature` (incl. bound tooltips) only at
   // mount, so the layer must remount whenever the yield data itself changes —
   // not just when year/season changes. Fold the record count + scale into the
@@ -596,8 +602,9 @@ export default function LagunaMap({
         </button>
       )}
 
-      {/* Yield heatmap legend — centred along the bottom of the map. */}
-      {heatmapActive && !selectedMuni && colorScale?.min != null && (
+      {/* Colour-scale legend — centred along the bottom of the map. Shows for the
+          municipality choropleth (province view) or the barangay one (drilled in). */}
+      {legendVisible && (
         <div className="absolute left-3 bottom-20 sm:left-1/2 sm:-translate-x-1/2 sm:bottom-6 z-[500] bg-white/95 backdrop-blur-sm shadow-md rounded-lg px-3 py-2 sm:px-5 sm:py-3 max-w-[calc(100vw-5rem)] sm:max-w-none">
           <div className="flex items-center gap-2 sm:gap-4">
             <span className="text-xs sm:text-sm font-semibold text-[#374151] whitespace-nowrap">
@@ -605,7 +612,7 @@ export default function LagunaMap({
             </span>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-[10px] sm:text-xs text-[#6B7280]">
-                {colorMode === "residual" ? "over-predicts" : colorScale.min}
+                {colorMode === "residual" ? "over-predicts" : legendScale.min}
               </span>
               <div className="flex h-3 sm:h-3.5 w-24 sm:w-52 rounded-full overflow-hidden">
                 {(colorMode === "residual" ? RESIDUAL_RAMP : RAMPS[rampKey] || YIELD_RAMP).map((c) => (
@@ -613,7 +620,7 @@ export default function LagunaMap({
                 ))}
               </div>
               <span className="text-[10px] sm:text-xs text-[#6B7280]">
-                {colorMode === "residual" ? "under-predicts" : colorScale.max}
+                {colorMode === "residual" ? "under-predicts" : legendScale.max}
               </span>
             </div>
             {/* "No data" key hidden on phones to keep the legend from colliding with
