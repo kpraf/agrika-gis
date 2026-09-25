@@ -18,35 +18,80 @@ import { yieldApi } from "../../lib/api";
 
 // Distinct series colours, cycled if more entities are selected than colours.
 const PALETTE = [
-  "#0D9488", "#F97316", "#3B82F6", "#7C3AED", "#DB2777",
-  "#16A34A", "#CA8A04", "#0EA5E9", "#DC2626", "#4B5563",
-  "#0891B2", "#9333EA",
+  "#0D9488",
+  "#F97316",
+  "#3B82F6",
+  "#7C3AED",
+  "#DB2777",
+  "#16A34A",
+  "#CA8A04",
+  "#0EA5E9",
+  "#DC2626",
+  "#4B5563",
+  "#0891B2",
+  "#9333EA",
 ];
 
 function IconLine() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M3 17l5-6 4 4 9-11" />
     </svg>
   );
 }
 function IconBar() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M4 20V10M12 20V4M20 20v-7" />
     </svg>
   );
 }
 function IconAverage() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M3 12h18M3 12l4-4M3 12l4 4" />
     </svg>
   );
 }
 function IconZoom() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="11" cy="11" r="7" />
       <path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
     </svg>
@@ -74,7 +119,9 @@ function ControlButton({ active, onClick, disabled, children }) {
 function topByAverage(seriesById, ids, n) {
   const avg = (id) => {
     const vals = Object.values(seriesById[id] || {});
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : -Infinity;
+    return vals.length
+      ? vals.reduce((a, b) => a + b, 0) / vals.length
+      : -Infinity;
   };
   return [...ids].sort((a, b) => avg(b) - avg(a)).slice(0, n);
 }
@@ -95,6 +142,15 @@ export default function RiceYieldAnalytics() {
   const [selectedMuni, setSelectedMuni] = useState(new Set()); // municipality ids
   const [seriesByMuni, setSeriesByMuni] = useState({}); // { id: { year: yield } }
 
+  // fixed
+  // Predicted vs Recorded — from /yield/compare (CNN-LSTM predictions), municipality-level only.
+  const [predMeta, setPredMeta] = useState({
+    has_predictions: false,
+    years: [],
+  });
+  const [compareYear, setCompareYear] = useState(null);
+  const [compareResp, setCompareResp] = useState(null);
+
   // Barangay comparison — always scoped to ONE municipality.
   const [brgyMunis, setBrgyMunis] = useState([]); // municipalities that have barangay data
   const [brgyMuniId, setBrgyMuniId] = useState(null); // the municipality whose barangays we compare
@@ -104,38 +160,78 @@ export default function RiceYieldAnalytics() {
   const [brgyYears, setBrgyYears] = useState([]); // years present in the barangay data
 
   const cityLabel = useMemo(
-    () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
-    [city]
+    () =>
+      city
+        ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+        : "Laguna Province",
+    [city],
   );
 
   // Load filter options + the municipality list, pick a default set, and find out
   // which municipalities have barangay-level data (to enable the Barangay tab).
   useEffect(() => {
     let active = true;
-    yieldApi.meta().then((m) => {
-      if (!active) return;
-      setMeta(m);
-      const firstSeason = m.seasons?.[0] ?? "Dry";
-      const latestYear = m.years?.[m.years.length - 1];
-      setSeason(firstSeason);
-      if (!latestYear) return;
-      yieldApi.municipalities(latestYear, firstSeason).then((r) => {
+    yieldApi
+      .meta()
+      .then((m) => {
         if (!active) return;
-        const list = (r.records || []).map((x) => ({ id: x.municipality_id, name: x.name }));
-        list.sort((a, b) => a.name.localeCompare(b.name));
-        setMunis(list);
-        const top = [...(r.records || [])].sort((a, b) => b.yield - a.yield).slice(0, 4);
-        setSelectedMuni(new Set(top.map((x) => x.municipality_id)));
-      });
-    }).catch(() => {});
-    yieldApi.barangayMunicipalities().then((r) => {
-      if (!active) return;
-      const list = r.municipalities || [];
-      setBrgyMunis(list);
-      if (list.length) setBrgyMuniId(list[0].municipality_id);
-    }).catch(() => {});
-    return () => { active = false; };
+        setMeta(m);
+        const firstSeason = m.seasons?.[0] ?? "Dry";
+        const latestYear = m.years?.[m.years.length - 1];
+        setSeason(firstSeason);
+        if (!latestYear) return;
+        yieldApi.municipalities(latestYear, firstSeason).then((r) => {
+          if (!active) return;
+          const list = (r.records || []).map((x) => ({
+            id: x.municipality_id,
+            name: x.name,
+          }));
+          list.sort((a, b) => a.name.localeCompare(b.name));
+          setMunis(list);
+          const top = [...(r.records || [])]
+            .sort((a, b) => b.yield - a.yield)
+            .slice(0, 4);
+          setSelectedMuni(new Set(top.map((x) => x.municipality_id)));
+        });
+      })
+      .catch(() => {});
+    yieldApi
+      .barangayMunicipalities()
+      .then((r) => {
+        if (!active) return;
+        const list = r.municipalities || [];
+        setBrgyMunis(list);
+        if (list.length) setBrgyMuniId(list[0].municipality_id);
+      })
+      .catch(() => {});
+    yieldApi
+      .predictionsMeta()
+      .then((m) => {
+        if (!active) return;
+        setPredMeta(m);
+        if (m.years?.length) setCompareYear(m.years[m.years.length - 1]);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, []);
+
+  // Observed vs predicted (+ MAE) for the chosen comparison year + season.
+  useEffect(() => {
+    if (!compareYear || !season) {
+      setCompareResp(null);
+      return;
+    }
+    let active = true;
+    yieldApi
+      .compare(compareYear, season)
+      .then((r) => active && setCompareResp(r))
+      .catch(() => active && setCompareResp(null));
+    return () => {
+      active = false;
+    };
+  }, [compareYear, season]);
 
   // Municipality series: year-over-year for each selected municipality in the season.
   useEffect(() => {
@@ -143,7 +239,11 @@ export default function RiceYieldAnalytics() {
     let active = true;
     setLoading(true);
     const ids = [...selectedMuni];
-    Promise.all(ids.map((id) => yieldApi.trend(season, id).then((r) => [id, r.series || []])))
+    Promise.all(
+      ids.map((id) =>
+        yieldApi.trend(season, id).then((r) => [id, r.series || []]),
+      ),
+    )
       .then((pairs) => {
         if (!active) return;
         const out = {};
@@ -155,7 +255,9 @@ export default function RiceYieldAnalytics() {
       })
       .catch(() => active && setSeriesByMuni({}))
       .finally(() => active && setLoading(false));
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [level, season, selectedMuni]);
 
   // Barangay series: all barangays of the chosen municipality, for the season.
@@ -163,25 +265,43 @@ export default function RiceYieldAnalytics() {
     if (level !== "barangay" || !season || !brgyMuniId) return;
     let active = true;
     setLoading(true);
-    yieldApi.barangaySeries(brgyMuniId, season)
+    yieldApi
+      .barangaySeries(brgyMuniId, season)
       .then((r) => {
         if (!active) return;
-        const list = (r.barangays || []).map((b) => ({ id: b.barangay_id, name: b.name }));
+        const list = (r.barangays || []).map((b) => ({
+          id: b.barangay_id,
+          name: b.name,
+        }));
         list.sort((a, b) => a.name.localeCompare(b.name));
         const series = {};
-        for (const b of r.barangays || []) series[b.barangay_id] = b.series || {};
+        for (const b of r.barangays || [])
+          series[b.barangay_id] = b.series || {};
         setBrgys(list);
         setBrgySeries(series);
         setBrgyYears(r.years || []);
         // Default to the 6 highest-average barangays for a legible first view.
-        setSelectedBrgy(new Set(topByAverage(series, list.map((b) => b.id), 6)));
+        setSelectedBrgy(
+          new Set(
+            topByAverage(
+              series,
+              list.map((b) => b.id),
+              6,
+            ),
+          ),
+        );
       })
       .catch(() => {
         if (!active) return;
-        setBrgys([]); setBrgySeries({}); setBrgyYears([]); setSelectedBrgy(new Set());
+        setBrgys([]);
+        setBrgySeries({});
+        setBrgyYears([]);
+        setSelectedBrgy(new Set());
       })
       .finally(() => active && setLoading(false));
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [level, season, brgyMuniId]);
 
   // Generic view over whichever level is active.
@@ -195,7 +315,9 @@ export default function RiceYieldAnalytics() {
 
   const colorFor = useMemo(() => {
     const map = {};
-    entities.forEach((e, i) => { map[e.id] = PALETTE[i % PALETTE.length]; });
+    entities.forEach((e, i) => {
+      map[e.id] = PALETTE[i % PALETTE.length];
+    });
     return map;
   }, [entities]);
 
@@ -231,15 +353,29 @@ export default function RiceYieldAnalytics() {
           vals.push(v);
         }
       }
-      row.average = vals.length ? Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(3)) : null;
+      row.average = vals.length
+        ? Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(3))
+        : null;
       return row;
     });
   }, [years, selectedEntities, seriesById]);
 
   const ChartComponent = chartType === "line" ? LineChart : BarChart;
 
+  // Predicted-vs-recorded rows for the currently selected municipalities (compare is muni-level only).
+  const compareChartData = useMemo(() => {
+    if (isBarangay || !compareResp) return [];
+    return (compareResp.records || [])
+      .filter((r) => selectedMuni.has(r.municipality_id))
+      .map((r) => ({ name: r.name, observed: r.observed, predicted: r.predicted, residual: r.residual }));
+  }, [compareResp, selectedMuni, isBarangay]);
+
+
   return (
-    <div className="flex w-full h-screen bg-white font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div
+      className="flex w-full h-screen bg-white font-sans pb-14 md:pb-0"
+      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+    >
       <DashboardSidebar active="compare" city={city} />
 
       <div className="flex flex-col flex-1 min-w-0">
@@ -247,9 +383,13 @@ export default function RiceYieldAnalytics() {
         <header className="flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
           <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">
             <span className="md:hidden">Analytics</span>
-            <span className="hidden md:inline">Rice Yield Analytics and Comparison</span>
+            <span className="hidden md:inline">
+              Rice Yield Analytics and Comparison
+            </span>
           </h1>
-          <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">{cityLabel}</span>
+          <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">
+            {cityLabel}
+          </span>
         </header>
 
         {/* Page Content */}
@@ -259,13 +399,17 @@ export default function RiceYieldAnalytics() {
             <div className="flex flex-wrap items-center gap-6">
               {/* Compare level — Municipality (province-wide) or Barangay (within one municipality). */}
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-[#374151]">Compare by</span>
+                <span className="text-sm font-medium text-[#374151]">
+                  Compare by
+                </span>
                 <div className="flex p-1 gap-1 bg-[#F3F4F6] rounded-lg">
                   <button
                     type="button"
                     onClick={() => setLevel("municipality")}
                     className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                      level === "municipality" ? "bg-white text-[#1B3315] shadow-sm" : "text-[#4B5563]"
+                      level === "municipality"
+                        ? "bg-white text-[#1B3315] shadow-sm"
+                        : "text-[#4B5563]"
                     }`}
                   >
                     Municipality
@@ -274,55 +418,92 @@ export default function RiceYieldAnalytics() {
                     type="button"
                     onClick={() => barangayAvailable && setLevel("barangay")}
                     disabled={!barangayAvailable}
-                    title={barangayAvailable ? "Compare barangays within one municipality" : "Barangay-level yield data not available yet"}
+                    title={
+                      barangayAvailable
+                        ? "Compare barangays within one municipality"
+                        : "Barangay-level yield data not available yet"
+                    }
                     className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                      level === "barangay" ? "bg-white text-[#1B3315] shadow-sm" : "text-[#4B5563]"
+                      level === "barangay"
+                        ? "bg-white text-[#1B3315] shadow-sm"
+                        : "text-[#4B5563]"
                     } ${!barangayAvailable ? "opacity-40 cursor-not-allowed" : ""}`}
                   >
                     Barangay
                   </button>
                 </div>
-                {!barangayAvailable && <span className="text-[11px] text-[#9CA3AF]">Barangay: needs data</span>}
+                {!barangayAvailable && (
+                  <span className="text-[11px] text-[#9CA3AF]">
+                    Barangay: needs data
+                  </span>
+                )}
               </div>
 
               {/* Municipality picker — only when comparing barangays (scopes to one). */}
               {isBarangay && (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#374151]">Municipality</span>
+                  <span className="text-sm font-medium text-[#374151]">
+                    Municipality
+                  </span>
                   <div className="relative">
                     <select
                       value={brgyMuniId ?? ""}
-                      onChange={(e) => setBrgyMuniId(e.target.value ? Number(e.target.value) : null)}
+                      onChange={(e) =>
+                        setBrgyMuniId(
+                          e.target.value ? Number(e.target.value) : null,
+                        )
+                      }
                       className="appearance-none pl-3 pr-9 py-1.5 bg-white border border-[#C3C8BD] rounded-lg text-sm text-[#191C1A] outline-none focus:border-[#3B9E1C] cursor-pointer"
                     >
                       {brgyMunis.map((m) => (
-                        <option key={m.municipality_id} value={m.municipality_id}>{m.name}</option>
+                        <option
+                          key={m.municipality_id}
+                          value={m.municipality_id}
+                        >
+                          {m.name}
+                        </option>
                       ))}
                     </select>
-                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
-                      <path d="M2 4l5 5 5-5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 14 14"
+                      fill="none"
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                    >
+                      <path
+                        d="M2 4l5 5 5-5"
+                        stroke="#6B7280"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
                     </svg>
                   </div>
                 </div>
               )}
 
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-[#374151]">Season</span>
+                <span className="text-sm font-medium text-[#374151]">
+                  Season
+                </span>
                 <div className="flex gap-1">
-                  {(meta.seasons.length ? meta.seasons : ["Dry", "Wet"]).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setSeason(opt)}
-                      className={`px-3 py-1.5 rounded-full border text-sm ${
-                        season === opt
-                          ? "bg-[#3B9E1C] border-[#3B9E1C] text-white"
-                          : "bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A]"
-                      }`}
-                    >
-                      {opt} Season
-                    </button>
-                  ))}
+                  {(meta.seasons.length ? meta.seasons : ["Dry", "Wet"]).map(
+                    (opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setSeason(opt)}
+                        className={`px-3 py-1.5 rounded-full border text-sm ${
+                          season === opt
+                            ? "bg-[#3B9E1C] border-[#3B9E1C] text-white"
+                            : "bg-[#ECEFEA] border-[#C3C8BD] text-[#191C1A]"
+                        }`}
+                      >
+                        {opt} Season
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
             </div>
@@ -331,16 +512,24 @@ export default function RiceYieldAnalytics() {
             <div className="flex flex-col gap-3">
               <h3 className="text-sm font-medium text-[#374151]">
                 {isBarangay ? (
-                  <>Compare barangays in <b>{activeBrgyMuniName}</b></>
+                  <>
+                    Compare barangays in <b>{activeBrgyMuniName}</b>
+                  </>
                 ) : (
                   <>Compare municipalities</>
                 )}{" "}
-                <span className="text-[#9CA3AF]">({selected.size} selected)</span>
+                <span className="text-[#9CA3AF]">
+                  ({selected.size} selected)
+                </span>
               </h3>
               <div className="flex flex-wrap gap-2 px-4 py-3 bg-[#F9FAFB]/80 border border-[#F3F4F6] rounded-lg max-h-[132px] overflow-y-auto">
                 {entities.length === 0 && (
                   <span className="text-sm text-[#9CA3AF]">
-                    {loading ? "Loading…" : isBarangay ? `No barangay data for ${activeBrgyMuniName}.` : "Loading municipalities…"}
+                    {loading
+                      ? "Loading…"
+                      : isBarangay
+                        ? `No barangay data for ${activeBrgyMuniName}.`
+                        : "Loading municipalities…"}
                   </span>
                 )}
                 {entities.map((e) => {
@@ -351,13 +540,19 @@ export default function RiceYieldAnalytics() {
                       type="button"
                       onClick={() => toggleEntity(e.id)}
                       className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-sm transition-colors ${
-                        on ? "border-transparent text-white" : "bg-white border-[#E5E7EB] text-[#6B7280]"
+                        on
+                          ? "border-transparent text-white"
+                          : "bg-white border-[#E5E7EB] text-[#6B7280]"
                       }`}
                       style={on ? { background: colorFor[e.id] } : undefined}
                     >
                       <span
                         className="w-2.5 h-2.5 rounded-full"
-                        style={{ background: on ? "rgba(255,255,255,0.9)" : colorFor[e.id] }}
+                        style={{
+                          background: on
+                            ? "rgba(255,255,255,0.9)"
+                            : colorFor[e.id],
+                        }}
                       />
                       {e.name}
                     </button>
@@ -368,16 +563,29 @@ export default function RiceYieldAnalytics() {
 
             {/* Chart Controls */}
             <div className="flex flex-wrap items-center gap-4 pt-2 pb-4 border-b border-[#F3F4F6]">
-              <ControlButton active={chartType === "line"} onClick={() => setChartType("line")}>
+              <ControlButton
+                active={chartType === "line"}
+                onClick={() => setChartType("line")}
+              >
                 <IconLine /> Line Chart
               </ControlButton>
-              <ControlButton active={chartType === "bar"} onClick={() => setChartType("bar")}>
+              <ControlButton
+                active={chartType === "bar"}
+                onClick={() => setChartType("bar")}
+              >
                 <IconBar /> Bar Chart
               </ControlButton>
-              <ControlButton active={showAverage} onClick={() => setShowAverage((v) => !v)}>
+              <ControlButton
+                active={showAverage}
+                onClick={() => setShowAverage((v) => !v)}
+              >
                 <IconAverage /> Show Average
               </ControlButton>
-              <ControlButton active={zoomEnabled} onClick={() => setZoomEnabled((v) => !v)} disabled={chartType !== "line"}>
+              <ControlButton
+                active={zoomEnabled}
+                onClick={() => setZoomEnabled((v) => !v)}
+                disabled={chartType !== "line"}
+              >
                 <IconZoom /> Toggle Zoom: {zoomEnabled ? "On" : "Off"}
               </ControlButton>
             </div>
@@ -385,22 +593,39 @@ export default function RiceYieldAnalytics() {
             {/* Chart Area */}
             <div className="w-full h-[360px] pt-2">
               {loading && chartData.every((r) => r.average == null) ? (
-                <div className="w-full h-full flex items-center justify-center text-[#9CA3AF]">Loading yield series…</div>
+                <div className="w-full h-full flex items-center justify-center text-[#9CA3AF]">
+                  Loading yield series…
+                </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <ChartComponent data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+                  <ChartComponent
+                    data={chartData}
+                    margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
+                  >
                     <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                    <XAxis dataKey="year" tick={{ fontSize: 12, fill: "#6B7280" }} axisLine={{ stroke: "#E5E7EB" }} tickLine={false} />
+                    <XAxis
+                      dataKey="year"
+                      tick={{ fontSize: 12, fill: "#6B7280" }}
+                      axisLine={{ stroke: "#E5E7EB" }}
+                      tickLine={false}
+                    />
                     <YAxis
                       tick={{ fontSize: 12, fill: "#6B7280" }}
                       axisLine={false}
                       tickLine={false}
                       width={76}
-                      domain={[(min) => Math.floor((min - 0.5) * 2) / 2, (max) => Math.ceil((max + 0.5) * 2) / 2]}
+                      domain={[
+                        (min) => Math.floor((min - 0.5) * 2) / 2,
+                        (max) => Math.ceil((max + 0.5) * 2) / 2,
+                      ]}
                       tickFormatter={(v) => `${Number(v).toFixed(1)} mt/ha`}
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}
+                      contentStyle={{
+                        borderRadius: 8,
+                        border: "1px solid #E5E7EB",
+                        fontSize: 13,
+                      }}
                       formatter={(v) => (v == null ? "N/A" : `${v} mt/ha`)}
                     />
                     <Legend wrapperStyle={{ fontSize: 13 }} />
@@ -418,8 +643,14 @@ export default function RiceYieldAnalytics() {
                           connectNulls
                         />
                       ) : (
-                        <Bar key={e.id} dataKey={`e${e.id}`} name={e.name} fill={colorFor[e.id]} radius={[4, 4, 0, 0]} />
-                      )
+                        <Bar
+                          key={e.id}
+                          dataKey={`e${e.id}`}
+                          name={e.name}
+                          fill={colorFor[e.id]}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      ),
                     )}
                     {showAverage && (
                       <Line
@@ -434,7 +665,13 @@ export default function RiceYieldAnalytics() {
                       />
                     )}
                     {zoomEnabled && chartType === "line" && (
-                      <Brush dataKey="year" height={24} stroke="#3B9E1C" travellerWidth={8} fill="#F8FAF5" />
+                      <Brush
+                        dataKey="year"
+                        height={24}
+                        stroke="#3B9E1C"
+                        travellerWidth={8}
+                        fill="#F8FAF5"
+                      />
                     )}
                   </ChartComponent>
                 </ResponsiveContainer>
@@ -446,29 +683,48 @@ export default function RiceYieldAnalytics() {
               <table className="w-full text-sm">
                 <thead className="bg-[#F9FAFB] text-[#6B7280]">
                   <tr>
-                    <th className="text-left font-semibold px-4 py-2 capitalize">{entityWord}</th>
+                    <th className="text-left font-semibold px-4 py-2 capitalize">
+                      {entityWord}
+                    </th>
                     <th className="text-right font-semibold px-4 py-2">Avg</th>
                     <th className="text-right font-semibold px-4 py-2">Min</th>
                     <th className="text-right font-semibold px-4 py-2">Max</th>
-                    <th className="text-right font-semibold px-4 py-2">Latest</th>
+                    <th className="text-right font-semibold px-4 py-2">
+                      Latest
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {selectedEntities.map((e) => {
-                    const vals = years.map((y) => seriesById[e.id]?.[y]).filter((v) => v != null);
+                    const vals = years
+                      .map((y) => seriesById[e.id]?.[y])
+                      .filter((v) => v != null);
                     if (!vals.length) return null;
-                    const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(3);
+                    const avg = (
+                      vals.reduce((a, b) => a + b, 0) / vals.length
+                    ).toFixed(3);
                     const latest = seriesById[e.id]?.[years[years.length - 1]];
                     return (
                       <tr key={e.id} className="border-t border-[#F3F4F6]">
                         <td className="px-4 py-2 text-[#191C1A]">
-                          <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle" style={{ background: colorFor[e.id] }} />
+                          <span
+                            className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle"
+                            style={{ background: colorFor[e.id] }}
+                          />
                           {e.name}
                         </td>
-                        <td className="px-4 py-2 text-right font-semibold text-[#1B3315]">{avg}</td>
-                        <td className="px-4 py-2 text-right text-[#6B7280]">{Math.min(...vals).toFixed(3)}</td>
-                        <td className="px-4 py-2 text-right text-[#6B7280]">{Math.max(...vals).toFixed(3)}</td>
-                        <td className="px-4 py-2 text-right text-[#374151]">{latest != null ? latest : "N/A"}</td>
+                        <td className="px-4 py-2 text-right font-semibold text-[#1B3315]">
+                          {avg}
+                        </td>
+                        <td className="px-4 py-2 text-right text-[#6B7280]">
+                          {Math.min(...vals).toFixed(3)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-[#6B7280]">
+                          {Math.max(...vals).toFixed(3)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-[#374151]">
+                          {latest != null ? latest : "N/A"}
+                        </td>
                       </tr>
                     );
                   })}
@@ -476,13 +732,70 @@ export default function RiceYieldAnalytics() {
               </table>
             </div>
 
+            {/* Predicted vs Recorded Yield — from /yield/compare (CNN-LSTM predictions) */}
+            {!isBarangay && predMeta.has_predictions && (
+              <div className="flex flex-col gap-3 pt-2 border-t border-[#F3F4F6]">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-sm font-medium text-[#374151]">
+                    Predicted vs Recorded Yield <span className="text-[#9CA3AF]">({season} season)</span>
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-[#6B7280]">Year</span>
+                    <select
+                      value={compareYear ?? ""}
+                      onChange={(e) => setCompareYear(Number(e.target.value))}
+                      className="px-2 py-1 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
+                    >
+                      {(predMeta.years || []).map((y) => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {compareChartData.length === 0 ? (
+                  <div className="text-sm text-[#9CA3AF] px-4 py-6 text-center bg-[#F9FAFB] rounded-lg">
+                    No predictions for the selected municipalities in {compareYear} {season}.
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-full h-[280px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={compareChartData} margin={{ top: 8, right: 16, left: 8, bottom: 40 }}>
+                          <CartesianGrid stroke="#F3F4F6" vertical={false} />
+                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-35} textAnchor="end" height={56} />
+                          <YAxis tick={{ fontSize: 12, fill: "#6B7280" }} width={70} tickFormatter={(v) => `${Number(v).toFixed(1)}`} />
+                          <Tooltip formatter={(v) => (v == null ? "N/A" : `${v} mt/ha`)} />
+                          <Legend wrapperStyle={{ fontSize: 13 }} />
+                          <Bar dataKey="observed" name="Recorded" fill="#0D9488" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="predicted" name="Predicted" fill="#F97316" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-wrap gap-6 px-4 py-3 bg-[#F9FAFB] rounded-lg text-sm">
+                      <span>Recorded avg: <b className="text-[#1B3315]">{compareResp?.stats?.observed_avg ?? "N/A"} mt/ha</b></span>
+                      <span>Predicted avg: <b className="text-[#1B3315]">{compareResp?.stats?.predicted_avg ?? "N/A"} mt/ha</b></span>
+                      <span>Model MAE: <b className="text-[#1B3315]">{compareResp?.stats?.mae ?? "N/A"} mt/ha</b></span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             <p className="text-[11px] leading-4 text-[#9CA3AF]">
               {isBarangay ? (
-                <>Year-over-year observed average yield (mt/ha) per barangay in {activeBrgyMuniName}, {season} season.
-                  Source: City Agriculture Office harvest reports. Barangays are compared only within their own municipality.</>
+                <>
+                  Year-over-year observed average yield (mt/ha) per barangay in{" "}
+                  {activeBrgyMuniName}, {season} season. Source: City
+                  Agriculture Office harvest reports. Barangays are compared
+                  only within their own municipality.
+                </>
               ) : (
-                <>Year-over-year observed average yield (mt/ha) per municipality, {season} season.
-                  Source: PRiSM / Ricelytics (2018–2025). Some municipalities have gaps in a few semesters.</>
+                <>
+                  Year-over-year observed average yield (mt/ha) per
+                  municipality, {season} season. Source: PRiSM / Ricelytics
+                  (2018–2025). Some municipalities have gaps in a few semesters.
+                </>
               )}
             </p>
           </div>
