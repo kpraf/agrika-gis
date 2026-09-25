@@ -128,6 +128,68 @@ async function request(path, { method = "GET", body, auth = false, cache } = {})
   return pending;
 }
 
+// --- Research-locale showcase -------------------------------------------------
+// For the dean showcase, the public views are scoped to the FOUR study cities —
+// Calamba (1), Cabuyao (2), Santa Rosa (3) and Biñan (4), the only municipalities
+// with barangay-level ground truth. Every other Laguna municipality is hidden
+// from the map, the dropdowns and the analytics. Set this to null to restore the
+// full province (nothing else needs to change).
+export const RESEARCH_LOCALE_MUNICIPALITY_IDS = new Set([1, 2, 3, 4]);
+
+const inLocale = (id) =>
+  RESEARCH_LOCALE_MUNICIPALITY_IDS == null || RESEARCH_LOCALE_MUNICIPALITY_IDS.has(id);
+
+const round3 = (n) => Math.round(n * 1000) / 1000;
+const mean = (xs) => (xs.length ? round3(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
+
+// Keep only research-locale features in a boundaries FeatureCollection (this also
+// reframes the map, since it fits to whatever boundaries come back).
+function localeBoundaries(fc) {
+  if (RESEARCH_LOCALE_MUNICIPALITY_IDS == null || !fc?.features) return fc;
+  return { ...fc, features: fc.features.filter((f) => inLocale(f.properties?.municipality_id)) };
+}
+
+// Keep only research-locale rows in a { records, stats } yield payload and
+// recompute the province-level stats over what's left, so the "N municipalities /
+// average" readouts match what the map actually shows.
+function localeYield(resp, valueKey) {
+  if (RESEARCH_LOCALE_MUNICIPALITY_IDS == null || !resp?.records) return resp;
+  const records = resp.records.filter((r) => inLocale(r.municipality_id));
+  const vals = records.map((r) => r[valueKey]).filter((v) => v != null);
+  return {
+    ...resp,
+    records,
+    stats: {
+      ...resp.stats,
+      count: records.length,
+      min: vals.length ? round3(Math.min(...vals)) : null,
+      max: vals.length ? round3(Math.max(...vals)) : null,
+      avg: mean(vals),
+    },
+  };
+}
+
+// Same idea for the observed-vs-predicted compare payload (different stat keys).
+function localeCompare(resp) {
+  if (RESEARCH_LOCALE_MUNICIPALITY_IDS == null || !resp?.records) return resp;
+  const records = resp.records.filter((r) => inLocale(r.municipality_id));
+  const obs = records.map((r) => r.observed).filter((v) => v != null);
+  const pred = records.map((r) => r.predicted).filter((v) => v != null);
+  const absRes = records.map((r) => r.residual).filter((v) => v != null).map(Math.abs);
+  return {
+    ...resp,
+    records,
+    stats: {
+      ...resp.stats,
+      count: records.length,
+      count_predicted: pred.length,
+      observed_avg: mean(obs),
+      predicted_avg: mean(pred),
+      mae: mean(absRes),
+    },
+  };
+}
+
 export const authApi = {
   login: (username, password) =>
     request("/auth/login", { method: "POST", body: { username, password } }),
@@ -136,7 +198,7 @@ export const authApi = {
 };
 
 export const boundariesApi = {
-  municipalities: () => request("/boundaries/municipalities"),
+  municipalities: () => request("/boundaries/municipalities").then(localeBoundaries),
   barangays: (municipalityId) =>
     request(`/boundaries/barangays${municipalityId ? `?municipality_id=${municipalityId}` : ""}`),
   barangayIndex: () => request("/boundaries/barangays/index"),
@@ -145,7 +207,9 @@ export const boundariesApi = {
 export const yieldApi = {
   meta: () => request("/yield/meta"),
   municipalities: (year, season) =>
-    request(`/yield/municipalities?year=${year}&season=${encodeURIComponent(season)}`),
+    request(`/yield/municipalities?year=${year}&season=${encodeURIComponent(season)}`).then(
+      (r) => localeYield(r, "yield")
+    ),
   // Real per-barangay observed yields for a municipality (from barangay_yield).
   barangays: (municipalityId, year, season) =>
     request(
@@ -179,7 +243,7 @@ export const yieldApi = {
     request("/yield/import", { method: "POST", body: { csv: csvText, level, source }, auth: true }),
   predictionsMeta: () => request("/yield/predictions/meta"),
   compare: (year, season) =>
-    request(`/yield/compare?year=${year}&season=${encodeURIComponent(season)}`),
+    request(`/yield/compare?year=${year}&season=${encodeURIComponent(season)}`).then(localeCompare),
 };
 
 // Remote-sensing / meteorological features (NDVI, rainfall, etc.) for the map's
