@@ -60,10 +60,15 @@ agrika-gis/
 
 Administrative boundaries (province, 30 municipalities/cities, 682 barangays) are official
 Philippine Statistics Authority (PSA) data, prepared in QGIS and stored as PostGIS geometry.
-Historical municipality-level yields come from the Ricelytics dataset; barangay-level yields for
-Biñan, Cabuyao, and Santa Rosa come from local agriculture office records. Both are shipped as
-CSVs in `backend/db/` and loaded by the scripts in **Step 6** below — a fresh database is empty
-until you run them.
+Historical municipality-level yields come from the Ricelytics dataset; barangay-level yields,
+Environment features (weather + satellite) and CNN-LSTM predictions for the four study cities —
+**Santa Rosa, Cabuyao, Biñan, and Calamba** — come from local agriculture office records and the
+model pipeline. Everything ships as CSVs in `backend/db/` and is loaded by a single script in
+**Step 6** below — a fresh database is empty until you run it.
+
+> **Showcase branch.** The `showcase/four-research-cities` branch scopes the whole UI (map,
+> dropdowns, analytics) to just those four research-locale cities — handy for a focused demo.
+> Everything else is identical; check it out with `git checkout showcase/four-research-cities`.
 
 ---
 
@@ -153,32 +158,30 @@ cd backend
 This also clears the handful of placeholder sample rows from `setup_db.ps1`'s seed data, so the
 next step is what actually populates real yields.
 
-## Step 6 — Load the real yield & prediction data (one time)
+## Step 6 — Load all the data (one command)
 
-Still from the `backend` folder, with the venv active, run these in order:
-
-```bash
-# Historical municipality-level yields (Ricelytics dataset)
-.\venv\Scripts\python.exe scripts\load_municipality_yield.py --csv db\ricelytics_laguna_yield.csv
-
-# CNN-LSTM model predictions (powers the Predicted / residual overlay)
-.\venv\Scripts\python.exe scripts\load_municipality_predictions.py --csv db\cnn_lstm_predictions_for_app.csv --model-version cnn-lstm-v1
-
-# Barangay-level observed yields, one file per municipality that has data so far
-.\venv\Scripts\python.exe scripts\load_barangay_yield.py --csv db\barangay_yield_city-of-binan.csv
-.\venv\Scripts\python.exe scripts\load_barangay_yield.py --csv db\barangay_yield_city-of-cabuyao.csv
-.\venv\Scripts\python.exe scripts\load_barangay_yield.py --csv db\barangay_yield_city-of-santa-rosa.csv
-```
-
-Optional — monthly weather/satellite features (NDVI, EVI, NDWI, rainfall, temperature, humidity)
-that back the Analytics overlays:
+Still from the `backend` folder, with the venv active, run the one-shot loader:
 
 ```bash
-.\venv\Scripts\python.exe scripts\load_feature_tables.py
+cd backend
+.\venv\Scripts\python.exe scripts\load_all_data.py
 ```
 
-All of these are idempotent (safe to re-run — they upsert rather than duplicate), so if you pull
-updated CSVs later you can just re-run the relevant command.
+That's it — this loads **everything** from the CSVs in `backend/db/`, in the right order:
+
+- Historical municipality yields (Ricelytics dataset)
+- CNN-LSTM municipality predictions (powers the Predicted / residual overlay)
+- Monthly weather + satellite features (NDVI, EVI, NDWI, rainfall, temperature, humidity)
+- Barangay yields, Environment features, and predictions for the four study cities
+  (Santa Rosa, Cabuyao, Biñan, Calamba)
+
+Every step is an idempotent UPSERT, so it's always safe to re-run — after a `git pull` that brings
+updated CSVs, just run `load_all_data.py` again to refresh your local data (see
+[Updating an existing clone](#updating-an-existing-clone)).
+
+> Prefer the individual loaders? They still live in `backend/scripts/` (`load_municipality_yield.py`,
+> `load_barangay_yield.py`, `load_feature_tables.py`, `load_barangay_feature_tables.py`,
+> `load_barangay_predictions.py`, …). `load_all_data.py` just runs them all for you.
 
 ## Step 7 — Create your login account (one time)
 
@@ -243,6 +246,31 @@ npm run dev
 ```
 
 To stop either server, click its terminal and press **Ctrl + C**.
+
+---
+
+## Updating an existing clone
+
+Already set the project up before? You **don't** repeat the whole guide — just pull the latest code
+and refresh whatever changed:
+
+```bash
+# 1. Get the latest code + data
+git pull
+
+# 2. Refresh dependencies (only if package.json / requirements.txt changed — harmless to always run)
+npm install
+cd backend
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# 3. Reload the data (idempotent — updates rows in place, never duplicates)
+.\venv\Scripts\python.exe scripts\load_all_data.py
+cd ..
+```
+
+Then start the two servers as in [Step 9](#step-9--run-it-every-time-you-work-on-the-project). If a
+`git pull` ever brings a database schema change, re-run `backend\db\setup_db.ps1` and
+`scripts\import_boundaries.py` first, then `load_all_data.py`.
 
 ---
 
