@@ -207,11 +207,15 @@ export default function LagunaMap({
     ? { color: "#FDE047", weight: 1.2, fillColor: "#FDE047", fillOpacity: 0 }
     : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
 
-  // Per-barangay choropleth: in yield mode (barangayHeatmap), colour each barangay
-  // by its real observed yield on a local scale and grey the ones with no value —
-  // including whole municipalities where none was collected. Outside yield mode,
-  // fall back to the flat outline style.
+  // Per-barangay choropleth: in barangayHeatmap mode, colour each barangay on the
+  // local scale using the SAME palette/mode as the municipality layer (yield green,
+  // Environment ramp, or the diverging residual ramp), and grey the ones with no
+  // value. Outside that mode, fall back to the flat outline style.
   const brgyHeatmapActive = barangayHeatmap;
+  const brgyFill = (v) =>
+    colorMode === "residual"
+      ? residualColor(v, barangayColorScale?.max)
+      : yieldColor(v, barangayColorScale?.min, barangayColorScale?.max, RAMPS[rampKey] || YIELD_RAMP);
   const brgyStyleFor = (feature) => {
     if (!brgyHeatmapActive) return brgyStyle;
     const rec = yieldByBarangay?.[feature.properties.barangay_id];
@@ -221,7 +225,7 @@ export default function LagunaMap({
     return {
       color: sat ? "#FFFFFF" : "#0E2207",
       weight: 0.8,
-      fillColor: yieldColor(rec.yield, barangayColorScale.min, barangayColorScale.max),
+      fillColor: brgyFill(rec.yield),
       fillOpacity: sat ? 0.6 : 0.8,
     };
   };
@@ -230,7 +234,9 @@ export default function LagunaMap({
     if (!brgyHeatmapActive) return name;
     const rec = yieldByBarangay?.[feature.properties.barangay_id];
     if (!rec || rec.yield == null) return `${name}: no data`;
-    return `${name}: ${rec.yield} mt/ha`;
+    if (colorMode === "residual")
+      return `${name}: residual ${rec.yield > 0 ? "+" : ""}${rec.yield} mt/ha`;
+    return `${name}: ${rec.yield}${valueUnit ? ` ${valueUnit}` : ""}`;
   };
 
   // react-leaflet applies `style`/`onEachFeature` (incl. bound tooltips) only at
