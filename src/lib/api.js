@@ -161,6 +161,11 @@ export const yieldApi = {
     request(
       `/yield/barangays/series?municipality_id=${municipalityId}&season=${encodeURIComponent(season)}`
     ),
+  // Observed vs predicted (+ residual) per barangay on drill-in.
+  barangaysCompare: (municipalityId, year, season) =>
+    request(
+      `/yield/barangays/compare?municipality_id=${municipalityId}&year=${year}&season=${encodeURIComponent(season)}`
+    ),
   trend: (season, municipalityId) =>
     request(
       `/yield/trend?season=${encodeURIComponent(season)}${

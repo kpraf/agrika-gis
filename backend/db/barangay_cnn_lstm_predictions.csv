@@ -1,0 +1,240 @@
+municipality,barangay,year,season,observed,predicted,residual
+City of Biñan,Canlalay,2020,Dry,3.52,4.317,-0.797
+City of Biñan,Canlalay,2021,Dry,3.8,4.461,-0.661
+City of Biñan,Canlalay,2022,Dry,4.75,4.447,0.303
+City of Biñan,Canlalay,2022,Wet,3.05,3.638,-0.588
+City of Biñan,Canlalay,2023,Dry,3.9,3.529,0.371
+City of Biñan,Langkiwa,2020,Dry,3.76,4.96,-1.2
+City of Biñan,Langkiwa,2020,Wet,3.71,3.943,-0.233
+City of Biñan,Langkiwa,2021,Dry,4.55,4.668,-0.118
+City of Biñan,Langkiwa,2021,Wet,4.08,3.938,0.142
+City of Biñan,Langkiwa,2022,Dry,4.49,3.812,0.678
+City of Biñan,Langkiwa,2022,Wet,3.36,3.598,-0.238
+City of Biñan,Langkiwa,2023,Dry,4.56,3.532,1.028
+City of Biñan,Langkiwa,2023,Wet,4.28,3.919,0.361
+City of Biñan,Langkiwa,2024,Dry,3.49,4.702,-1.212
+City of Biñan,Langkiwa,2024,Wet,3.08,3.596,-0.516
+City of Biñan,Langkiwa,2025,Dry,3.35,4.803,-1.453
+City of Biñan,Langkiwa,2025,Wet,2.9,3.839,-0.939
+City of Biñan,Loma,2020,Dry,3.79,4.736,-0.946
+City of Biñan,Loma,2020,Wet,3.21,4.1,-0.89
+City of Biñan,Loma,2021,Dry,3.87,4.801,-0.931
+City of Biñan,Loma,2021,Wet,3.81,4.132,-0.322
+City of Biñan,Loma,2022,Dry,4.07,4.258,-0.188
+City of Biñan,Loma,2022,Wet,3.26,3.727,-0.467
+City of Biñan,Loma,2023,Dry,3.97,3.79,0.18
+City of Biñan,Loma,2023,Wet,3.34,3.991,-0.651
+City of Biñan,Loma,2024,Dry,3.28,5.258,-1.978
+City of Biñan,Loma,2024,Wet,3.02,3.656,-0.636
+City of Biñan,Loma,2025,Dry,3.07,4.314,-1.244
+City of Biñan,Loma,2025,Wet,3.08,3.89,-0.81
+City of Biñan,Platero,2020,Dry,4.7,3.812,0.888
+City of Biñan,Platero,2020,Wet,4.92,3.753,1.167
+City of Biñan,Platero,2021,Dry,4.84,3.805,1.035
+City of Biñan,Platero,2021,Wet,4.38,3.651,0.729
+City of Biñan,Platero,2022,Dry,4.47,3.673,0.797
+City of Biñan,Platero,2022,Wet,3.34,3.501,-0.161
+City of Biñan,Platero,2023,Dry,4.38,3.45,0.93
+City of Biñan,Platero,2023,Wet,3.75,3.725,0.025
+City of Biñan,Platero,2024,Dry,4.37,4.631,-0.261
+City of Biñan,Platero,2024,Wet,3.05,3.48,-0.43
+City of Biñan,Platero,2025,Wet,3.0,3.832,-0.832
+City of Biñan,San Francisco,2020,Wet,3.1,3.935,-0.835
+City of Biñan,San Francisco,2021,Wet,4.13,3.801,0.329
+City of Biñan,San Francisco,2022,Dry,4.0,4.439,-0.439
+City of Biñan,San Francisco,2022,Wet,3.0,3.553,-0.553
+City of Biñan,San Francisco,2023,Dry,4.09,3.533,0.557
+City of Biñan,San Francisco,2023,Wet,3.51,3.78,-0.27
+City of Biñan,San Francisco,2024,Dry,3.03,4.975,-1.945
+City of Biñan,San Francisco,2025,Dry,3.27,3.717,-0.447
+City of Biñan,San Francisco,2025,Wet,3.16,3.88,-0.72
+City of Biñan,Timbao,2020,Dry,3.3,4.942,-1.642
+City of Biñan,Timbao,2020,Wet,3.73,4.084,-0.354
+City of Biñan,Timbao,2021,Dry,6.18,4.77,1.41
+City of Biñan,Timbao,2021,Wet,3.97,3.795,0.175
+City of Biñan,Timbao,2022,Dry,4.73,3.913,0.817
+City of Biñan,Timbao,2022,Wet,3.22,3.669,-0.449
+City of Biñan,Timbao,2023,Dry,3.97,3.693,0.277
+City of Biñan,Timbao,2023,Wet,3.63,3.972,-0.342
+City of Biñan,Timbao,2024,Dry,3.16,5.293,-2.133
+City of Biñan,Timbao,2024,Wet,3.05,3.643,-0.593
+City of Biñan,Timbao,2025,Dry,3.82,4.888,-1.068
+City of Biñan,Zapote,2020,Dry,4.02,4.769,-0.749
+City of Biñan,Zapote,2020,Wet,4.98,4.088,0.892
+City of Biñan,Zapote,2021,Dry,4.94,4.763,0.177
+City of Biñan,Zapote,2021,Wet,4.3,3.943,0.357
+City of Biñan,Zapote,2022,Dry,4.27,3.777,0.493
+City of Biñan,Zapote,2022,Wet,3.19,3.702,-0.512
+City of Biñan,Zapote,2023,Dry,4.31,3.617,0.693
+City of Biñan,Zapote,2023,Wet,3.16,3.863,-0.703
+City of Biñan,Zapote,2024,Dry,3.55,4.837,-1.287
+City of Biñan,Zapote,2024,Wet,3.0,3.623,-0.623
+City of Biñan,Zapote,2025,Dry,3.61,4.41,-0.8
+City of Biñan,Zapote,2025,Wet,3.3,3.927,-0.627
+City of Cabuyao,Baclaran,2021,Dry,4.84,4.813,0.027
+City of Cabuyao,Baclaran,2023,Wet,4.59,4.209,0.381
+City of Cabuyao,Baclaran,2024,Dry,4.81,4.713,0.097
+City of Cabuyao,Baclaran,2024,Wet,4.06,3.685,0.375
+City of Cabuyao,Baclaran,2025,Dry,4.04,3.861,0.179
+City of Cabuyao,Banaybanay,2021,Dry,4.92,4.78,0.14
+City of Cabuyao,Banaybanay,2023,Wet,5.76,4.135,1.625
+City of Cabuyao,Banaybanay,2024,Wet,4.12,3.627,0.493
+City of Cabuyao,Banaybanay,2025,Dry,4.86,3.771,1.089
+City of Cabuyao,Bigaa,2021,Dry,4.73,4.829,-0.099
+City of Cabuyao,Bigaa,2023,Wet,4.72,4.092,0.628
+City of Cabuyao,Bigaa,2024,Dry,4.7,4.519,0.181
+City of Cabuyao,Bigaa,2024,Wet,3.83,3.597,0.233
+City of Cabuyao,Bigaa,2025,Dry,4.4,3.872,0.528
+City of Cabuyao,Butong,2021,Dry,5.6,4.725,0.875
+City of Cabuyao,Butong,2023,Wet,4.95,4.235,0.715
+City of Cabuyao,Butong,2024,Dry,6.0,4.528,1.472
+City of Cabuyao,Butong,2024,Wet,3.61,3.612,-0.002
+City of Cabuyao,Gulod,2021,Dry,4.94,4.84,0.1
+City of Cabuyao,Gulod,2023,Wet,4.56,4.282,0.278
+City of Cabuyao,Gulod,2024,Dry,4.36,4.811,-0.451
+City of Cabuyao,Gulod,2024,Wet,3.8,3.735,0.065
+City of Cabuyao,Gulod,2025,Dry,4.39,4.265,0.125
+City of Cabuyao,Mamatid,2021,Dry,4.73,4.288,0.442
+City of Cabuyao,Mamatid,2023,Wet,4.65,4.071,0.579
+City of Cabuyao,Mamatid,2024,Dry,2.06,4.949,-2.889
+City of Cabuyao,Mamatid,2024,Wet,3.85,3.55,0.3
+City of Cabuyao,Mamatid,2025,Dry,4.26,3.645,0.615
+City of Cabuyao,Marinig,2021,Dry,6.06,4.775,1.285
+City of Cabuyao,Marinig,2023,Wet,4.68,4.385,0.295
+City of Cabuyao,Marinig,2024,Dry,4.87,4.6,0.27
+City of Cabuyao,Marinig,2024,Wet,3.76,3.644,0.116
+City of Cabuyao,Marinig,2025,Dry,4.51,3.89,0.62
+City of Cabuyao,Niugan,2021,Dry,4.77,4.955,-0.185
+City of Cabuyao,Niugan,2023,Wet,4.55,4.45,0.1
+City of Cabuyao,Niugan,2024,Wet,3.66,3.712,-0.052
+City of Cabuyao,Niugan,2025,Dry,4.96,3.973,0.987
+City of Cabuyao,Pulo,2021,Dry,4.71,4.515,0.195
+City of Cabuyao,Pulo,2023,Wet,2.81,3.971,-1.161
+City of Cabuyao,Pulo,2024,Wet,3.92,3.488,0.432
+City of Cabuyao,Pulo,2025,Dry,5.26,3.683,1.577
+City of Cabuyao,Sala,2021,Dry,4.82,4.793,0.027
+City of Cabuyao,Sala,2023,Wet,4.04,4.182,-0.142
+City of Cabuyao,Sala,2024,Wet,3.67,3.6,0.07
+City of Cabuyao,Sala,2025,Dry,3.81,3.942,-0.132
+City of Cabuyao,San Isidro,2021,Dry,4.97,4.541,0.429
+City of Cabuyao,San Isidro,2023,Wet,4.04,4.097,-0.057
+City of Cabuyao,San Isidro,2024,Wet,4.19,3.626,0.564
+City of Cabuyao,San Isidro,2025,Dry,4.69,4.038,0.652
+City of Santa Rosa,Aplaya,2020,Wet,5.0,4.137,0.863
+City of Santa Rosa,Aplaya,2021,Wet,5.1,3.985,1.115
+City of Santa Rosa,Balibago,2021,Dry,5.208,4.401,0.807
+City of Santa Rosa,Balibago,2021,Wet,4.5,3.865,0.635
+City of Santa Rosa,Balibago,2022,Dry,5.0,3.971,1.029
+City of Santa Rosa,Balibago,2022,Wet,4.8,3.631,1.169
+City of Santa Rosa,Balibago,2023,Dry,4.0,3.519,0.481
+City of Santa Rosa,Balibago,2023,Wet,4.5,3.801,0.699
+City of Santa Rosa,Balibago,2024,Dry,4.749,4.566,0.183
+City of Santa Rosa,Balibago,2024,Wet,4.5,3.485,1.015
+City of Santa Rosa,Balibago,2025,Dry,4.5,3.701,0.799
+City of Santa Rosa,Balibago,2025,Wet,4.25,4.0,0.25
+City of Santa Rosa,Caingin,2020,Wet,4.44,4.184,0.256
+City of Santa Rosa,Caingin,2021,Dry,4.733,4.51,0.223
+City of Santa Rosa,Caingin,2021,Wet,5.1,4.056,1.044
+City of Santa Rosa,Caingin,2022,Dry,5.0,4.084,0.916
+City of Santa Rosa,Caingin,2022,Wet,1.5,3.616,-2.116
+City of Santa Rosa,Caingin,2023,Dry,4.867,3.66,1.207
+City of Santa Rosa,Caingin,2023,Wet,4.231,3.89,0.341
+City of Santa Rosa,Caingin,2024,Dry,4.722,4.038,0.684
+City of Santa Rosa,Caingin,2024,Wet,4.5,3.531,0.969
+City of Santa Rosa,Caingin,2025,Dry,4.5,3.693,0.807
+City of Santa Rosa,Caingin,2025,Wet,4.5,4.0,0.5
+City of Santa Rosa,Dila,2020,Wet,3.9,3.952,-0.052
+City of Santa Rosa,Dila,2021,Dry,4.555,4.053,0.502
+City of Santa Rosa,Dila,2021,Wet,5.019,3.867,1.152
+City of Santa Rosa,Dila,2022,Dry,5.14,3.816,1.324
+City of Santa Rosa,Dila,2022,Wet,3.569,3.64,-0.071
+City of Santa Rosa,Dila,2023,Dry,3.945,3.53,0.415
+City of Santa Rosa,Dila,2023,Wet,3.86,3.931,-0.071
+City of Santa Rosa,Dila,2024,Dry,4.5,4.049,0.451
+City of Santa Rosa,Dila,2024,Wet,4.5,3.535,0.965
+City of Santa Rosa,Dila,2025,Dry,4.5,3.738,0.762
+City of Santa Rosa,Dila,2025,Wet,4.6,3.915,0.685
+City of Santa Rosa,Dita,2020,Wet,4.84,3.948,0.892
+City of Santa Rosa,Dita,2021,Dry,4.923,4.466,0.457
+City of Santa Rosa,Dita,2021,Wet,5.067,3.768,1.299
+City of Santa Rosa,Dita,2022,Dry,5.027,3.841,1.186
+City of Santa Rosa,Dita,2022,Wet,4.341,3.694,0.647
+City of Santa Rosa,Dita,2023,Dry,4.754,3.529,1.225
+City of Santa Rosa,Dita,2023,Wet,4.463,3.937,0.526
+City of Santa Rosa,Dita,2024,Dry,4.618,4.078,0.54
+City of Santa Rosa,Dita,2024,Wet,3.965,3.6,0.365
+City of Santa Rosa,Dita,2025,Dry,4.522,3.941,0.581
+City of Santa Rosa,Dita,2025,Wet,4.5,3.942,0.558
+City of Santa Rosa,Labas,2020,Wet,4.86,3.823,1.037
+City of Santa Rosa,Labas,2021,Dry,5.217,3.953,1.264
+City of Santa Rosa,Labas,2021,Wet,5.161,3.725,1.436
+City of Santa Rosa,Labas,2022,Dry,5.23,3.917,1.313
+City of Santa Rosa,Labas,2022,Wet,4.778,3.57,1.208
+City of Santa Rosa,Labas,2023,Dry,5.0,3.505,1.495
+City of Santa Rosa,Labas,2023,Wet,4.5,3.822,0.678
+City of Santa Rosa,Labas,2024,Dry,4.577,4.208,0.369
+City of Santa Rosa,Labas,2024,Wet,4.5,3.462,1.038
+City of Santa Rosa,Labas,2025,Dry,4.5,3.672,0.828
+City of Santa Rosa,Labas,2025,Wet,4.411,3.904,0.507
+City of Santa Rosa,Macabling,2020,Wet,4.45,4.097,0.353
+City of Santa Rosa,Macabling,2021,Dry,5.32,4.762,0.558
+City of Santa Rosa,Macabling,2021,Wet,4.799,3.86,0.939
+City of Santa Rosa,Macabling,2022,Dry,5.079,4.251,0.828
+City of Santa Rosa,Macabling,2022,Wet,4.431,3.624,0.807
+City of Santa Rosa,Macabling,2023,Dry,4.792,3.647,1.145
+City of Santa Rosa,Macabling,2023,Wet,4.55,3.882,0.668
+City of Santa Rosa,Macabling,2024,Dry,4.648,5.233,-0.585
+City of Santa Rosa,Macabling,2024,Wet,4.5,3.539,0.961
+City of Santa Rosa,Macabling,2025,Dry,4.5,3.999,0.501
+City of Santa Rosa,Macabling,2025,Wet,4.487,3.885,0.602
+City of Santa Rosa,Malitlit,2020,Wet,6.09,4.111,1.979
+City of Santa Rosa,Malitlit,2021,Dry,4.872,4.891,-0.019
+City of Santa Rosa,Malitlit,2021,Wet,5.053,3.871,1.182
+City of Santa Rosa,Malitlit,2022,Dry,5.036,3.943,1.093
+City of Santa Rosa,Malitlit,2022,Wet,4.325,3.585,0.74
+City of Santa Rosa,Malitlit,2023,Dry,4.672,3.808,0.864
+City of Santa Rosa,Malitlit,2023,Wet,3.865,4.161,-0.296
+City of Santa Rosa,Malitlit,2024,Dry,4.649,5.326,-0.677
+City of Santa Rosa,Malitlit,2024,Wet,2.853,3.664,-0.811
+City of Santa Rosa,Malitlit,2025,Dry,4.523,4.338,0.185
+City of Santa Rosa,Malitlit,2025,Wet,4.5,3.84,0.66
+City of Santa Rosa,Pooc,2020,Wet,3.94,3.867,0.073
+City of Santa Rosa,Pooc,2021,Dry,5.13,3.839,1.291
+City of Santa Rosa,Pooc,2021,Wet,5.028,3.752,1.276
+City of Santa Rosa,Pooc,2022,Dry,5.086,3.706,1.38
+City of Santa Rosa,Pooc,2022,Wet,4.625,3.613,1.012
+City of Santa Rosa,Pooc,2023,Dry,4.815,3.494,1.321
+City of Santa Rosa,Pooc,2023,Wet,4.365,3.757,0.608
+City of Santa Rosa,Pooc,2024,Dry,4.769,3.777,0.992
+City of Santa Rosa,Pooc,2024,Wet,4.5,3.487,1.013
+City of Santa Rosa,Pooc,2025,Dry,4.5,3.652,0.848
+City of Santa Rosa,Pooc,2025,Wet,4.25,3.947,0.303
+City of Santa Rosa,Pulong Santa Cruz,2020,Wet,5.0,4.054,0.946
+City of Santa Rosa,Pulong Santa Cruz,2021,Dry,4.933,4.722,0.211
+City of Santa Rosa,Pulong Santa Cruz,2021,Wet,5.1,4.097,1.003
+City of Santa Rosa,Pulong Santa Cruz,2022,Dry,5.047,4.062,0.985
+City of Santa Rosa,Pulong Santa Cruz,2022,Wet,4.85,3.691,1.159
+City of Santa Rosa,Pulong Santa Cruz,2023,Dry,4.75,3.798,0.952
+City of Santa Rosa,Pulong Santa Cruz,2023,Wet,4.5,3.939,0.561
+City of Santa Rosa,Pulong Santa Cruz,2024,Dry,4.665,5.146,-0.481
+City of Santa Rosa,Pulong Santa Cruz,2024,Wet,3.125,3.63,-0.505
+City of Santa Rosa,Pulong Santa Cruz,2025,Wet,4.2,3.96,0.24
+City of Santa Rosa,Sinalhan,2020,Wet,4.9,4.197,0.703
+City of Santa Rosa,Sinalhan,2021,Dry,5.615,4.693,0.922
+City of Santa Rosa,Sinalhan,2021,Wet,5.295,4.014,1.281
+City of Santa Rosa,Sinalhan,2022,Dry,5.112,3.948,1.164
+City of Santa Rosa,Sinalhan,2022,Wet,5.2,3.725,1.475
+City of Santa Rosa,Sinalhan,2023,Dry,5.1,3.797,1.303
+City of Santa Rosa,Sinalhan,2023,Wet,4.8,3.816,0.984
+City of Santa Rosa,Sinalhan,2024,Dry,4.5,4.259,0.241
+City of Santa Rosa,Tagapo,2020,Wet,3.46,3.97,-0.51
+City of Santa Rosa,Tagapo,2021,Dry,5.377,4.406,0.971
+City of Santa Rosa,Tagapo,2021,Wet,5.142,3.9,1.242
+City of Santa Rosa,Tagapo,2022,Dry,5.155,3.785,1.37
+City of Santa Rosa,Tagapo,2022,Wet,4.835,3.684,1.151
+City of Santa Rosa,Tagapo,2023,Dry,4.706,3.599,1.107
+City of Santa Rosa,Tagapo,2023,Wet,4.732,3.737,0.995
+City of Santa Rosa,Tagapo,2024,Dry,5.078,4.415,0.663
+City of Santa Rosa,Tagapo,2024,Wet,4.012,3.488,0.524
+City of Santa Rosa,Tagapo,2025,Dry,4.69,3.694,0.996
+City of Santa Rosa,Tagapo,2025,Wet,4.62,3.898,0.722

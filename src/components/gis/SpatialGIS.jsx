@@ -91,6 +91,7 @@ export default function SpatialGIS() {
   const [envMetric, setEnvMetric] = useState("ndvi");
   const [featuresResp, setFeaturesResp] = useState(null); // { label, unit, stats, records }
   const [barangayEnvResp, setBarangayEnvResp] = useState(null); // per-barangay env metric on drill-in
+  const [barangayCompareResp, setBarangayCompareResp] = useState(null); // per-barangay observed vs predicted
 
   const cityLabel = useMemo(
     () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
@@ -204,6 +205,22 @@ export default function SpatialGIS() {
     };
   }, [viewType, activeCityId, year, season, envMetric]);
 
+  // Predicted/Residual drill-in: per-barangay observed vs predicted for the city.
+  useEffect(() => {
+    if (viewType !== "heatmap" || !activeCityId || !year || !season) {
+      setBarangayCompareResp(null);
+      return;
+    }
+    let active = true;
+    yieldApi
+      .barangaysCompare(activeCityId, year, season)
+      .then((r) => active && setBarangayCompareResp(r))
+      .catch(() => active && setBarangayCompareResp(null));
+    return () => {
+      active = false;
+    };
+  }, [viewType, activeCityId, year, season]);
+
   // Shape the records for the map (id -> { yield, is_proxy }) and the panels.
   const yieldByMuni = useMemo(() => {
     const out = {};
@@ -283,6 +300,29 @@ export default function SpatialGIS() {
     [barangayEnvResp]
   );
 
+  // Per-barangay predicted + residual on drill-in.
+  const predByBarangay = useMemo(() => {
+    const out = {};
+    for (const r of barangayCompareResp?.records ?? [])
+      if (r.predicted != null) out[r.barangay_id] = { yield: r.predicted };
+    return out;
+  }, [barangayCompareResp]);
+  const predBarangayScale = useMemo(() => {
+    const v = Object.values(predByBarangay).map((x) => x.yield);
+    return v.length ? { min: Math.min(...v), max: Math.max(...v) } : null;
+  }, [predByBarangay]);
+  const residByBarangay = useMemo(() => {
+    const out = {};
+    for (const r of barangayCompareResp?.records ?? [])
+      if (r.residual != null) out[r.barangay_id] = { yield: r.residual };
+    return out;
+  }, [barangayCompareResp]);
+  const residBarangayScale = useMemo(() => {
+    const v = Object.values(residByBarangay).map((x) => Math.abs(x.yield));
+    const m = v.length ? Math.max(...v) : null;
+    return m ? { min: -m, max: m } : null;
+  }, [residByBarangay]);
+
   const showingEnvironment = viewType === "environment";
   const showingPredicted = !showingEnvironment && dataSource === "predicted" && predMeta.has_predictions;
   const showingResidual = !showingEnvironment && dataSource === "residual" && predMeta.has_predictions;
@@ -323,13 +363,26 @@ export default function SpatialGIS() {
   // so no-data barangays grey out instead of the plain green outline.
   const barangayObservedMode =
     heatmapOn && !showingEnvironment && !showingPredicted && !showingResidual;
-  const barangayYieldMode = barangayObservedMode || showingEnvironment;
+  // Barangay choropleth is active in every drill-in view now (observed, predicted,
+  // residual, environment); no-data barangays grey out.
+  const barangayYieldMode =
+    barangayObservedMode || showingEnvironment || showingPredicted || showingResidual;
   const mapYieldByBarangay = showingEnvironment
     ? envByBarangay
+    : showingResidual
+    ? residByBarangay
+    : showingPredicted
+    ? predByBarangay
     : barangayObservedMode
     ? yieldByBarangay
     : null;
-  const mapBarangayScale = showingEnvironment ? envBarangayScale : barangayScale;
+  const mapBarangayScale = showingEnvironment
+    ? envBarangayScale
+    : showingResidual
+    ? residBarangayScale
+    : showingPredicted
+    ? predBarangayScale
+    : barangayScale;
   const selectedYield = selection?.level === "municipality" ? yieldByMuni[selection.id] : null;
   const selectedCompare =
     selection?.level === "municipality"
@@ -649,7 +702,15 @@ export default function SpatialGIS() {
                 ? "pred"
                 : "obs"
             }-${year}-${season}`}
-            barangayKey={`brgy-${showingEnvironment ? `env-${envMetric}` : "obs"}-${activeCityId}-${year}-${season}-${(showingEnvironment ? barangayEnvResp : barangayResp)?.stats?.count ?? 0}-${(showingEnvironment ? barangayEnvResp : barangayResp)?.stats?.avg ?? ""}`}
+            barangayKey={`brgy-${
+              showingEnvironment ? `env-${envMetric}` : showingResidual ? "resid" : showingPredicted ? "pred" : "obs"
+            }-${activeCityId}-${year}-${season}-${
+              (showingEnvironment
+                ? barangayEnvResp?.stats?.avg
+                : showingPredicted || showingResidual
+                ? barangayCompareResp?.stats?.predicted_avg
+                : barangayResp?.stats?.avg) ?? ""
+            }`}
           />
 
           {/* Floating panel toggles — below lg only (the columns are always visible at lg+).

@@ -237,6 +237,61 @@ def barangays_series():
     })
 
 
+@yields_bp.get("/barangays/compare")
+def barangays_compare():
+    """Observed vs predicted (+ residual) per barangay for a municipality+year+season.
+
+    Observed from barangay_yield, predicted from barangay_predictions (the CNN-LSTM
+    applied to each barangay's features). Only barangays with an observed yield are
+    returned. Each record: { barangay_id, name, observed, predicted, residual }.
+
+    Query params: municipality_id (int), year (int), season (str) — all required.
+    """
+    mid = request.args.get("municipality_id", type=int)
+    year = request.args.get("year", type=int)
+    season = request.args.get("season", type=str)
+    if not mid or not year or not season:
+        return jsonify({"error": "municipality_id, year and season are required"}), 400
+
+    rows = db.session.execute(
+        text(
+            "SELECT b.barangay_id, b.barangay_name AS name, y.yield_mt_ha AS observed, "
+            "p.predicted_yield AS predicted "
+            "FROM barangay_yield y "
+            "JOIN barangays b ON b.barangay_id = y.barangay_id "
+            "JOIN seasons s ON s.season_id = y.season_id "
+            "LEFT JOIN barangay_predictions p ON p.barangay_id = y.barangay_id AND p.season_id = y.season_id "
+            "WHERE b.municipality_id = :m AND s.year = :y AND s.season_type = :sea "
+            "AND y.yield_mt_ha IS NOT NULL "
+            "ORDER BY b.barangay_name"
+        ),
+        {"m": mid, "y": year, "sea": season},
+    ).all()
+
+    records = []
+    for r in rows:
+        obs = round(r.observed, 3) if r.observed is not None else None
+        prd = round(r.predicted, 3) if r.predicted is not None else None
+        residual = round(obs - prd, 3) if (obs is not None and prd is not None) else None
+        records.append({
+            "barangay_id": r.barangay_id, "name": r.name,
+            "observed": obs, "predicted": prd, "residual": residual,
+        })
+
+    pred_vals = [r["predicted"] for r in records if r["predicted"] is not None]
+    abs_res = [abs(r["residual"]) for r in records if r["residual"] is not None]
+    stats = {
+        "count": len(records),
+        "count_predicted": len(pred_vals),
+        "predicted_avg": round(sum(pred_vals) / len(pred_vals), 3) if pred_vals else None,
+        "mae": round(sum(abs_res) / len(abs_res), 3) if abs_res else None,
+    }
+    return jsonify({
+        "municipality_id": mid, "year": year, "season": season,
+        "stats": stats, "records": records,
+    })
+
+
 @yields_bp.get("/records")
 def records():
     """Flat list of every observed municipality yield — for the Reports page.
