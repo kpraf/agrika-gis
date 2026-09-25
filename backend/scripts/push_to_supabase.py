@@ -40,6 +40,15 @@ BARANGAY_CSVS = [
     ("db/barangay_yield_city-of-binan.csv", "Biñan CAO (Harvesting Accomplishment Report)"),
 ]
 
+# Barangay Environment features: (weather CSV, satellite CSV, municipalities scope).
+BARANGAY_FEATURE_CSVS = [
+    ("db/weather_barangay_sr_cabuyao_monthly.csv", "db/satellite_barangay_sr_cabuyao_monthly.csv",
+     "City of Santa Rosa,City of Cabuyao"),
+    ("db/weather_barangay_binan_monthly.csv", "db/satellite_barangay_binan_monthly.csv",
+     "City of Biñan"),
+]
+BARANGAY_PRED_CSV = "db/barangay_cnn_lstm_predictions.csv"
+
 
 def load_prod_url():
     try:
@@ -72,6 +81,8 @@ def main():
                     help="Also create + load weather_monthly / satellite_monthly.")
     ap.add_argument("--with-barangays", action="store_true",
                     help="Also create barangay_yield + load the real per-barangay CSVs.")
+    ap.add_argument("--with-barangay-model", action="store_true",
+                    help="Also create + load barangay Environment feature tables + barangay_predictions.")
     ap.add_argument("--skip-predictions", action="store_true",
                     help="Don't touch municipality_predictions (e.g. a barangay-only push).")
     ap.add_argument("--yes", action="store_true", help="Skip the confirmation prompt.")
@@ -84,8 +95,13 @@ def main():
         for rel, _ in BARANGAY_CSVS:
             if not os.path.exists(os.path.join(BACKEND, rel)):
                 sys.exit(f"ERROR: {rel} not found. Nothing was done.")
-    if not do_predictions and not args.with_features and not args.with_barangays:
-        sys.exit("Nothing to do: --skip-predictions with no --with-features/--with-barangays.")
+    if args.with_barangay_model:
+        needed = [BARANGAY_PRED_CSV] + [p for w, s, _ in BARANGAY_FEATURE_CSVS for p in (w, s)]
+        for rel in needed:
+            if not os.path.exists(os.path.join(BACKEND, rel)):
+                sys.exit(f"ERROR: {rel} not found. Nothing was done.")
+    if not (do_predictions or args.with_features or args.with_barangays or args.with_barangay_model):
+        sys.exit("Nothing to do: --skip-predictions with no --with-* flags.")
 
     prod = load_prod_url()
     print("=" * 60)
@@ -97,6 +113,9 @@ def main():
     if args.with_barangays:
         print("  - CREATE (if needed) barangay_yield + UPSERT " +
               ", ".join(os.path.basename(c) for c, _ in BARANGAY_CSVS))
+    if args.with_barangay_model:
+        print("  - CREATE (if needed) + load weather/satellite_monthly_barangay")
+        print("  - CREATE (if needed) barangay_predictions + UPSERT barangay CNN-LSTM predictions")
     print("  (no rows are deleted)")
     print("=" * 60)
     if not args.yes:
@@ -114,6 +133,12 @@ def main():
         run("add_barangay_yield_table.py", [], env)
         for rel, src in BARANGAY_CSVS:
             run("load_barangay_yield.py", ["--csv", rel, "--source", src], env)
+    if args.with_barangay_model:
+        run("add_barangay_feature_tables.py", [], env)
+        for weather, sat, munis in BARANGAY_FEATURE_CSVS:
+            run("load_barangay_feature_tables.py",
+                ["--weather", weather, "--satellite", sat, "--municipalities", munis], env)
+        run("load_barangay_predictions.py", ["--csv", BARANGAY_PRED_CSV], env)
     if do_predictions:
         # Ensure the predictions table exists, then load.
         run("add_municipality_predictions.py", [], env)
