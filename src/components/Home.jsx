@@ -42,7 +42,7 @@ const PARTNERS = [
 const TEAM = [
   { name: "Jonalyn G. Ebron", role: "Research Adviser", photo: "/images/jonalyn.png" },
   { name: "Ashlie C. Argana", role: "Frontend Developer", photo: null },
-  { name: "Kester Praferosa", role: "Machine Learning Engineer", photo: null },
+  { name: "Kester Praferosa", role: "Machine Learning Engineer", photo: "/images/kester.jpg" },
   { name: "Joshua Ilagan", role: "Backend Developer", photo: "/images/josh.jpg" },
   { name: "Jean C. Madolora", role: "Data Engineering", photo: null },
 ];
