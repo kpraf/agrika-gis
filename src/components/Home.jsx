@@ -30,7 +30,7 @@ const STEPS = [
 ];
 
 const PARTNERS = [
-  { name: "MAPUA MMCL", logo: "/images/MMCL_Logo.png" },
+  { name: "MAPUA MMCL", logo: "/images/MMCL_Logo.webp" },
   { name: "PhilRice", logo: "/images/philrice.webp" },
   { name: "ASEAN University Network", logo: "/images/asean.png" },
   { name: "Calamba City Agricultural Services Dept.", logo: "/images/agric-calamba.png" },
