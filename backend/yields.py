@@ -549,7 +549,9 @@ def _pick(row, *names):
 def import_yields():
     """Import observed yields from a CSV upload — municipality or barangay level.
 
-    Body: { csv: str, level?: 'municipality'|'barangay', source?: str }.
+    Body: { csv: str, level?: 'municipality'|'barangay', source?: str, dry_run?: bool }.
+    With dry_run=true, the rows are validated and previewed but nothing is written
+    (the transaction is rolled back) — used for the confirm step in the UI.
 
     Municipality level → municipality_yield_records, keyed (municipality, season).
         Columns: municipality (or city), year, season, yield (or yield_mt_ha).
@@ -572,6 +574,9 @@ def import_yields():
     if level not in ("municipality", "barangay"):
         return jsonify({"error": "level must be 'municipality' or 'barangay'."}), 400
     source = (str(payload.get("source") or "Manual import").strip() or "Manual import")[:50]
+    # Dry run: validate + count + preview WITHOUT committing (powers the
+    # "you're about to import this" confirmation step in the UI).
+    dry_run = bool(payload.get("dry_run"))
 
     try:
         rows = list(csv.DictReader(io.StringIO(csv_text)))
@@ -614,6 +619,7 @@ def import_yields():
 
     inserted = updated = 0
     errors = []
+    preview = []  # valid rows, for the confirmation dialog
 
     for i, row in enumerate(rows, start=2):  # +1 for header, +1 for 1-based
         raw_muni = (str(_pick(row, "municipality", "city") or "")).strip()
@@ -667,6 +673,16 @@ def import_yields():
 
         sid = season_id(season_type, year)
 
+        # Row passed validation — record it for the preview (action set below).
+        disp = {
+            "row": i,
+            "municipality": raw_muni,
+            "barangay": raw_brgy or None,
+            "year": year,
+            "season": season_type,
+            "yield": yld,
+        }
+
         if level == "barangay":
             existing = db.session.execute(
                 text("SELECT brgy_yield_id FROM barangay_yield WHERE barangay_id = :b AND season_id = :s"),
@@ -678,6 +694,8 @@ def import_yields():
                     {"y": yld, "src": source, "id": existing},
                 )
                 updated += 1
+                if len(preview) < 200:
+                    preview.append({**disp, "action": "update"})
             else:
                 db.session.execute(
                     text(
@@ -687,6 +705,8 @@ def import_yields():
                     {"b": bid, "s": sid, "y": yld, "src": source},
                 )
                 inserted += 1
+                if len(preview) < 200:
+                    preview.append({**disp, "action": "new"})
         else:
             existing = db.session.execute(
                 text(
@@ -705,6 +725,8 @@ def import_yields():
                     {"y": yld, "src": source, "id": existing},
                 )
                 updated += 1
+                if len(preview) < 200:
+                    preview.append({**disp, "action": "update"})
             else:
                 db.session.execute(
                     text(
@@ -715,18 +737,27 @@ def import_yields():
                     {"y": yld, "m": mid, "s": sid, "src": source},
                 )
                 inserted += 1
+                if len(preview) < 200:
+                    preview.append({**disp, "action": "new"})
 
-    # Commit the valid rows (partial success); invalid rows are reported, not fatal.
-    db.session.commit()
+    # Dry run: throw away everything (including any seasons created) and just
+    # report what WOULD happen. Otherwise commit the valid rows (partial success);
+    # invalid rows are reported, not fatal.
+    if dry_run:
+        db.session.rollback()
+    else:
+        db.session.commit()
     total_table = "barangay_yield" if level == "barangay" else "municipality_yield_records"
     total = db.session.execute(text(f"SELECT COUNT(*) FROM {total_table}")).scalar()
     return jsonify(
         {
             "level": level,
+            "dry_run": dry_run,
             "inserted": inserted,
             "updated": updated,
             "skipped": len(errors),
             "errors": errors[:50],  # cap the payload; enough to diagnose a bad file
+            "preview": preview,  # valid rows (capped) for the confirmation dialog
             "total": total,
         }
     )

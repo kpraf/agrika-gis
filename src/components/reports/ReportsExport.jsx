@@ -129,6 +129,7 @@ export default function ReportsExport() {
   const [importLog, setImportLog] = useState([]);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null); // { inserted, updated, skipped, errors } | { error }
+  const [pendingImport, setPendingImport] = useState(null); // dry-run awaiting confirm: { text, fileName, source, level, result }
   const [importLevel, setImportLevel] = useState("municipality"); // "municipality" | "barangay"
   const [isDragging, setIsDragging] = useState(false);
   const [reportType, setReportType] = useState("summary");
@@ -387,9 +388,9 @@ export default function ReportsExport() {
     downloadBlob(template, `agrika-gis-import-template-${importLevel}.csv`, "text/csv;charset=utf-8;");
   };
 
-  // Send the CSV to the backend, which validates + upserts into the real
-  // dataset, then refresh what this page shows. Other screens pick up the new
-  // data on their next load.
+  // Step 1: read the CSV and validate it on the server WITHOUT writing (dry run),
+  // then show a confirmation with a preview of exactly what will change. The user
+  // confirms or cancels before anything is saved (see confirmImport / cancelImport).
   const ingestFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -399,29 +400,15 @@ export default function ReportsExport() {
         setImportResult({ error: "That file looks empty." });
         return;
       }
+      const source = `Manual import: ${file.name}`;
       setImporting(true);
       setImportResult(null);
+      setPendingImport(null);
       try {
-        const res = await yieldApi.importCsv(text, importLevel, `Manual import: ${file.name}`);
-        setImportResult(res);
-        const changed = (res.inserted || 0) + (res.updated || 0) > 0;
-        // Municipality imports change this page's dataset; barangay imports feed
-        // the Map/Analytics drill-down instead, so only refresh when relevant.
-        if (changed && importLevel === "municipality") {
-          applyRecords(await yieldApi.records());
-        }
-        if (changed) {
-          setImportLog((prev) => [
-            ...prev,
-            {
-              fileName: file.name,
-              rows: (res.inserted || 0) + (res.updated || 0),
-              importedAt: new Date().toLocaleString(),
-            },
-          ]);
-        }
+        const res = await yieldApi.importCsv(text, importLevel, source, true); // dry run
+        setPendingImport({ text, fileName: file.name, source, level: importLevel, result: res });
       } catch (e) {
-        setImportResult({ error: e.message || "Import failed." });
+        setImportResult({ error: e.message || "Could not read that file." });
       } finally {
         setImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = ""; // allow re-selecting the same file
@@ -429,6 +416,42 @@ export default function ReportsExport() {
     };
     reader.readAsText(file);
   };
+
+  // Step 2 (confirm): actually write the rows the user just reviewed, then refresh
+  // what this page shows. Other screens pick up the new data on their next load.
+  const confirmImport = async () => {
+    if (!pendingImport) return;
+    const { text, fileName, source, level } = pendingImport;
+    setImporting(true);
+    setPendingImport(null);
+    try {
+      const res = await yieldApi.importCsv(text, level, source, false); // real write
+      setImportResult(res);
+      const changed = (res.inserted || 0) + (res.updated || 0) > 0;
+      // Municipality imports change this page's dataset; barangay imports feed the
+      // Map/Analytics drill-down instead, so only refresh when relevant.
+      if (changed && level === "municipality") {
+        applyRecords(await yieldApi.records());
+      }
+      if (changed) {
+        setImportLog((prev) => [
+          ...prev,
+          {
+            fileName,
+            rows: (res.inserted || 0) + (res.updated || 0),
+            importedAt: new Date().toLocaleString(),
+          },
+        ]);
+      }
+    } catch (e) {
+      setImportResult({ error: e.message || "Import failed." });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Step 2 (cancel): discard the pending import — nothing was written.
+  const cancelImport = () => setPendingImport(null);
 
   return (
     <div className="flex w-full h-screen bg-[#F3F4F6] font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -573,6 +596,103 @@ export default function ReportsExport() {
                   <div className="flex items-center gap-2 text-sm text-[#6B7280]">
                     <span className="inline-flex h-4 w-4 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
                     Importing…
+                  </div>
+                )}
+                {pendingImport && !importing && (
+                  <div className="rounded-lg bg-white border border-[#E5E7EB] shadow-sm px-4 py-3 text-sm flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="font-semibold text-[#1F2937]">You're about to import this data:</span>
+                      <span className="text-[#6B7280]">
+                        From <b>{pendingImport.fileName}</b> ({pendingImport.level} level) —{" "}
+                        <b className="text-[#166534]">{pendingImport.result.inserted}</b> new,{" "}
+                        <b className="text-[#166534]">{pendingImport.result.updated}</b> updated
+                        {pendingImport.result.skipped ? (
+                          <>
+                            , <b className="text-[#B45309]">{pendingImport.result.skipped}</b> with errors
+                            (won't be imported)
+                          </>
+                        ) : null}
+                        .
+                      </span>
+                    </div>
+
+                    {pendingImport.result.preview?.length > 0 && (
+                      <div className="max-h-48 overflow-y-auto border border-[#F3F4F6] rounded-lg">
+                        <table className="w-full text-xs">
+                          <thead className="bg-[#F9FAFB] text-[#6B7280] sticky top-0">
+                            <tr>
+                              <th className="text-left font-semibold px-3 py-1.5">Municipality</th>
+                              {pendingImport.level === "barangay" && (
+                                <th className="text-left font-semibold px-3 py-1.5">Barangay</th>
+                              )}
+                              <th className="text-left font-semibold px-3 py-1.5">Year</th>
+                              <th className="text-left font-semibold px-3 py-1.5">Season</th>
+                              <th className="text-right font-semibold px-3 py-1.5">Yield</th>
+                              <th className="text-left font-semibold px-3 py-1.5">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pendingImport.result.preview.map((r, i) => (
+                              <tr key={i} className="border-t border-[#F3F4F6]">
+                                <td className="px-3 py-1.5 text-[#374151]">{r.municipality}</td>
+                                {pendingImport.level === "barangay" && (
+                                  <td className="px-3 py-1.5 text-[#374151]">{r.barangay}</td>
+                                )}
+                                <td className="px-3 py-1.5 text-[#374151]">{r.year}</td>
+                                <td className="px-3 py-1.5 text-[#374151]">{r.season}</td>
+                                <td className="px-3 py-1.5 text-right text-[#374151]">{r.yield}</td>
+                                <td className="px-3 py-1.5">
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
+                                      r.action === "new"
+                                        ? "bg-[#DCFCE7] text-[#15803D]"
+                                        : "bg-[#DBEAFE] text-[#1D4ED8]"
+                                    }`}
+                                  >
+                                    {r.action === "new" ? "New" : "Update"}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {pendingImport.result.errors?.length > 0 && (
+                      <details>
+                        <summary className="cursor-pointer text-[#B45309] text-xs">
+                          {pendingImport.result.skipped} row(s) have errors and will be skipped — see why
+                        </summary>
+                        <ul className="mt-1 list-disc pl-5 max-h-28 overflow-y-auto text-[#92400E] text-xs">
+                          {pendingImport.result.errors.map((e, i) => (
+                            <li key={i}>
+                              Row {e.row}: {e.error}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={cancelImport}
+                        className="px-4 py-2 rounded-lg border border-[#D1D5DB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={confirmImport}
+                        disabled={
+                          (pendingImport.result.inserted || 0) + (pendingImport.result.updated || 0) === 0
+                        }
+                        className="px-4 py-2 rounded-lg bg-[#1F6306] text-sm font-medium text-white hover:bg-[#184f05] disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Confirm import
+                      </button>
+                    </div>
                   </div>
                 )}
                 {importResult?.error && (

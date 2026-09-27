@@ -175,8 +175,13 @@ export const yieldApi = {
   records: () => request("/yield/records"),
   // Import observed yields from a CSV (admin/agriculturist/technician).
   // level = "municipality" | "barangay". Server validates + upserts; returns a report.
-  importCsv: (csvText, level, source) =>
-    request("/yield/import", { method: "POST", body: { csv: csvText, level, source }, auth: true }),
+  // dryRun=true validates + previews without writing (for the confirm step).
+  importCsv: (csvText, level, source, dryRun = false) =>
+    request("/yield/import", {
+      method: "POST",
+      body: { csv: csvText, level, source, dry_run: dryRun },
+      auth: true,
+    }),
   predictionsMeta: () => request("/yield/predictions/meta"),
   compare: (year, season) =>
     request(`/yield/compare?year=${year}&season=${encodeURIComponent(season)}`),
