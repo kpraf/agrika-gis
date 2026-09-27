@@ -423,7 +423,6 @@ export default function ReportsExport() {
     if (!pendingImport) return;
     const { text, fileName, source, level } = pendingImport;
     setImporting(true);
-    setPendingImport(null);
     try {
       const res = await yieldApi.importCsv(text, level, source, false); // real write
       setImportResult(res);
@@ -447,6 +446,7 @@ export default function ReportsExport() {
       setImportResult({ error: e.message || "Import failed." });
     } finally {
       setImporting(false);
+      setPendingImport(null);
     }
   };
 
@@ -592,13 +592,13 @@ export default function ReportsExport() {
                 </div>
 
                 {/* Import status / result */}
-                {importing && (
+                {importing && !pendingImport && (
                   <div className="flex items-center gap-2 text-sm text-[#6B7280]">
                     <span className="inline-flex h-4 w-4 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
-                    Importing…
+                    Checking file…
                   </div>
                 )}
-                {pendingImport && !importing && (
+                {pendingImport && (
                   <div className="rounded-lg bg-white border border-[#E5E7EB] shadow-sm px-4 py-3 text-sm flex flex-col gap-3">
                     <div className="flex flex-col gap-1">
                       <span className="font-semibold text-[#1F2937]">You're about to import this data:</span>
@@ -678,7 +678,8 @@ export default function ReportsExport() {
                       <button
                         type="button"
                         onClick={cancelImport}
-                        className="px-4 py-2 rounded-lg border border-[#D1D5DB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB]"
+                        disabled={importing}
+                        className="px-4 py-2 rounded-lg border border-[#D1D5DB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Cancel
                       </button>
@@ -686,11 +687,15 @@ export default function ReportsExport() {
                         type="button"
                         onClick={confirmImport}
                         disabled={
+                          importing ||
                           (pendingImport.result.inserted || 0) + (pendingImport.result.updated || 0) === 0
                         }
-                        className="px-4 py-2 rounded-lg bg-[#1F6306] text-sm font-medium text-white hover:bg-[#184f05] disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="px-4 py-2 rounded-lg bg-[#1F6306] text-sm font-medium text-white hover:bg-[#184f05] transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
-                        Confirm import
+                        {importing && (
+                          <span className="inline-flex h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                        )}
+                        {importing ? "Importing…" : "Confirm import"}
                       </button>
                     </div>
                   </div>
