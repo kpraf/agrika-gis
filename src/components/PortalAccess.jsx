@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { pingHealth } from "../lib/api";
 
@@ -194,12 +194,17 @@ export default function PortalAccess() {
             </button>
           </form>
 
-          {/* Request access link */}
+          {/* Request access — accounts are provisioned by the Provincial Agriculture
+              Office, so this points to Contact rather than a self-signup flow. */}
           <p className="mt-8 text-center text-sm text-[#6B7280]">
-            Don't have portal access yet?{" "}
-            <a href="#" className="font-semibold text-[#1F6306] hover:underline">
-              Request Access
-            </a>
+            Don't have portal access yet? Accounts are issued by the Provincial
+            Agriculture Office.{" "}
+            <Link
+              to="/contact?subject=Portal%20Access%20Request"
+              className="font-semibold text-[#1F6306] hover:underline"
+            >
+              Request access
+            </Link>
           </p>
 
           {/* Live backend status — polls until the (possibly-asleep) API is up */}

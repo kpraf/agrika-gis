@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Navbar from "./layout/Navbar";
 import Footer from "./layout/Footer";
 import ContactCTA from "./layout/ContactCTA";
@@ -12,6 +13,14 @@ export default function Contact() {
   const [saveInfo, setSaveInfo] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  // Prefill the subject when linked with ?subject=... (e.g. the login page's
+  // "Request access" link sends users here with a portal-access request).
+  useEffect(() => {
+    const subject = searchParams.get("subject");
+    if (subject) setForm((prev) => ({ ...prev, subject }));
+  }, [searchParams]);
 
   useEffect(() => {
     try {
