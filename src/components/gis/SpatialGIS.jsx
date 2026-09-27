@@ -104,6 +104,7 @@ export default function SpatialGIS() {
   // CNN-LSTM predictions overlay (empty until model output is loaded).
   const [dataSource, setDataSource] = useState("observed"); // "observed" | "predicted" | "residual"
   const [predMeta, setPredMeta] = useState({ has_predictions: false });
+  const [predMetaLoading, setPredMetaLoading] = useState(true);
   const [compareResp, setCompareResp] = useState(null); // { stats, records } observed vs predicted
 
   // Environment (remote-sensing) layer: selected metric + its per-municipality values.
@@ -178,7 +179,11 @@ export default function SpatialGIS() {
 
   // Are there any CNN-LSTM predictions loaded at all? (gates the Predicted view)
   useEffect(() => {
-    yieldApi.predictionsMeta().then(setPredMeta).catch(() => {});
+    yieldApi
+      .predictionsMeta()
+      .then(setPredMeta)
+      .catch(() => {})
+      .finally(() => setPredMetaLoading(false));
   }, []);
 
   // Observed vs predicted (+ residual) for the current year/season.
@@ -512,9 +517,14 @@ export default function SpatialGIS() {
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Data Source</h2>
-                  {!predMeta.has_predictions && (
+                  {predMetaLoading ? (
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-[#9CA3AF]">
+                      <span className="inline-flex h-2.5 w-2.5 rounded-full border-2 border-transparent border-t-[#9CA3AF] border-r-[#9CA3AF] animate-spin" />
+                      Loading model output…
+                    </span>
+                  ) : !predMeta.has_predictions ? (
                     <span className="text-[10px] font-medium text-[#9CA3AF]">Predicted: needs model output</span>
-                  )}
+                  ) : null}
                 </div>
                 <div className="flex p-1 gap-1 bg-[#ECEFEA] rounded-lg">
                   <button
@@ -534,7 +544,7 @@ export default function SpatialGIS() {
                       dataSource === "predicted" && predMeta.has_predictions
                         ? "bg-[#3B9E1C] text-white shadow-sm"
                         : "text-[#4B5563]"
-                    } ${!predMeta.has_predictions ? "opacity-40 cursor-not-allowed" : ""}`}
+                    } ${!predMeta.has_predictions ? "opacity-40 cursor-not-allowed" : ""} ${predMetaLoading ? "animate-pulse" : ""}`}
                   >
                     Predicted
                   </button>
@@ -547,7 +557,7 @@ export default function SpatialGIS() {
                       dataSource === "residual" && predMeta.has_predictions
                         ? "bg-[#3B9E1C] text-white shadow-sm"
                         : "text-[#4B5563]"
-                    } ${!predMeta.has_predictions ? "opacity-40 cursor-not-allowed" : ""}`}
+                    } ${!predMeta.has_predictions ? "opacity-40 cursor-not-allowed" : ""} ${predMetaLoading ? "animate-pulse" : ""}`}
                   >
                     Residual
                   </button>
