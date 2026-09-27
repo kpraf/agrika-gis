@@ -522,15 +522,22 @@ export default function RiceYieldAnalytics() {
                 </span>
               </h3>
               <div className="flex flex-wrap gap-2 px-4 py-3 bg-[#F9FAFB]/80 border border-[#F3F4F6] rounded-lg max-h-[132px] overflow-y-auto">
-                {entities.length === 0 && (
-                  <span className="text-sm text-[#9CA3AF]">
-                    {loading
-                      ? "Loading…"
-                      : isBarangay
-                        ? `No barangay data for ${activeBrgyMuniName}.`
-                        : "Loading municipalities…"}
-                  </span>
-                )}
+                {entities.length === 0 &&
+                  (loading || !isBarangay ? (
+                    <div className="flex flex-wrap gap-2 animate-pulse">
+                      {[68, 84, 56, 76, 60, 72].map((w, i) => (
+                        <span
+                          key={i}
+                          className="h-7 rounded-full bg-[#E5E7EB]"
+                          style={{ width: `${w}px` }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-[#9CA3AF]">
+                      No barangay data for {activeBrgyMuniName}.
+                    </span>
+                  ))}
                 {entities.map((e) => {
                   const on = selected.has(e.id);
                   return (
@@ -592,8 +599,17 @@ export default function RiceYieldAnalytics() {
             {/* Chart Area */}
             <div className="w-full h-[360px] pt-2">
               {loading && chartData.every((r) => r.average == null) ? (
-                <div className="w-full h-full flex items-center justify-center text-[#9CA3AF]">
-                  Loading yield series…
+                <div className="w-full h-full flex flex-col justify-end gap-3 pb-8 animate-pulse">
+                  <div className="flex items-end justify-between gap-2 md:gap-3 h-full pt-6">
+                    {[58, 82, 46, 70, 54, 88, 66, 50, 74].map((h, i) => (
+                      <div
+                        key={i}
+                        className="flex-1 rounded-t-md bg-[#E5E7EB]"
+                        style={{ height: `${h}%` }}
+                      />
+                    ))}
+                  </div>
+                  <div className="h-2 w-full rounded bg-[#F3F4F6]" />
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
