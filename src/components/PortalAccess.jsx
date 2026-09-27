@@ -185,8 +185,11 @@ export default function PortalAccess() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-3.5 rounded-xl bg-[#1F6306] text-white font-semibold text-base shadow-[0px_10px_20px_-5px_rgba(45,90,39,0.3)] hover:bg-[#286A11] transition-colors disabled:opacity-60"
+              className="w-full py-3.5 rounded-xl bg-[#1F6306] text-white font-semibold text-base shadow-[0px_10px_20px_-5px_rgba(45,90,39,0.3)] hover:bg-[#286A11] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
             >
+              {submitting && (
+                <span className="inline-flex h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+              )}
               {submitting ? "Signing in…" : "Sign In"}
             </button>
           </form>
