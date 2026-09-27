@@ -503,12 +503,10 @@ export default function LagunaMap({
               <span className="inline-flex h-9 w-9 rounded-full border-4 border-transparent border-t-[#1F6306] animate-spin" />
             </span>
             <div className="flex flex-col gap-1">
-              <p className="text-sm font-semibold text-[#1F2937]">
-                {serverSlow ? "Waking up the server…" : "Loading map…"}
-              </p>
+              <p className="text-sm font-semibold text-[#1F2937]">Loading map…</p>
               {serverSlow && (
                 <p className="text-xs leading-4 text-[#6B7280] max-w-[240px]">
-                  The server sleeps when idle on the free tier. This can take up to a minute.
+                  This can take a moment.
                 </p>
               )}
             </div>

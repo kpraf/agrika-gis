@@ -46,10 +46,10 @@ export default function PortalAccess() {
   }, []);
 
   const SERVER_UI = {
-    checking: { dot: "bg-[#9CA3AF]", text: "Checking server…", cls: "text-[#6B7280]", pulse: true },
-    waking: { dot: "bg-[#F59E0B]", text: "Server waking up, this can take up to a minute", cls: "text-[#B45309]", pulse: true },
-    online: { dot: "bg-[#16A34A]", text: "Server online, ready to sign in", cls: "text-[#15803D]", pulse: false },
-    offline: { dot: "bg-[#EF4444]", text: "Server unreachable, still retrying…", cls: "text-[#B91C1C]", pulse: true },
+    checking: { dot: "bg-[#9CA3AF]", text: "Connecting…", cls: "text-[#6B7280]", pulse: true },
+    waking: { dot: "bg-[#F59E0B]", text: "Connecting, this can take a moment…", cls: "text-[#B45309]", pulse: true },
+    online: { dot: "bg-[#16A34A]", text: "Ready to sign in", cls: "text-[#15803D]", pulse: false },
+    offline: { dot: "bg-[#EF4444]", text: "Still trying to connect…", cls: "text-[#B91C1C]", pulse: true },
   };
 
   const handleSubmit = async (e) => {
