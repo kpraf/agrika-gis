@@ -513,6 +513,22 @@ def trend():
         params["mid"] = mid
     sql += " GROUP BY s.year ORDER BY s.year"
 
+    # Predicted year-over-year (CNN-LSTM), so the trend can overlay predicted vs
+    # actual. Same season/municipality scope as the observed query.
+    pred_sql = (
+        "SELECT s.year, AVG(p.predicted_yield) AS predicted "
+        "FROM municipality_predictions p "
+        "JOIN seasons s ON s.season_id = p.season_id "
+        "WHERE s.season_type = :sea"
+    )
+    if mid:
+        pred_sql += " AND p.municipality_id = :mid"
+    pred_sql += " GROUP BY s.year"
+    pred_by_year = {
+        row.year: round(row.predicted, 3)
+        for row in db.session.execute(text(pred_sql), params)
+    }
+
     series = [
         {
             "year": row.year,
@@ -520,6 +536,7 @@ def trend():
             "min": round(row.min, 3),
             "max": round(row.max, 3),
             "count": row.count,
+            "predicted": pred_by_year.get(row.year),
         }
         for row in db.session.execute(text(sql), params)
     ]

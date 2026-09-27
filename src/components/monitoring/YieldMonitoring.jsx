@@ -12,6 +12,7 @@ import {
   Pie,
   LineChart,
   Line,
+  Legend,
   CartesianGrid,
 } from "recharts";
 import DashboardSidebar from "../layout/DashboardSidebar";
@@ -537,7 +538,7 @@ export default function YieldMonitoring() {
               <SectionHeading title="Historical Trends" />
 
               <p className="text-xs leading-5 text-[#6B7280]">
-                Year-over-year average yield for <b>{trendLabel}</b> in the {season} season.
+                Year-over-year actual vs predicted yield for <b>{trendLabel}</b> in the {season} season.
                 {selection?.level === "municipality"
                   ? " Click “back to all” on the map for the province view."
                   : " Click a municipality on the map to focus its trend."}
@@ -545,7 +546,7 @@ export default function YieldMonitoring() {
 
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-[#6B7280] uppercase">
-                  {season} Season Yield Trend (mt/ha)
+                  {season} Season: Actual vs Predicted (mt/ha)
                 </label>
                 <div className="bg-[#F9FAFB] border border-[#F3F4F6] rounded-lg p-3">
                   {trend.length ? (
@@ -559,8 +560,29 @@ export default function YieldMonitoring() {
                           domain={[(min) => Math.floor((min - 0.5) * 2) / 2, (max) => Math.ceil((max + 0.5) * 2) / 2]}
                           tickFormatter={(v) => `${Number(v).toFixed(1)} mt/ha`}
                         />
-                        <Tooltip formatter={(v) => [`${v} mt/ha`, "Avg yield"]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                        <Line type="monotone" dataKey="avg" stroke="#1F6306" strokeWidth={2.5} dot={{ r: 3, fill: "#1F6306" }} />
+                        <Tooltip
+                          formatter={(v, n) => [v == null ? "N/A" : `${v} mt/ha`, n]}
+                          contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Line
+                          type="monotone"
+                          dataKey="avg"
+                          name="Actual"
+                          stroke="#1F6306"
+                          strokeWidth={2.5}
+                          dot={{ r: 3, fill: "#1F6306" }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="predicted"
+                          name="Predicted"
+                          stroke="#F97316"
+                          strokeWidth={2.5}
+                          strokeDasharray="5 4"
+                          dot={{ r: 3, fill: "#F97316" }}
+                          connectNulls
+                        />
                       </LineChart>
                     </ResponsiveContainer>
                   ) : (
