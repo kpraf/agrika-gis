@@ -197,8 +197,7 @@ export default function PortalAccess() {
           {/* Request access — accounts are provisioned by the Provincial Agriculture
               Office, so this points to Contact rather than a self-signup flow. */}
           <p className="mt-8 text-center text-sm text-[#6B7280]">
-            Don't have portal access yet? Accounts are issued by the Provincial
-            Agriculture Office.{" "}
+            Don't have portal access yet?{" "}
             <Link
               to="/contact?subject=Portal%20Access%20Request"
               className="font-semibold text-[#1F6306] hover:underline"
