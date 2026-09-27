@@ -577,10 +577,10 @@ export default function YieldMonitoring() {
                           type="monotone"
                           dataKey="predicted"
                           name="Predicted"
-                          stroke="#CA8A04"
+                          stroke="#EAB308"
                           strokeWidth={3}
                           strokeDasharray="5 4"
-                          dot={{ r: 3, fill: "#CA8A04" }}
+                          dot={{ r: 3, fill: "#EAB308" }}
                           connectNulls
                         />
                       </LineChart>
