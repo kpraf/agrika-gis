@@ -324,8 +324,8 @@ export default function LagunaMap({
       if (fitTokenRef.current === token) setHighlightReady(true);
     };
     map.once("moveend", finish);
-    setTimeout(finish, 1200); // fallback: covers the fly animation + a little slack
-    map.flyToBounds(bounds, { ...FIT_OPTS, duration: 0.6 });
+    setTimeout(finish, 700); // fallback: covers the fly animation + a little slack
+    map.flyToBounds(bounds, { ...FIT_OPTS, duration: 0.35 });
   };
 
   const drillInto = (feature, layer) => {
@@ -344,9 +344,9 @@ export default function LagunaMap({
     setLoadingFeature(null);
     setHighlightReady(false);
     if (provinceBounds) {
-      mapRef.current?.flyToBounds(provinceBounds, { padding: [20, 20], duration: 0.6 });
+      mapRef.current?.flyToBounds(provinceBounds, { padding: [20, 20], duration: 0.35 });
     } else {
-      mapRef.current?.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 0.6 });
+      mapRef.current?.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 0.35 });
     }
   };
 
@@ -383,7 +383,7 @@ export default function LagunaMap({
     if (f) {
       try {
         const b = L.geoJSON(f).getBounds();
-        if (b.isValid()) mapRef.current?.flyToBounds(b, { padding: [40, 40], maxZoom: 14, duration: 0.6 });
+        if (b.isValid()) mapRef.current?.flyToBounds(b, { padding: [40, 40], maxZoom: 14, duration: 0.35 });
       } catch {
         /* ignore */
       }
@@ -656,8 +656,8 @@ export default function LagunaMap({
         onZoomOut={() => mapRef.current?.zoomOut()}
         onRecenter={() =>
           provinceBounds
-            ? mapRef.current?.flyToBounds(provinceBounds, { padding: [20, 20], duration: 0.6 })
-            : mapRef.current?.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 0.6 })
+            ? mapRef.current?.flyToBounds(provinceBounds, { padding: [20, 20], duration: 0.35 })
+            : mapRef.current?.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM, { duration: 0.35 })
         }
       />
     </section>
