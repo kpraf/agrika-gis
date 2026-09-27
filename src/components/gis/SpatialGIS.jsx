@@ -410,7 +410,7 @@ export default function SpatialGIS() {
     <div className={`flex w-full h-screen bg-[#F8FAF5] font-sans ${!isPublic ? "pb-14 md:pb-0" : ""}`} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {!isPublic && <DashboardSidebar active="map" />}
 
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 anim-fade-in">
         {isPublic ? (
           /* Public view: use the public site navigation bar (dark band keeps its white text legible) */
           <div className="shrink-0 bg-[#0B2005]">

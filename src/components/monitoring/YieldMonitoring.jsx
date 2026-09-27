@@ -204,7 +204,7 @@ export default function YieldMonitoring() {
     <div className="flex w-full h-screen bg-[#F8FAF5] font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       <DashboardSidebar active="monitoring" city={city} />
 
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex flex-col flex-1 min-w-0 anim-fade-in">
         {/* Top Header */}
         <header className="flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
           <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">
