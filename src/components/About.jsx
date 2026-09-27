@@ -104,7 +104,7 @@ export default function About() {
               Discover the Science Behind the Platform
             </h2>
             <Link
-              to="#"
+              to="/contact"
               className="self-start flex items-center gap-2 px-8 py-4 rounded-full bg-[#286A11] text-white font-bold hover:bg-[#1F6306] transition-colors"
             >
               Contact Now
