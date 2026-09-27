@@ -66,6 +66,25 @@ export default function SpatialGIS() {
 
   const [viewType, setViewType] = useState("heatmap");
   const [layers, setLayers] = useState({ boundaries: true });
+  // Hover tooltip detail: ON shows municipality + year + season + yield; OFF shows
+  // just the value (mt/ha). Adviser prefers the detailed view; remembered per browser.
+  const [detailedTooltips, setDetailedTooltips] = useState(() => {
+    try {
+      return localStorage.getItem("agrika-gis:detailed-tooltips") !== "off";
+    } catch {
+      return true;
+    }
+  });
+  const toggleDetailedTooltips = () =>
+    setDetailedTooltips((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem("agrika-gis:detailed-tooltips", next ? "on" : "off");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
   // Mobile/tablet (below lg): the two side panels collapse into slide-in drawers.
   const [leftOpen, setLeftOpen] = useState(false); // controls drawer
   const [rightOpen, setRightOpen] = useState(false); // context drawer
@@ -672,6 +691,16 @@ export default function SpatialGIS() {
                       </svg>
                     }
                   />
+                  <ToggleSwitch
+                    checked={detailedTooltips}
+                    onChange={toggleDetailedTooltips}
+                    label="Detailed tooltips"
+                    icon={
+                      <svg width="20" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -680,6 +709,9 @@ export default function SpatialGIS() {
           {/* Center — shared map */}
           <LagunaMap
             boundariesVisible={layers.boundaries}
+            detailedTooltips={detailedTooltips}
+            year={year}
+            season={season}
             onSelectionChange={handleSelection}
             focusMunicipalityId={activeCityId}
             onMunicipalitiesLoaded={setMunicipalities}
@@ -701,7 +733,7 @@ export default function SpatialGIS() {
                 : showingPredicted
                 ? "pred"
                 : "obs"
-            }-${year}-${season}`}
+            }-${year}-${season}-${detailedTooltips ? "d" : "s"}`}
             barangayKey={`brgy-${
               showingEnvironment ? `env-${envMetric}` : showingResidual ? "resid" : showingPredicted ? "pred" : "obs"
             }-${activeCityId}-${year}-${season}-${
@@ -710,7 +742,7 @@ export default function SpatialGIS() {
                 : showingPredicted || showingResidual
                 ? barangayCompareResp?.stats?.predicted_avg
                 : barangayResp?.stats?.avg) ?? ""
-            }`}
+            }-${detailedTooltips ? "d" : "s"}`}
           />
 
           {/* Floating panel toggles — below lg only (the columns are always visible at lg+).

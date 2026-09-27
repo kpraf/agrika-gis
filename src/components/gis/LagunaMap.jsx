@@ -75,6 +75,9 @@ function residualColor(value, absMax) {
 
 export default function LagunaMap({
   boundariesVisible = true,
+  detailedTooltips = false, // hover shows name + year + season + value (vs value only)
+  year = null,
+  season = "",
   onSelectionChange,
   focusMunicipalityId = null,
   onMunicipalitiesLoaded,
@@ -230,14 +233,31 @@ export default function LagunaMap({
       fillOpacity: sat ? 0.6 : 0.8,
     };
   };
+  // Value label + formatting shared by the municipality and barangay tooltips.
+  const valueLabel =
+    colorMode === "residual" ? "Residual" : valueUnit === "mt/ha" ? "Yield" : legendLabel || "Value";
+  const formatValue = (rec) => {
+    if (!rec || rec.yield == null) return "no data";
+    const unit = valueUnit ? ` ${valueUnit}` : "";
+    if (colorMode === "residual") return `${rec.yield > 0 ? "+" : ""}${rec.yield}${unit}`;
+    return `${rec.yield}${unit}${rec.is_proxy ? " (est.)" : ""}`;
+  };
+  // Detailed OFF: "Name: value". Detailed ON: name + year + season + value.
+  const tooltipFor = (name, rec) => {
+    const value = formatValue(rec);
+    if (!detailedTooltips) return `${name}: ${value}`;
+    return (
+      `<div class="agrika-tt"><b>${name}</b>` +
+      (year != null ? `<br/>Year: ${year}` : "") +
+      (season ? `<br/>Season: ${season}` : "") +
+      `<br/>${valueLabel}: ${value}</div>`
+    );
+  };
+
   const brgyTooltip = (feature) => {
     const name = feature.properties?.name ?? "";
     if (!brgyHeatmapActive) return name;
-    const rec = yieldByBarangay?.[feature.properties.barangay_id];
-    if (!rec || rec.yield == null) return `${name}: no data`;
-    if (colorMode === "residual")
-      return `${name}: residual ${rec.yield > 0 ? "+" : ""}${rec.yield} mt/ha`;
-    return `${name}: ${rec.yield}${valueUnit ? ` ${valueUnit}` : ""}`;
+    return tooltipFor(name, yieldByBarangay?.[feature.properties.barangay_id]);
   };
 
   // The colour-scale legend follows what the map is showing: the municipality
@@ -250,9 +270,10 @@ export default function LagunaMap({
   // mount, so the layer must remount whenever the yield data itself changes —
   // not just when year/season changes. Fold the record count + scale into the
   // signature so the choropleth and its tooltips refresh once data arrives.
-  const yieldSig = heatmapActive
-    ? `heat-${Object.keys(yieldByMuni).length}-${colorScale?.min}-${colorScale?.max}-${yieldKey}`
-    : "plain";
+  const yieldSig =
+    (heatmapActive
+      ? `heat-${Object.keys(yieldByMuni).length}-${colorScale?.min}-${colorScale?.max}-${yieldKey}`
+      : "plain") + `-${detailedTooltips ? "d" : "s"}`;
 
   // Per-feature municipality style. In heatmap mode, fill by observed yield;
   // municipalities with no data (e.g. San Pedro) render a neutral grey.
@@ -276,11 +297,7 @@ export default function LagunaMap({
   const muniTooltip = (feature) => {
     const name = feature.properties?.name ?? "";
     if (!heatmapActive) return name;
-    const rec = yieldByMuni[feature.properties.municipality_id];
-    if (!rec || rec.yield == null) return `${name}: no data`;
-    if (colorMode === "residual")
-      return `${name}: residual ${rec.yield > 0 ? "+" : ""}${rec.yield} mt/ha`;
-    return `${name}: ${rec.yield}${valueUnit ? ` ${valueUnit}` : ""}${rec.is_proxy ? " (est.)" : ""}`;
+    return tooltipFor(name, yieldByMuni[feature.properties.municipality_id]);
   };
 
   // Select a municipality and load its barangays, keeping the "loading" highlight up
