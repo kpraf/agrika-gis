@@ -5,6 +5,8 @@ import Home from "./components/Home";
 import About from "./components/About";
 import FAQ from "./components/FAQ";
 import Contact from "./components/Contact";
+import PrivacyPolicy from "./components/PrivacyPolicy";
+import TermsOfService from "./components/TermsOfService";
 import PortalAccess from "./components/PortalAccess";
 import YieldMonitoring from "./components/monitoring/YieldMonitoring";
 import SpatialGIS from "./components/gis/SpatialGIS";
@@ -61,6 +63,8 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
         <Route path="/portal-access" element={<PortalAccess />} />
         <Route path="/unauthorized" element={<Placeholder title="Unauthorized" />} />
 

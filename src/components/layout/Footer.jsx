@@ -50,8 +50,8 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-white/10">
           <p className="text-sm text-[#9CA3AF]">© 2026 AgriKa-GIS. All Rights Reserved.</p>
           <div className="flex gap-6">
-            <a href="#" className="text-sm text-[#9CA3AF] hover:text-white">Privacy Policy</a>
-            <a href="#" className="text-sm text-[#9CA3AF] hover:text-white">Terms of Service</a>
+            <Link to="/privacy" className="text-sm text-[#9CA3AF] hover:text-white">Privacy Policy</Link>
+            <Link to="/terms" className="text-sm text-[#9CA3AF] hover:text-white">Terms of Service</Link>
           </div>
         </div>
       </div>
