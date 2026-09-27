@@ -196,15 +196,16 @@ export default function LagunaMap({
     }
   }, [selectedMuni, barangayGeo, muniGeo]);
 
-  // Boundary colours adapt to the basemap: green on the light map, bright yellow
-  // (outline only) on satellite so they stay visible over green farmland.
+  // Boundary colours stay green on both basemaps for a consistent look. On
+  // satellite we drop the fill (outline only, so the imagery shows through) and
+  // use a slightly heavier stroke so the green lines stay legible over farmland.
   const sat = basemap === "satellite";
   const heatmapActive = heatmap && yieldByMuni;
   const baseMuniStyle = sat
-    ? { color: "#FACC15", weight: 2, fillColor: "#FACC15", fillOpacity: 0 }
+    ? { color: "#1F6306", weight: 2, fillColor: "#3B9E1C", fillOpacity: 0 }
     : { color: "#1F6306", weight: 1.5, fillColor: "#3B9E1C", fillOpacity: 0.08 };
   const brgyStyle = sat
-    ? { color: "#FDE047", weight: 1.2, fillColor: "#FDE047", fillOpacity: 0 }
+    ? { color: "#1B6D24", weight: 1.2, fillColor: "#3B9E1C", fillOpacity: 0 }
     : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
 
   // Per-barangay choropleth: in barangayHeatmap mode, colour each barangay on the
@@ -482,9 +483,9 @@ export default function LagunaMap({
             data={loadingFeature}
             interactive={false}
             style={{
-              color: sat ? "#FDE047" : "#1F6306",
+              color: "#1F6306",
               weight: 2.5,
-              fillColor: sat ? "#FACC15" : "#3B9E1C",
+              fillColor: "#3B9E1C",
               fillOpacity: 0.35,
             }}
           />
