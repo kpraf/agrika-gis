@@ -212,3 +212,14 @@ CREATE INDEX idx_weather_monthly_muni   ON weather_monthly(municipality_id);
 CREATE INDEX idx_satellite_monthly_muni ON satellite_monthly(municipality_id);
 CREATE INDEX idx_barangay_yield_brgy     ON barangay_yield(barangay_id);
 CREATE INDEX idx_barangay_yield_season   ON barangay_yield(season_id);
+
+-- Public contact-form inquiries (no auth). Also emailed via Resend when configured.
+CREATE TABLE contact_messages (
+    message_id   SERIAL PRIMARY KEY,
+    full_name    VARCHAR(150) NOT NULL,
+    organization VARCHAR(150),
+    phone        VARCHAR(50)  NOT NULL,
+    subject      VARCHAR(150) NOT NULL,
+    message      TEXT         NOT NULL,
+    created_at   TIMESTAMP    NOT NULL DEFAULT NOW()
+);

@@ -65,3 +65,10 @@ class Config:
 
     # Which frontend origins may call the API (comma-separated in .env)
     CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
+
+    # Contact form: stored in the DB always; an email notification is also sent
+    # via Resend (https://resend.com) when RESEND_API_KEY is set. Without the key
+    # the message is still saved, just no email goes out.
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+    CONTACT_FROM_EMAIL = os.environ.get("CONTACT_FROM_EMAIL", "onboarding@resend.dev").strip()
+    CONTACT_TO_EMAIL = os.environ.get("CONTACT_TO_EMAIL", "").strip()

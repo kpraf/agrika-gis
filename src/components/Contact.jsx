@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { contactApi } from "../lib/api";
 import Navbar from "./layout/Navbar";
 import Footer from "./layout/Footer";
 import ContactCTA from "./layout/ContactCTA";
@@ -13,6 +14,7 @@ export default function Contact() {
   const [saveInfo, setSaveInfo] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
   const [searchParams] = useSearchParams();
 
   // Prefill the subject when linked with ?subject=... (e.g. the login page's
@@ -49,7 +51,7 @@ export default function Contact() {
     return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -62,8 +64,23 @@ export default function Contact() {
       localStorage.removeItem(STORAGE_KEY);
     }
 
-    setSubmitted(true);
-    setForm((prev) => ({ ...prev, subject: "", message: "" }));
+    setSending(true);
+    setErrors((prev) => ({ ...prev, form: undefined }));
+    try {
+      await contactApi.send({
+        full_name: form.fullName,
+        organization: form.organization,
+        phone: form.phone,
+        subject: form.subject,
+        message: form.message,
+      });
+      setSubmitted(true);
+      setForm((prev) => ({ ...prev, subject: "", message: "" }));
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, form: err.message || "Could not send your message. Please try again." }));
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -178,14 +195,22 @@ export default function Contact() {
                   Save my info for future comments
                 </label>
 
+                {errors.form && (
+                  <p className="text-sm text-red-600">{errors.form}</p>
+                )}
                 <button
                   type="submit"
-                  className="self-start flex items-center gap-2 px-8 py-4 rounded-full bg-[#2C6E00] text-white font-bold hover:bg-[#1F6306] transition-colors"
+                  disabled={sending}
+                  className="self-start flex items-center gap-2 px-8 py-4 rounded-full bg-[#2C6E00] text-white font-bold hover:bg-[#1F6306] transition-colors disabled:opacity-60"
                 >
-                  Send A Message
-                  <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-                    <path d="M1 5h14M9 1l5 4-5 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  {sending ? "Sending…" : "Send A Message"}
+                  {sending ? (
+                    <span className="inline-flex h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  ) : (
+                    <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+                      <path d="M1 5h14M9 1l5 4-5 4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
                 </button>
               </form>
             )}

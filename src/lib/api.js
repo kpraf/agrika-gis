@@ -203,6 +203,12 @@ export const featuresApi = {
     ),
 };
 
+// Public contact form — stores the inquiry server-side (and emails it when the
+// backend has Resend configured).
+export const contactApi = {
+  send: (payload) => request("/contact", { method: "POST", body: payload }),
+};
+
 export const usersApi = {
   list: () => request("/users", { auth: true }),
   meta: () => request("/meta", { auth: true }),

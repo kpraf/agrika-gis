@@ -139,11 +139,13 @@ def create_app(config_class=Config):
     from users import users_bp
     from yields import yields_bp
     from features import features_bp
+    from contact import contact_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(boundaries_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(yields_bp)
     app.register_blueprint(features_bp)
+    app.register_blueprint(contact_bp)
 
     @app.get("/api/health")
     def health():
