@@ -316,12 +316,27 @@ export default function YieldMonitoring() {
                 <p className="text-sm text-[#6B7280] px-1">
                   No per-barangay data collected for {shortCity} in {season} {year} yet.
                 </p>
+              ) : loading && !panelStats ? (
+                <div className="grid grid-cols-3 gap-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-24 rounded-lg bg-[#F1F3F0] border border-[#F3F4F6] animate-pulse"
+                    />
+                  ))}
+                </div>
               ) : (
                 panelStats && (
                   <div className="grid grid-cols-3 gap-3">
-                    <StatCard label="Average" value={panelStats.avg ?? "N/A"} unit="mt/ha" />
-                    <StatCard label="Highest" value={panelStats.max ?? "N/A"} unit="mt/ha" />
-                    <StatCard label="Lowest" value={panelStats.min ?? "N/A"} unit="mt/ha" />
+                    {[
+                      { label: "Average", value: panelStats.avg ?? "N/A" },
+                      { label: "Highest", value: panelStats.max ?? "N/A" },
+                      { label: "Lowest", value: panelStats.min ?? "N/A" },
+                    ].map((s, i) => (
+                      <div key={s.label} className="anim-fade-in" style={{ animationDelay: `${i * 70}ms` }}>
+                        <StatCard label={s.label} value={s.value} unit="mt/ha" />
+                      </div>
+                    ))}
                   </div>
                 )
               )}
@@ -367,8 +382,14 @@ export default function YieldMonitoring() {
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
+                  ) : loading ? (
+                    <div className="flex flex-col gap-2.5 py-3 px-2 animate-pulse">
+                      {[82, 64, 90, 52, 74, 86, 60, 78].map((w, i) => (
+                        <div key={i} className="h-4 rounded-sm bg-[#E5E7EB]" style={{ width: `${w}%` }} />
+                      ))}
+                    </div>
                   ) : (
-                    <p className="text-sm text-[#9CA3AF] p-4 text-center">{loading ? "Loading…" : "No data."}</p>
+                    <p className="text-sm text-[#9CA3AF] p-4 text-center">No data.</p>
                   )}
                 </div>
               </div>
@@ -399,8 +420,17 @@ export default function YieldMonitoring() {
                         ))}
                       </div>
                     </>
+                  ) : loading ? (
+                    <div className="flex items-center gap-3 w-full animate-pulse">
+                      <div className="w-[110px] h-[110px] rounded-full bg-[#E5E7EB] shrink-0" />
+                      <div className="flex flex-col gap-2 flex-1">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="h-3 rounded bg-[#E5E7EB]" style={{ width: `${80 - i * 12}%` }} />
+                        ))}
+                      </div>
+                    </div>
                   ) : (
-                    <p className="text-sm text-[#9CA3AF] p-2 text-center w-full">{loading ? "Loading…" : "No data."}</p>
+                    <p className="text-sm text-[#9CA3AF] p-2 text-center w-full">No data.</p>
                   )}
                 </div>
               </div>
@@ -421,7 +451,11 @@ export default function YieldMonitoring() {
                     </thead>
                     <tbody>
                       {barData.map((d, i) => (
-                        <tr key={d.id ?? d.name} className="border-t border-[#F3F4F6]">
+                        <tr
+                          key={d.id ?? d.name}
+                          className="border-t border-[#F3F4F6] anim-fade-in"
+                          style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                        >
                           <td className="px-3 py-1.5 text-[#9CA3AF]">{i + 1}</td>
                           <td className="px-3 py-1.5 text-[#191C1A]">
                             {d.name}
@@ -430,8 +464,16 @@ export default function YieldMonitoring() {
                           <td className="px-3 py-1.5 text-right font-semibold text-[#1B3315]">{d.yield}</td>
                         </tr>
                       ))}
-                      {!barData.length && (
-                        <tr><td colSpan={3} className="px-3 py-4 text-center text-[#9CA3AF]">{loading ? "Loading…" : "No data."}</td></tr>
+                      {loading && !barData.length &&
+                        Array.from({ length: 6 }).map((_, i) => (
+                          <tr key={`sk-${i}`} className="border-t border-[#F3F4F6] animate-pulse">
+                            <td className="px-3 py-2"><span className="block h-3 w-4 rounded bg-[#E5E7EB]" /></td>
+                            <td className="px-3 py-2"><span className="block h-3 w-32 rounded bg-[#E5E7EB]" /></td>
+                            <td className="px-3 py-2"><span className="block h-3 w-10 rounded bg-[#E5E7EB] ml-auto" /></td>
+                          </tr>
+                        ))}
+                      {!loading && !barData.length && (
+                        <tr><td colSpan={3} className="px-3 py-4 text-center text-[#9CA3AF]">No data.</td></tr>
                       )}
                     </tbody>
                   </table>

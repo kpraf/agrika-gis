@@ -761,6 +761,13 @@ export default function ReportsExport() {
                     className="h-72"
                     style={{ width: "100%", minWidth: chartData.length > 12 ? `${chartData.length * 30}px` : "100%" }}
                   >
+                  {(loading || scopeLoading) && !chartData.length ? (
+                    <div className="w-full h-full flex items-end justify-between gap-2 md:gap-3 pb-8 pt-6 animate-pulse">
+                      {[58, 82, 46, 70, 54, 88, 66, 50, 74, 62].map((h, i) => (
+                        <div key={i} className="flex-1 rounded-t-md bg-[#E5E7EB]" style={{ height: `${h}%` }} />
+                      ))}
+                    </div>
+                  ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={chartData}
@@ -800,6 +807,7 @@ export default function ReportsExport() {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
+                  )}
                   </div>
                 </div>
               </div>
@@ -827,7 +835,11 @@ export default function ReportsExport() {
                     </thead>
                     <tbody>
                       {filtered.map((r, i) => (
-                        <tr key={i} className="border-t border-[#F3F4F6]">
+                        <tr
+                          key={i}
+                          className="border-t border-[#F3F4F6] anim-fade-in"
+                          style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                        >
                           <td className="px-6 py-3 font-medium text-[#1F2937]">{r.name}</td>
                           <td className="px-6 py-3 text-[#4B5563]">{r.year}</td>
                           <td className="px-6 py-3 text-[#4B5563]">{r.season}</td>
@@ -839,12 +851,20 @@ export default function ReportsExport() {
                           </td>
                         </tr>
                       ))}
-                      {!filtered.length && (
+                      {(loading || scopeLoading) && !filtered.length &&
+                        Array.from({ length: 6 }).map((_, i) => (
+                          <tr key={`sk-${i}`} className="border-t border-[#F3F4F6] animate-pulse">
+                            <td className="px-6 py-3"><span className="block h-3 w-32 rounded bg-[#E5E7EB]" /></td>
+                            <td className="px-6 py-3"><span className="block h-3 w-12 rounded bg-[#E5E7EB]" /></td>
+                            <td className="px-6 py-3"><span className="block h-3 w-14 rounded bg-[#E5E7EB]" /></td>
+                            <td className="px-6 py-3"><span className="block h-3 w-10 rounded bg-[#E5E7EB]" /></td>
+                            <td className="px-6 py-3"><span className="block h-5 w-16 rounded-full bg-[#E5E7EB]" /></td>
+                          </tr>
+                        ))}
+                      {!(loading || scopeLoading) && !filtered.length && (
                         <tr>
                           <td colSpan={5} className="px-6 py-8 text-center text-sm text-[#9CA3AF]">
-                            {loading || scopeLoading
-                              ? "Loading records…"
-                              : "No records match the current filters."}
+                            No records match the current filters.
                           </td>
                         </tr>
                       )}
