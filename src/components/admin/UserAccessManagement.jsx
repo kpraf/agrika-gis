@@ -598,6 +598,41 @@ export default function UserAccessManagement() {
                       </tr>
                     );
                   })}
+                  {loading &&
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={`sk-${i}`} className="border-t border-[#F3F4F6] animate-pulse">
+                        <td className="px-6 py-4">
+                          <span className="block h-4 w-4 rounded bg-[#E5E7EB]" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className="w-10 h-10 rounded-full bg-[#E5E7EB] shrink-0" />
+                            <div className="flex flex-col gap-1.5">
+                              <span className="block h-3 w-28 rounded bg-[#E5E7EB]" />
+                              <span className="block h-2.5 w-20 rounded bg-[#F3F4F6]" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex flex-col gap-1.5">
+                            <span className="block h-3 w-24 rounded bg-[#E5E7EB]" />
+                            <span className="block h-2.5 w-16 rounded bg-[#F3F4F6]" />
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <span className="w-8 h-8 rounded-lg bg-[#E5E7EB] shrink-0" />
+                            <span className="block h-3 w-28 rounded bg-[#E5E7EB]" />
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="block h-6 w-16 rounded-full bg-[#E5E7EB]" />
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="block h-4 w-4 rounded bg-[#E5E7EB]" />
+                        </td>
+                      </tr>
+                    ))}
                   {!loading && !pageRows.length && (
                     <tr>
                       <td colSpan={6} className="px-6 py-10 text-center text-sm text-[#9CA3AF]">
