@@ -619,16 +619,16 @@ export default function ReportsExport() {
                     {pendingImport.result.preview?.length > 0 && (
                       <div className="max-h-48 overflow-y-auto border border-[#F3F4F6] rounded-lg">
                         <table className="w-full text-xs">
-                          <thead className="bg-[#F9FAFB] text-[#6B7280] sticky top-0">
+                          <thead className="text-[#6B7280]">
                             <tr>
-                              <th className="text-left font-semibold px-3 py-1.5">Municipality</th>
+                              <th className="sticky top-0 z-10 bg-[#F9FAFB] text-left font-semibold px-3 py-1.5">Municipality</th>
                               {pendingImport.level === "barangay" && (
-                                <th className="text-left font-semibold px-3 py-1.5">Barangay</th>
+                                <th className="sticky top-0 z-10 bg-[#F9FAFB] text-left font-semibold px-3 py-1.5">Barangay</th>
                               )}
-                              <th className="text-left font-semibold px-3 py-1.5">Year</th>
-                              <th className="text-left font-semibold px-3 py-1.5">Season</th>
-                              <th className="text-right font-semibold px-3 py-1.5">Yield</th>
-                              <th className="text-left font-semibold px-3 py-1.5">Action</th>
+                              <th className="sticky top-0 z-10 bg-[#F9FAFB] text-left font-semibold px-3 py-1.5">Year</th>
+                              <th className="sticky top-0 z-10 bg-[#F9FAFB] text-left font-semibold px-3 py-1.5">Season</th>
+                              <th className="sticky top-0 z-10 bg-[#F9FAFB] text-right font-semibold px-3 py-1.5">Yield</th>
+                              <th className="sticky top-0 z-10 bg-[#F9FAFB] text-left font-semibold px-3 py-1.5">Action</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -824,10 +824,10 @@ export default function ReportsExport() {
                 </div>
                 <div className="max-h-[260px] overflow-y-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-[#F9FAFB] sticky top-0">
+                    <thead>
                       <tr>
                         {[areaColLabel, "Year", "Season", "Yield (MT/ha)", "Status"].map((h) => (
-                          <th key={h} className="px-6 py-3 text-left text-xs font-semibold tracking-wide uppercase text-[#6B7280]">
+                          <th key={h} className="sticky top-0 z-10 bg-[#F9FAFB] px-6 py-3 text-left text-xs font-semibold tracking-wide uppercase text-[#6B7280] border-b border-[#F3F4F6]">
                             {h}
                           </th>
                         ))}
