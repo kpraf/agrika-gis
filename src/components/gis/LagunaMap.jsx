@@ -47,7 +47,7 @@ const BASEMAPS = {
  *       { level: "municipality", id, name, barangayCount }
  */
 // Sequential green ramp for the yield heatmap: light (low yield) -> dark (high).
-const YIELD_RAMP = ["#EDF8E9", "#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
+export const YIELD_RAMP = ["#EDF8E9", "#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
 
 function yieldColor(value, min, max, ramp = YIELD_RAMP) {
   if (value == null || min == null || max == null || max <= min) return ramp[3];
@@ -57,10 +57,10 @@ function yieldColor(value, min, max, ramp = YIELD_RAMP) {
 
 // Diverging ramp for residuals (observed - predicted): over-prediction (negative)
 // -> red, near-zero -> neutral, under-prediction (positive) -> blue.
-const RESIDUAL_RAMP = ["#B2182B", "#EF8A62", "#FDDBC7", "#F7F7F7", "#D1E5F0", "#67A9CF", "#2166AC"];
+export const RESIDUAL_RAMP = ["#B2182B", "#EF8A62", "#FDDBC7", "#F7F7F7", "#D1E5F0", "#67A9CF", "#2166AC"];
 
 // Sequential ramps for the Environment (remote-sensing) layers, keyed by family.
-const RAMPS = {
+export const RAMPS = {
   green: YIELD_RAMP, // NDVI / EVI (vegetation)
   teal: ["#F7FCFD", "#E5F5F9", "#CCECE6", "#99D8C9", "#66C2A4", "#2CA25F", "#006D2C"], // NDWI (moisture)
   blue: ["#F7FBFF", "#DEEBF7", "#C6DBEF", "#9ECAE1", "#6BAED6", "#3182BD", "#08519C"], // rainfall / humidity

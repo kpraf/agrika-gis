@@ -3,6 +3,9 @@ import { useParams } from "react-router-dom";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import Navbar from "../layout/Navbar";
 import LagunaMap from "./LagunaMap";
+import SelectedAreaHeader from "./SelectedAreaHeader";
+import MapLegendCard from "./MapLegendCard";
+import YieldComparisonCard from "./YieldComparisonCard";
 import { useAuth } from "../../context/AuthContext";
 import { yieldApi, featuresApi } from "../../lib/api";
 
@@ -43,15 +46,6 @@ function ToggleSwitch({ checked, onChange, icon, label, disabled = false, hint }
           }`}
         />
       </button>
-    </div>
-  );
-}
-
-function Card({ title, children }) {
-  return (
-    <div className="flex flex-col gap-3 p-6 bg-[#F8FAF5] border border-[#C3C8BD] rounded-xl w-full">
-      <h4 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">{title}</h4>
-      {children}
     </div>
   );
 }
@@ -412,6 +406,30 @@ export default function SpatialGIS() {
     selection?.level === "municipality"
       ? (compareResp?.records ?? []).find((r) => r.municipality_id === selection.id)
       : null;
+
+  // Legend values for the new MapLegendCard. Follows whatever layer is on the map —
+  // observed / predicted / residual / any Environment metric — and the barangay
+  // scale once drilled in.
+  const legendDrilled = !!activeCityId;
+  const legendScale = legendDrilled ? mapBarangayScale : mapColorScale;
+  const legendVisible = legendDrilled ? barangayYieldMode : heatmapOn;
+  const legendBadge = showingEnvironment
+    ? `Environment · ${envConfig.label}`
+    : showingResidual
+    ? "Residual"
+    : showingPredicted
+    ? "Predicted yield"
+    : "Observed yield";
+  const legendAvg =
+    showingEnvironment || showingResidual
+      ? null
+      : legendDrilled
+      ? showingPredicted
+        ? barangayCompareResp?.stats?.predicted_avg
+        : barangayResp?.stats?.avg
+      : showingPredicted
+      ? compareResp?.stats?.predicted_avg
+      : yieldResp?.stats?.avg;
 
   // When the map's drill state changes (e.g. the user clicked a municipality),
   // mirror it into the City filter so the two never disagree.
@@ -792,161 +810,40 @@ export default function SpatialGIS() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
               </button>
             </div>
+            <SelectedAreaHeader
+              selection={selection}
+              yieldResp={yieldResp}
+              season={season}
+              year={year}
+              onBack={() => setActiveCityId(null)}
+            />
             <div className="flex flex-col gap-6 p-6">
-              {/* Selected area (reflects the drill-down state from the map) */}
-              <div className="flex flex-col gap-2 p-6 bg-[#F8FAF5] border border-[#C3C8BD] rounded-xl w-full">
-                <span className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Selected Area</span>
-                {selection?.level === "municipality" ? (
-                  <>
-                    <h3 className="text-lg font-bold text-[#061E04]">{selection.name}</h3>
-                    <p className="text-sm leading-5 text-[#434840]">
-                      {selection.barangayCount != null ? `${selection.barangayCount} barangays` : "Loading barangays…"}.
-                      Hover a barangay on the map to see its name.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h3 className="text-lg font-bold text-[#061E04]">Laguna Province</h3>
-                    <p className="text-sm leading-5 text-[#434840]">
-                      {selection?.municipalityCount != null
-                        ? `${selection.municipalityCount} municipalities mapped.`
-                        : "Loading boundaries…"}{" "}
-                      Click a municipality to explore its barangays.
-                    </p>
-                  </>
-                )}
-              </div>
-
-              {/* Active layers — reflects the real toggles */}
-              <Card title="Active Layers">
-                <div className="flex flex-col gap-1.5">
-                  {heatmapOn && (
-                    <div className="flex items-center gap-3">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-[#41AB5D]" />
-                      <span className="text-sm text-[#191C1A]">Yield Heatmap</span>
-                    </div>
-                  )}
-                  {layers.boundaries && (
-                    <div className="flex items-center gap-3">
-                      <span className="w-2.5 h-2.5 rounded-sm bg-[#1B6D24]" />
-                      <span className="text-sm text-[#191C1A]">Boundaries</span>
-                    </div>
-                  )}
-                  {!heatmapOn && !layers.boundaries && (
-                    <span className="text-sm text-[#9CA3AF]">No layers active.</span>
-                  )}
-                </div>
-              </Card>
-
-              {/* Rice yield — real observed data (mt/ha) for the current filters */}
-              <Card title={`Rice Yield: ${season ?? ""} ${year ?? ""}`.trim()}>
-                {yieldLoading ? (
-                  <p className="text-sm text-[#6B7280]">Loading yield…</p>
-                ) : selection?.level === "municipality" ? (
-                  selectedYield?.yield != null ? (
-                    <div className="flex flex-col gap-1">
-                      <span className="text-3xl font-bold text-[#1B3315]">
-                        {selectedYield.yield}
-                        <span className="text-base font-normal text-[#6B7280]"> mt/ha</span>
-                      </span>
-                      <span className="text-sm text-[#434840]">
-                        Observed average yield for {selection.name}.
-                        {selectedYield.is_proxy && " (Estimated, source proxy value.)"}
-                      </span>
-                      {barangayYieldMode && barangayResp?.stats?.count > 0 && (
-                        <p className="mt-1 text-xs leading-4 text-[#6B7280]">
-                          Per-barangay colours are observed yields from the City Agriculture
-                          Office harvest reports. Barangays with no reported harvest are greyed.
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#6B7280]">
-                      No observed yield for {selection.name} in {season} {year}.
-                    </p>
-                  )
-                ) : yieldResp?.stats?.avg != null ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-3xl font-bold text-[#1B3315]">
-                        {yieldResp.stats.avg}
-                        <span className="text-base font-normal text-[#6B7280]"> mt/ha</span>
-                      </span>
-                      <span className="text-sm text-[#434840]">
-                        Province average across {yieldResp.stats.count} municipalities.
-                      </span>
-                    </div>
-                    <div className="flex gap-4 text-sm text-[#434840]">
-                      <span>Low <b className="text-[#191C1A]">{yieldResp.stats.min}</b></span>
-                      <span>High <b className="text-[#191C1A]">{yieldResp.stats.max}</b></span>
-                    </div>
-                    <p className="text-xs text-[#9CA3AF]">Click a municipality for its value.</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[#6B7280]">No yield data for {season} {year}.</p>
-                )}
-              </Card>
-
-              {/* CNN-LSTM prediction — observed vs predicted (+ residual). Empty
-                  until model output is loaded into municipality_predictions. */}
-              <Card title="CNN-LSTM Prediction">
-                {!predMeta.has_predictions ? (
-                  <p className="text-sm leading-5 text-[#6B7280]">
-                    No model predictions loaded yet. Once CNN-LSTM output is imported, predicted yield
-                    and the observed-vs-predicted residual will appear here and as a “Predicted” map layer.
-                  </p>
-                ) : selection?.level === "municipality" ? (
-                  selectedCompare?.predicted != null ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-6">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-[#6B7280]">Predicted</span>
-                          <span className="text-2xl font-bold text-[#1B3315]">{selectedCompare.predicted}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-xs text-[#6B7280]">Observed</span>
-                          <span className="text-2xl font-bold text-[#1B3315]">
-                            {selectedCompare.observed ?? "N/A"}
-                          </span>
-                        </div>
-                      </div>
-                      {selectedCompare.residual != null && (
-                        <span className="text-sm text-[#434840]">
-                          Residual (obs − pred):{" "}
-                          <b className={selectedCompare.residual >= 0 ? "text-[#16A34A]" : "text-[#EF4444]"}>
-                            {selectedCompare.residual > 0 ? "+" : ""}
-                            {selectedCompare.residual} mt/ha
-                          </b>
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#6B7280]">No prediction for {selection.name} in {season} {year}.</p>
-                  )
-                ) : compareResp?.stats?.predicted_avg != null ? (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-6">
-                      <div className="flex flex-col">
-                        <span className="text-xs text-[#6B7280]">Predicted avg</span>
-                        <span className="text-2xl font-bold text-[#1B3315]">{compareResp.stats.predicted_avg}</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs text-[#6B7280]">Observed avg</span>
-                        <span className="text-2xl font-bold text-[#1B3315]">{compareResp.stats.observed_avg}</span>
-                      </div>
-                    </div>
-                    {compareResp.stats.mae != null && (
-                      <span className="text-sm text-[#434840]">
-                        Model MAE: <b className="text-[#191C1A]">{compareResp.stats.mae} mt/ha</b>{" "}
-                        over {compareResp.stats.count_predicted} municipalities
-                      </span>
-                    )}
-                    <p className="text-xs text-[#9CA3AF]">Switch to the Predicted layer or click a municipality.</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[#6B7280]">No predictions for {season} {year}.</p>
-                )}
-              </Card>
+              <MapLegendCard
+                visible={legendVisible}
+                scale={legendScale}
+                colorMode={mapColorMode}
+                rampKey={mapRampKey}
+                title={mapLegendLabel}
+                badge={legendBadge}
+                subtitle={`${season ?? ""} ${year ?? ""}`.trim()}
+                avg={legendAvg}
+                boundariesOn={layers.boundaries}
+              />
+              {/* Observed vs predicted only makes sense for a clicked municipality —
+                  hidden at the province level until you drill into a city. */}
+              {selection?.level === "municipality" && (
+                <YieldComparisonCard
+                  season={season}
+                  year={year}
+                  yieldLoading={yieldLoading}
+                  yieldResp={yieldResp}
+                  compareResp={compareResp}
+                  predMeta={predMeta}
+                  selection={selection}
+                  selectedYield={selectedYield}
+                  selectedCompare={selectedCompare}
+                />
+              )}
             </div>
           </section>
         </div>
