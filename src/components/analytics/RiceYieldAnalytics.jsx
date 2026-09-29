@@ -600,15 +600,31 @@ export default function RiceYieldAnalytics() {
             <div className="w-full h-[360px] pt-2">
               {loading && chartData.every((r) => r.average == null) ? (
                 <div className="w-full h-full flex flex-col justify-end gap-3 pb-8 animate-pulse">
-                  <div className="flex items-end justify-between gap-2 md:gap-3 h-full pt-6">
-                    {[58, 82, 46, 70, 54, 88, 66, 50, 74].map((h, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-t-md bg-[#E5E7EB]"
-                        style={{ height: `${h}%` }}
-                      />
-                    ))}
-                  </div>
+                  {chartType === "bar" ? (
+                    <div className="flex items-end justify-between gap-2 md:gap-3 h-full pt-6">
+                      {[58, 82, 46, 70, 54, 88, 66, 50, 74].map((h, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 rounded-t-md bg-[#E5E7EB]"
+                          style={{ height: `${h}%` }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex-1 pt-6">
+                      <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full">
+                        <polyline
+                          points="0,30 12,20 25,26 37,12 50,22 62,9 75,18 88,13 100,17"
+                          fill="none"
+                          stroke="#E5E7EB"
+                          strokeWidth="2.5"
+                          strokeLinejoin="round"
+                          strokeLinecap="round"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </svg>
+                    </div>
+                  )}
                   <div className="h-2 w-full rounded bg-[#F3F4F6]" />
                 </div>
               ) : (
