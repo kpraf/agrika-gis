@@ -2,6 +2,45 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import { usersApi } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
+
+// Confirmation dialog for destructive account actions (deactivate / delete).
+function ConfirmDialog({ title, message, isSelf, confirmLabel, danger, busy, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 anim-fade-in">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4 anim-scale-in">
+        <h2 className="text-lg font-bold text-[#1F2937]">{title}</h2>
+        <p className="text-sm text-[#4B5563] leading-6">{message}</p>
+        {isSelf && (
+          <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            This is <b>your own account</b>. You may lose access to the portal.
+          </div>
+        )}
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="px-4 py-2 rounded-lg border border-[#D1D5DB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className={`px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2 disabled:opacity-60 ${
+              danger ? "bg-[#DC2626] hover:bg-[#B91C1C]" : "bg-[#1F6306] hover:bg-[#184f05]"
+            }`}
+          >
+            {busy && <span className="inline-flex h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const ROLE_META = {
   administrator: { label: "Administrator", scope: "Province-wide Access" },
@@ -171,6 +210,9 @@ function UserForm({ initial, roles, municipalities, onCancel, onSave }) {
 }
 
 export default function UserAccessManagement() {
+  const { user: currentUser } = useAuth();
+  const [confirmState, setConfirmState] = useState(null); // { title, message, isSelf, confirmLabel, danger, onConfirm } | null
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [municipalities, setMunicipalities] = useState([]);
@@ -300,29 +342,81 @@ export default function UserAccessManagement() {
     setFormState(null);
   };
 
-  const toggleStatus = (u) =>
-    runAction(async () => {
-      await usersApi.update(u.id, { status: u.status === "Active" ? "Inactive" : "Active" });
-      setMenuOpenFor(null);
+  const toggleStatus = (u) => {
+    setMenuOpenFor(null);
+    // Activating is harmless — do it straight away. Deactivating asks first.
+    if (u.status !== "Active") {
+      return runAction(async () => usersApi.update(u.id, { status: "Active" }));
+    }
+    setConfirmState({
+      title: "Deactivate account?",
+      message: `${displayName(u)} will be marked Inactive and won't be able to sign in until reactivated.`,
+      isSelf: u.id === currentUser?.id,
+      confirmLabel: "Deactivate",
+      danger: false,
+      onConfirm: () => runAction(async () => usersApi.update(u.id, { status: "Inactive" })),
     });
+  };
 
-  const deleteUser = (u) =>
-    runAction(async () => {
-      await usersApi.remove(u.id);
-      setMenuOpenFor(null);
+  const deleteUser = (u) => {
+    setMenuOpenFor(null);
+    setConfirmState({
+      title: "Delete account?",
+      message: `${displayName(u)}'s account will be permanently deleted. This cannot be undone.`,
+      isSelf: u.id === currentUser?.id,
+      confirmLabel: "Delete",
+      danger: true,
+      onConfirm: () => runAction(async () => usersApi.remove(u.id)),
     });
+  };
 
-  const bulkSetStatus = (status) =>
-    runAction(async () => {
-      await Promise.all([...selected].map((id) => usersApi.update(id, { status })));
-      setSelected(new Set());
+  const bulkSetStatus = (status) => {
+    if (status === "Active") {
+      return runAction(async () => {
+        await Promise.all([...selected].map((id) => usersApi.update(id, { status })));
+        setSelected(new Set());
+      });
+    }
+    setConfirmState({
+      title: `Deactivate ${selected.size} account${selected.size === 1 ? "" : "s"}?`,
+      message: "The selected account(s) will be marked Inactive and won't be able to sign in until reactivated.",
+      isSelf: selected.has(currentUser?.id),
+      confirmLabel: "Deactivate",
+      danger: false,
+      onConfirm: () =>
+        runAction(async () => {
+          await Promise.all([...selected].map((id) => usersApi.update(id, { status: "Inactive" })));
+          setSelected(new Set());
+        }),
     });
+  };
 
-  const bulkDelete = () =>
-    runAction(async () => {
-      await Promise.all([...selected].map((id) => usersApi.remove(id)));
-      setSelected(new Set());
+  const bulkDelete = () => {
+    setConfirmState({
+      title: `Delete ${selected.size} account${selected.size === 1 ? "" : "s"}?`,
+      message: "The selected account(s) will be permanently deleted. This cannot be undone.",
+      isSelf: selected.has(currentUser?.id),
+      confirmLabel: "Delete",
+      danger: true,
+      onConfirm: () =>
+        runAction(async () => {
+          await Promise.all([...selected].map((id) => usersApi.remove(id)));
+          setSelected(new Set());
+        }),
     });
+  };
+
+  // Run the pending confirmed action, then close the dialog.
+  const handleConfirm = async () => {
+    if (!confirmState) return;
+    setConfirmBusy(true);
+    try {
+      await confirmState.onConfirm();
+    } finally {
+      setConfirmBusy(false);
+      setConfirmState(null);
+    }
+  };
 
   return (
     <div className="flex w-full h-screen bg-white font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -679,6 +773,15 @@ export default function UserAccessManagement() {
           municipalities={municipalities}
           onCancel={() => setFormState(null)}
           onSave={handleSave}
+        />
+      )}
+
+      {confirmState && (
+        <ConfirmDialog
+          {...confirmState}
+          busy={confirmBusy}
+          onConfirm={handleConfirm}
+          onCancel={() => !confirmBusy && setConfirmState(null)}
         />
       )}
     </div>
