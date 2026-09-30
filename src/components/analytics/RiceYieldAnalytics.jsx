@@ -738,7 +738,7 @@ export default function RiceYieldAnalytics() {
               ) : (
                 <>
                   Year-over-year observed average yield (mt/ha) per municipality, {season} season. Source: PRiSM / Ricelytics
-                  (2018–2025). Some municipalities have gaps in a few semesters.
+                  (2018 – 2026 Sem 1). Some municipalities have gaps in a few semesters.
                 </>
               )}
             </p>
