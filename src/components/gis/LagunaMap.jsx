@@ -413,6 +413,26 @@ export default function LagunaMap({
     }
   };
 
+  // The map's "back" button steps back ONE level: a selected barangay -> its
+  // municipality (deselect + zoom out to the city), otherwise the municipality
+  // -> the whole province.
+  const backOneLevel = () => {
+    if (selectedBrgy) {
+      setSelectedBrgy(null); // reporting effect then reports the municipality
+      try {
+        const geo = barangayGeoRef.current;
+        if (geo && mapRef.current) {
+          const b = L.geoJSON(geo).getBounds();
+          if (b.isValid()) mapRef.current.fitBounds(b, FIT_OPTS);
+        }
+      } catch {
+        /* ignore */
+      }
+    } else {
+      backToProvince();
+    }
+  };
+
   // Drill into a municipality by id (used by the parent's City filter — we may
   // not have a Leaflet layer handle here, so derive bounds from the geometry).
   const focusMunicipality = (id) => {
@@ -670,13 +690,15 @@ export default function LagunaMap({
       {selectedMuni && (
         <button
           type="button"
-          onClick={backToProvince}
+          onClick={backOneLevel}
           className="absolute left-6 top-20 z-[600] flex items-center gap-2 px-4 py-2 rounded-lg bg-white shadow-md text-sm font-semibold text-[#1F6306] hover:bg-[#F0FDF4]"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          {selectedMuni.name} · back to all
+          {selectedBrgy
+            ? `${selectedBrgy.name} · back to ${selectedMuni.name.replace(/^City of /, "")}`
+            : `${selectedMuni.name} · back to all`}
         </button>
       )}
 

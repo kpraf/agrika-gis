@@ -448,11 +448,6 @@ export default function SpatialGIS() {
   // When the map's drill state changes (e.g. the user clicked a municipality),
   // mirror it into the City filter so the two never disagree.
   const handleSelection = (sel) => {
-    // The province view is only entered by explicitly clearing the active city
-    // (onProvince sets activeCityId=null first). Ignore any stray "province"
-    // report while a city is still active — e.g. right after deselecting a
-    // barangay — so back-from-barangay lands on the city, never the province.
-    if (sel.level === "province" && activeCityId != null) return;
     setSelection(sel);
     // A barangay click stays inside the drilled-in city — don't reset activeCityId.
     if (sel.level === "municipality") setActiveCityId(sel.id);
