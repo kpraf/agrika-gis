@@ -8,7 +8,7 @@ const CONTACT_ITEMS = [
       </svg>
     ),
     title: "Call Us",
-    lines: ["+63 9926 142 037"],
+    lines: ["+63 992 614 2037"],
   },
   {
     icon: (
