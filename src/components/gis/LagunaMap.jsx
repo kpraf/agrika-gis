@@ -107,7 +107,7 @@ export default function LagunaMap({
   const [selectedMuni, setSelectedMuni] = useState(null); // { id, name }
   const [selectedBrgy, setSelectedBrgy] = useState(null); // { id, name } clicked barangay
   // Leaflet layer of the currently highlighted barangay, so a new click can reset it.
-  const selBrgyRef = useRef(null); // { layer, base }
+  const barangayGeoRef = useRef(null); // latest barangay geo, for zooming back out on deselect
   const [barangayGeo, setBarangayGeo] = useState(null);
   const [barangaysLoading, setBarangaysLoading] = useState(false);
   // GeoJSON feature of the municipality being drilled into. While its barangays load,
@@ -211,12 +211,21 @@ export default function LagunaMap({
     }
   }, [selectedMuni, selectedBrgy, barangayGeo, muniGeo]);
 
-  // Parent asked to deselect the barangay (e.g. the panel's back button).
+  // Parent asked to deselect the barangay (e.g. the panel's back button):
+  // restore all barangays and zoom back out to the whole municipality.
   useEffect(() => {
     if (!clearBrgyToken) return;
-    if (selBrgyRef.current?.layer?._map) selBrgyRef.current.layer.setStyle(selBrgyRef.current.base);
-    selBrgyRef.current = null;
-    setSelectedBrgy(null);
+    setSelectedBrgy(null); // brgyStyleFor drops the isolate on the next render
+    try {
+      const geo = barangayGeoRef.current;
+      if (geo && mapRef.current) {
+        const b = L.geoJSON(geo).getBounds();
+        if (b.isValid()) mapRef.current.fitBounds(b, FIT_OPTS);
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearBrgyToken]);
 
   // Boundary colours stay green on both basemaps for a consistent look. On
@@ -240,7 +249,7 @@ export default function LagunaMap({
     colorMode === "residual"
       ? residualColor(v, barangayColorScale?.max)
       : yieldColor(v, barangayColorScale?.min, barangayColorScale?.max, RAMPS[rampKey] || YIELD_RAMP);
-  const brgyStyleFor = (feature) => {
+  const brgyBaseStyleFor = (feature) => {
     if (!brgyHeatmapActive) return brgyStyle;
     const rec = yieldByBarangay?.[feature.properties.barangay_id];
     if (!rec || rec.yield == null || !barangayColorScale) {
@@ -252,6 +261,21 @@ export default function LagunaMap({
       fillColor: brgyFill(rec.yield),
       fillOpacity: sat ? 0.6 : 0.8,
     };
+  };
+  // Isolate a clicked barangay: highlight it, dim the rest. Declarative (folded
+  // into the style prop) so react-leaflet doesn't wipe it on the next render.
+  const brgyHighlightStyle = (base) => ({
+    color: sat ? "#FDE047" : "#0B3D0B",
+    weight: 3.5,
+    opacity: 1,
+    fillColor: base.fillColor,
+    fillOpacity: Math.min(1, (base.fillOpacity ?? 0) + 0.15),
+  });
+  const brgyDimStyle = (base) => ({ ...base, opacity: 0.2, fillOpacity: (base.fillOpacity ?? 0) * 0.3 });
+  const brgyStyleFor = (feature) => {
+    const base = brgyBaseStyleFor(feature);
+    if (!selectedBrgy) return base;
+    return feature.properties.barangay_id === selectedBrgy.id ? brgyHighlightStyle(base) : brgyDimStyle(base);
   };
   // Value label + formatting shared by the municipality and barangay tooltips.
   const valueLabel =
@@ -326,7 +350,6 @@ export default function LagunaMap({
   const loadBarangays = (id, name, feature) => {
     setSelectedMuni({ id, name });
     setSelectedBrgy(null); // dropping into a (different) city clears any clicked barangay
-    selBrgyRef.current = null;
     setBarangayGeo(null);
     setBarangaysLoading(true);
     setLoadingFeature(feature);
@@ -379,7 +402,6 @@ export default function LagunaMap({
     fitTokenRef.current += 1; // invalidate any pending highlight-ready signal
     setSelectedMuni(null);
     setSelectedBrgy(null);
-    selBrgyRef.current = null;
     setBarangayGeo(null);
     setBarangaysLoading(false);
     setLoadingFeature(null);
@@ -475,25 +497,27 @@ export default function LagunaMap({
     layer.bindTooltip(muniTooltip(feature), { sticky: true });
   };
 
+  barangayGeoRef.current = barangayGeo; // keep the latest geo for zoom-back-out
+
   const onEachBarangay = (feature, layer) => {
-    const base = brgyStyleFor(feature);
-    const highlight = { color: sat ? "#FDE047" : "#0B3D0B", weight: 3.5, fillOpacity: Math.min(1, (base.fillOpacity ?? 0) + 0.12) };
-    const isSel = () => selBrgyRef.current?.layer === layer;
-    const clearPrev = () => {
-      const prev = selBrgyRef.current;
-      if (prev && prev.layer !== layer && prev.layer?._map) prev.layer.setStyle(prev.base);
-    };
+    const isSel = () => selectedBrgy?.id === feature.properties.barangay_id;
     layer.on({
       click: () => {
-        clearPrev();
-        selBrgyRef.current = { layer, base };
-        layer.setStyle(highlight);
-        layer.bringToFront?.();
+        // Zoom into the clicked barangay (municipality -> barangay), like the
+        // province -> municipality drill-in. Isolate is handled by brgyStyleFor.
+        try {
+          const b = layer.getBounds();
+          if (b.isValid()) mapRef.current?.fitBounds(b, { padding: [40, 40], maxZoom: 16 });
+        } catch {
+          /* ignore */
+        }
         setSelectedBrgy({ id: feature.properties.barangay_id, name: feature.properties.name });
       },
-      mouseover: () =>
-        layer.setStyle({ weight: (isSel() ? highlight.weight : base.weight) + 1, fillOpacity: Math.min(1, (base.fillOpacity ?? 0) + 0.24) }),
-      mouseout: () => layer.setStyle(isSel() ? highlight : base),
+      mouseover: () => {
+        const base = brgyStyleFor(feature);
+        layer.setStyle({ weight: (base.weight ?? 0.8) + 1, opacity: 1, fillOpacity: Math.min(1, (base.fillOpacity ?? 0) + 0.24) });
+      },
+      mouseout: () => layer.setStyle(brgyStyleFor(feature)),
     });
     layer.bindTooltip(brgyTooltip(feature), { sticky: true });
   };
@@ -523,7 +547,7 @@ export default function LagunaMap({
         )}
         {boundariesVisible && selectedMuni && barangayGeo && (
           <GeoJSON
-            key={`barangays-${selectedMuni.id}-${basemap}-${barangayKey}`}
+            key={`barangays-${selectedMuni.id}-${basemap}-${barangayKey}-${selectedBrgy?.id ?? "none"}`}
             data={barangayGeo}
             style={brgyStyleFor}
             onEachFeature={onEachBarangay}
