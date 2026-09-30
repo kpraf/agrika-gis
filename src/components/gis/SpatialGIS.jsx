@@ -83,6 +83,7 @@ export default function SpatialGIS() {
   const [leftOpen, setLeftOpen] = useState(false); // controls drawer
   const [rightOpen, setRightOpen] = useState(false); // context drawer
   const [selection, setSelection] = useState(null); // reported by <LagunaMap />
+  const [clearBrgyToken, setClearBrgyToken] = useState(0); // bump to deselect a clicked barangay
   const [municipalities, setMunicipalities] = useState([]); // [{ id, name }] from the map
   const [activeCityId, setActiveCityId] = useState(null); // null = whole province
 
@@ -407,6 +408,19 @@ export default function SpatialGIS() {
       ? (compareResp?.records ?? []).find((r) => r.municipality_id === selection.id)
       : null;
 
+  // A clicked barangay: its observed / predicted / residual / environment value,
+  // pulled from the per-barangay responses already loaded for the drilled-in city.
+  const isBarangaySel = selection?.level === "barangay";
+  const selectedBrgyObserved = isBarangaySel
+    ? (barangayResp?.records ?? []).find((r) => r.barangay_id === selection.id)
+    : null;
+  const selectedBrgyCompare = isBarangaySel
+    ? (barangayCompareResp?.records ?? []).find((r) => r.barangay_id === selection.id)
+    : null;
+  const selectedBrgyEnv = isBarangaySel
+    ? (barangayEnvResp?.records ?? []).find((r) => r.barangay_id === selection.id)
+    : null;
+
   // Legend values for the new MapLegendCard. Follows whatever layer is on the map —
   // observed / predicted / residual / any Environment metric — and the barangay
   // scale once drilled in.
@@ -435,8 +449,11 @@ export default function SpatialGIS() {
   // mirror it into the City filter so the two never disagree.
   const handleSelection = (sel) => {
     setSelection(sel);
-    setActiveCityId(sel.level === "municipality" ? sel.id : null);
+    // A barangay click stays inside the drilled-in city — don't reset activeCityId.
+    if (sel.level === "municipality") setActiveCityId(sel.id);
+    else if (sel.level === "province") setActiveCityId(null);
   };
+  const clearBarangay = () => setClearBrgyToken((t) => t + 1);
 
   // While the session is being restored, don't render either chrome (avoids a
   // public->portal flash for a logged-in user refreshing on /yield-map).
@@ -742,6 +759,7 @@ export default function SpatialGIS() {
             season={season}
             onSelectionChange={handleSelection}
             focusMunicipalityId={activeCityId}
+            clearBrgyToken={clearBrgyToken}
             onMunicipalitiesLoaded={setMunicipalities}
             heatmap={heatmapOn}
             yieldByMuni={mapYieldByMuni}
@@ -815,7 +833,8 @@ export default function SpatialGIS() {
               yieldResp={yieldResp}
               season={season}
               year={year}
-              onBack={() => setActiveCityId(null)}
+              onProvince={() => setActiveCityId(null)}
+              onBackToMuni={clearBarangay}
             />
             <div className="flex flex-col gap-6 p-6">
               <MapLegendCard
@@ -829,8 +848,8 @@ export default function SpatialGIS() {
                 avg={legendAvg}
                 boundariesOn={layers.boundaries}
               />
-              {/* Observed vs predicted only makes sense for a clicked municipality —
-                  hidden at the province level until you drill into a city. */}
+              {/* Observed vs predicted only makes sense for a clicked area —
+                  hidden at the province level until you drill into a city or barangay. */}
               {selection?.level === "municipality" && (
                 <YieldComparisonCard
                   season={season}
@@ -842,6 +861,27 @@ export default function SpatialGIS() {
                   selection={selection}
                   selectedYield={selectedYield}
                   selectedCompare={selectedCompare}
+                />
+              )}
+              {selection?.level === "barangay" && (
+                <YieldComparisonCard
+                  season={season}
+                  year={year}
+                  yieldLoading={false}
+                  yieldResp={barangayResp}
+                  compareResp={barangayCompareResp}
+                  predMeta={predMeta}
+                  selection={selection}
+                  selectedYield={
+                    selectedBrgyCompare?.observed != null
+                      ? { yield: selectedBrgyCompare.observed }
+                      : selectedBrgyObserved
+                      ? { yield: selectedBrgyObserved.yield }
+                      : null
+                  }
+                  selectedCompare={selectedBrgyCompare}
+                  envValue={selectedBrgyEnv?.value}
+                  envLabel={showingEnvironment ? mapLegendLabel : null}
                 />
               )}
             </div>

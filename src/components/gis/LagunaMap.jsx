@@ -80,6 +80,7 @@ export default function LagunaMap({
   season = "",
   onSelectionChange,
   focusMunicipalityId = null,
+  clearBrgyToken = 0, // bump to clear the clicked-barangay selection from the parent
   onMunicipalitiesLoaded,
   heatmap = false,
   yieldByMuni = null, // { [municipality_id]: { yield, is_proxy } }
@@ -104,6 +105,9 @@ export default function LagunaMap({
   const [muniGeo, setMuniGeo] = useState(null);
   const [provinceBounds, setProvinceBounds] = useState(null);
   const [selectedMuni, setSelectedMuni] = useState(null); // { id, name }
+  const [selectedBrgy, setSelectedBrgy] = useState(null); // { id, name } clicked barangay
+  // Leaflet layer of the currently highlighted barangay, so a new click can reset it.
+  const selBrgyRef = useRef(null); // { layer, base }
   const [barangayGeo, setBarangayGeo] = useState(null);
   const [barangaysLoading, setBarangaysLoading] = useState(false);
   // GeoJSON feature of the municipality being drilled into. While its barangays load,
@@ -187,7 +191,15 @@ export default function LagunaMap({
   cbRef.current = onSelectionChange;
   useEffect(() => {
     if (!cbRef.current) return;
-    if (selectedMuni) {
+    if (selectedMuni && selectedBrgy) {
+      cbRef.current({
+        level: "barangay",
+        id: selectedBrgy.id,
+        name: selectedBrgy.name,
+        municipalityId: selectedMuni.id,
+        municipalityName: selectedMuni.name,
+      });
+    } else if (selectedMuni) {
       cbRef.current({
         level: "municipality",
         id: selectedMuni.id,
@@ -197,7 +209,15 @@ export default function LagunaMap({
     } else {
       cbRef.current({ level: "province", municipalityCount: muniGeo?.features?.length ?? null });
     }
-  }, [selectedMuni, barangayGeo, muniGeo]);
+  }, [selectedMuni, selectedBrgy, barangayGeo, muniGeo]);
+
+  // Parent asked to deselect the barangay (e.g. the panel's back button).
+  useEffect(() => {
+    if (!clearBrgyToken) return;
+    if (selBrgyRef.current?.layer?._map) selBrgyRef.current.layer.setStyle(selBrgyRef.current.base);
+    selBrgyRef.current = null;
+    setSelectedBrgy(null);
+  }, [clearBrgyToken]);
 
   // Boundary colours stay green on both basemaps for a consistent look. On
   // satellite we drop the fill (outline only, so the imagery shows through) and
@@ -305,6 +325,8 @@ export default function LagunaMap({
   // is always visible (even on a fast backend). Stale fetches are ignored.
   const loadBarangays = (id, name, feature) => {
     setSelectedMuni({ id, name });
+    setSelectedBrgy(null); // dropping into a (different) city clears any clicked barangay
+    selBrgyRef.current = null;
     setBarangayGeo(null);
     setBarangaysLoading(true);
     setLoadingFeature(feature);
@@ -356,6 +378,8 @@ export default function LagunaMap({
     drillReqRef.current += 1; // cancel any in-flight barangay load
     fitTokenRef.current += 1; // invalidate any pending highlight-ready signal
     setSelectedMuni(null);
+    setSelectedBrgy(null);
+    selBrgyRef.current = null;
     setBarangayGeo(null);
     setBarangaysLoading(false);
     setLoadingFeature(null);
@@ -453,9 +477,23 @@ export default function LagunaMap({
 
   const onEachBarangay = (feature, layer) => {
     const base = brgyStyleFor(feature);
+    const highlight = { color: sat ? "#FDE047" : "#0B3D0B", weight: 3.5, fillOpacity: Math.min(1, (base.fillOpacity ?? 0) + 0.12) };
+    const isSel = () => selBrgyRef.current?.layer === layer;
+    const clearPrev = () => {
+      const prev = selBrgyRef.current;
+      if (prev && prev.layer !== layer && prev.layer?._map) prev.layer.setStyle(prev.base);
+    };
     layer.on({
-      mouseover: () => layer.setStyle({ weight: base.weight + 1, fillOpacity: Math.min(1, base.fillOpacity + 0.24) }),
-      mouseout: () => layer.setStyle(base),
+      click: () => {
+        clearPrev();
+        selBrgyRef.current = { layer, base };
+        layer.setStyle(highlight);
+        layer.bringToFront?.();
+        setSelectedBrgy({ id: feature.properties.barangay_id, name: feature.properties.name });
+      },
+      mouseover: () =>
+        layer.setStyle({ weight: (isSel() ? highlight.weight : base.weight) + 1, fillOpacity: Math.min(1, (base.fillOpacity ?? 0) + 0.24) }),
+      mouseout: () => layer.setStyle(isSel() ? highlight : base),
     });
     layer.bindTooltip(brgyTooltip(feature), { sticky: true });
   };

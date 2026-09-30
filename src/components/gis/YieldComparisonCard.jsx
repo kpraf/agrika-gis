@@ -37,9 +37,11 @@ function Tile({ value, label, tone }) {
 
 export default function YieldComparisonCard({
   season, year, yieldLoading, yieldResp, compareResp, predMeta,
-  selection, selectedYield, selectedCompare,
+  selection, selectedYield, selectedCompare, envValue = null, envLabel = null,
 }) {
-  const isMuni = selection?.level === "municipality";
+  // A clicked municipality OR barangay both show a single area's detail (vs the
+  // province averages). `isMuni` is the design component's original name for it.
+  const isMuni = selection?.level === "municipality" || selection?.level === "barangay";
   const stats = yieldResp?.stats;
 
   if (yieldLoading) {
@@ -55,6 +57,12 @@ export default function YieldComparisonCard({
   if (observed == null) {
     return (
       <Shell season={season} year={year}>
+        {envValue != null && envLabel && (
+          <div className="flex items-center justify-between px-3.5 py-2.5 bg-white border border-[#E1E3DE] rounded-[10px]">
+            <span className="text-xs font-semibold text-[#434840]">{envLabel}</span>
+            <span className="text-base font-bold text-[#1B3315]">{envValue}</span>
+          </div>
+        )}
         <p className="text-sm text-[#6B7280]">
           {isMuni ? `No observed yield for ${selection.name} in ${season} ${year}.` : `No yield data for ${season} ${year}.`}
         </p>
@@ -78,6 +86,12 @@ export default function YieldComparisonCard({
 
   return (
     <Shell season={season} year={year} showBadge={hasPred}>
+      {envValue != null && envLabel && (
+        <div className="flex items-center justify-between px-3.5 py-2.5 bg-white border border-[#E1E3DE] rounded-[10px]">
+          <span className="text-xs font-semibold text-[#434840]">{envLabel}</span>
+          <span className="text-base font-bold text-[#1B3315]">{envValue}</span>
+        </div>
+      )}
       {/* Observed / Predicted values */}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1 p-3.5 bg-white border border-[#E1E3DE] rounded-[10px]">
