@@ -3,7 +3,7 @@ predict_barangay_cnn_lstm.py
 ============================
 
 Barangay-level predictions from the thesis CNN-LSTM. There is no separate
-barangay model (the barangay baseline underperforms at this sample size — see
+barangay model (the barangay baseline underperforms at this sample size, see
 docs/experiment-results-barangay.md). Instead we take the SAME CNN-LSTM
 (enhanced S2+S1 feature set), train it on ALL municipality data, and apply it to
 each barangay's own environmental features. The residual (observed − predicted)
