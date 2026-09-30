@@ -8,7 +8,7 @@ const CONTACT_ITEMS = [
       </svg>
     ),
     title: "Call Us",
-    lines: ["+63 917 000 0000"],
+    lines: ["+63 992 614 2037"],
   },
   {
     icon: (
@@ -18,7 +18,7 @@ const CONTACT_ITEMS = [
       </svg>
     ),
     title: "Email Us",
-    lines: ["agrika-gis.official@gmail.com", "help.agrika-gis@gmail.com"],
+    lines: ["agrikagis.official@gmail.com"],
   },
   {
     icon: (

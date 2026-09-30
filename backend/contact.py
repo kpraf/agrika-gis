@@ -37,6 +37,40 @@ def _clean(payload, key):
 
 
 def _send_email(row):
+    import resend
+
+    key = current_app.config.get("RESEND_API_KEY")
+    to = current_app.config.get("CONTACT_TO_EMAIL")
+
+    if not key or not to:
+        return False
+
+    resend.api_key = key
+
+    body = {
+        "from": current_app.config.get(
+            "CONTACT_FROM_EMAIL"
+        ) or "onboarding@resend.dev",
+        "to": [to],
+        "subject": f"[AgriKA-GIS] Contact: {row['subject']}",
+        "text": (
+            f"New contact inquiry from AgriKA-GIS.\n\n"
+            f"Name: {row['full_name']}\n"
+            f"Organization: {row['organization'] or '(none)'}\n"
+            f"Phone: {row['phone']}\n"
+            f"Subject: {row['subject']}\n\n"
+            f"Message:\n{row['message']}\n"
+        ),
+    }
+
+    try:
+        response = resend.Emails.send(body)
+        current_app.logger.info("Resend email sent: %s", response)
+        return True
+    except Exception as exc:
+        current_app.logger.warning("Resend email failed: %s", exc)
+        return False
+    
     """Best-effort Resend notification. Returns True if an email was sent."""
     key = current_app.config.get("RESEND_API_KEY")
     to = current_app.config.get("CONTACT_TO_EMAIL")
@@ -64,7 +98,15 @@ def _send_email(row):
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return 200 <= resp.status < 300
-    except (urllib.error.URLError, OSError) as exc:  # network/timeout/HTTP error
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        current_app.logger.warning(
+            "Resend HTTP error %s: %s",
+            exc.code,
+            error_body
+        )
+        return False
+    except (urllib.error.URLError, OSError) as exc:
         current_app.logger.warning("Resend email failed: %s", exc)
         return False
 

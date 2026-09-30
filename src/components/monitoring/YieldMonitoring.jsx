@@ -607,7 +607,7 @@ export default function YieldMonitoring() {
               )}
 
               <p className="text-[11px] leading-4 text-[#9CA3AF]">
-                Source: PRiSM / Ricelytics observed municipality yields (2018–2025). Values marked
+                Source: PRiSM / Ricelytics observed municipality yields (2018 – 2026 Sem 1). Values marked
                 “est.” are source proxy figures for low-rice cities. San Pedro has no palay data.
               </p>
             </div>

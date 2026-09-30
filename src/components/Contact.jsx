@@ -95,7 +95,7 @@ export default function Contact() {
 
         <div className="relative z-10 flex-1 flex flex-col items-start justify-center gap-4 px-6 md:px-12 pb-12 max-w-4xl">
           <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-[1.05]">
-            Contact with AgriKa-GIS
+            Contact the AgriKa-GIS Team
           </h1>
           <p className="text-lg md:text-xl text-[#E5E7EB] max-w-2xl">
             Fostering collaboration between research institutions, local government units, and agricultural
@@ -110,7 +110,7 @@ export default function Contact() {
           {/* Form Column */}
           <div className="flex flex-col gap-6">
             <div className="self-start">
-              <Pill variant="green">Contact With Us</Pill>
+              <Pill variant="green">Contact Us</Pill>
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-[#111827]">Send an Inquiry</h2>
 
@@ -118,8 +118,8 @@ export default function Contact() {
               <div className="flex flex-col gap-3 p-6 bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl">
                 <h3 className="text-lg font-bold text-[#15803D]">Thanks, your message is queued.</h3>
                 <p className="text-sm text-[#374151]">
-                  There's no backend wired up yet to actually deliver this, but your inquiry passed validation and
-                  would be sent to the AgriKA-GIS team once the contact endpoint is live.
+                  Your Email has been sent to the AgriKa-GIS team. 
+                  We will get back to you as soon as possible.
                 </p>
                 <button
                   type="button"
