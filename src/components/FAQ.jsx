@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useState } from "react";
 import Navbar from "./layout/Navbar";
 import Footer from "./layout/Footer";
 import ContactCTA from "./layout/ContactCTA";
@@ -10,23 +10,23 @@ const FAQS = [
   },
   {
     q: "How does the system predict rice yield?",
-    a: "The platform uses an optimized CNN-LSTM deep learning model trained on Sentinel satellite imagery and historical weather data to forecast rice yields at the barangay and municipality level, without requiring manual field surveys.",
+    a: "The platform uses a CNN-LSTM deep learning model trained on Sentinel satellite imagery, historical weather data, and PSA/Ricelytics yield records to forecast municipal rice yields per season. The forecasts reduce reliance on manual field surveys, and recorded barangay-level yields are also shown for selected cities.",
   },
   {
     q: "Who can use AgriKA-GIS?",
-    a: "AgriKA-GIS supports four user types: administrators with province-wide access, agriculturists and rice technicians with municipality-scoped access to monitoring, analytics, and reporting tools, and guests who can view the public yield map.",
+    a: "AgriKA-GIS has three account roles: administrators, who have province-wide access and manage user accounts; agriculturists, who can use monitoring, analytics and comparison, and reporting for their assigned municipality; and rice technicians, who can use monitoring, the yield map, and reports for their assigned municipality. Accounts are created by an administrator. The public can view the Laguna yield map without logging in.",
   },
   {
     q: "What kind of data does the system display?",
-    a: "The platform displays real-time and historical yield estimates, land use and boundary layers, weather and vegetation indicators, municipality comparisons, and downloadable reports, all mapped spatially across Laguna's municipalities.",
+    a: "The platform displays observed yields from 2018 onward, predicted yields, boundary layers, weather and vegetation indicators, municipality comparisons, and downloadable reports, all mapped across Laguna's municipalities.",
   },
   {
-    q: "Does the system use real-time satellite imagery?",
-    a: "Yes. AgriKA-GIS pulls Sentinel-1 and Sentinel-2 imagery to monitor vegetation health and crop growth stages throughout the season, combined with publicly available weather data.",
+    q: "Does the system use satellite imagery?",
+    a: "Yes. AgriKA-GIS uses monthly Sentinel-1 and Sentinel-2 composites from the Copernicus Data Space Ecosystem to track vegetation health through the season, together with publicly available weather data from Open-Meteo.",
   },
   {
     q: "Can users compare rice productivity between cities or municipalities?",
-    a: "Yes, the Rice Yield Analytics & Comparison module lets agriculturists and administrators compare yield trends across multiple municipalities side by side, filtered by season and growth stage.",
+    a: "Yes. The Rice Yield Analytics & Comparison module lets agriculturists and administrators compare yield trends across municipalities side by side, filtered by year and season.",
   },
   {
     q: "How accurate are the predictions?",
@@ -46,47 +46,75 @@ const FAQS = [
   },
 ];
 
-function FAQItem({ q, a, defaultOpen = false }) {
-  const detailsRef = useCallback(
-    (node) => {
-      if (node) node.open = defaultOpen;
-    },
-    [defaultOpen]
-  );
-
+function FAQItem({ q, a, open, onToggle, index }) {
+  const id = `faq-${index}`;
   return (
-    <details
-      ref={detailsRef}
-      className="group bg-white border border-[#E5E7EB] open:border-[#1F6306] rounded-xl shadow-sm transition-colors"
+    <div
+      className={`anim-fade-up bg-white border rounded-xl shadow-sm transition-[border-color,box-shadow] duration-300 motion-safe-transition ${
+        open ? "border-[#1F6306] shadow-md" : "border-[#E5E7EB] hover:border-[#1F6306]/40"
+      }`}
+      style={{ animationDelay: `${index * 60}ms` }}
     >
-      <summary className="flex items-center justify-between gap-6 p-6 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-        <span className="text-lg font-medium text-[#111827] group-open:text-[#1F6306] group-open:font-semibold">
-          {q}
-        </span>
-        <span className="flex items-center justify-center w-6 h-6 rounded-full border border-[#D1D5DB] group-open:border-[#1F6306] shrink-0">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#9CA3AF"
-            className="group-open:stroke-[#1F6306] group-open:rotate-180 transition-transform"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      <h3>
+        <button
+          type="button"
+          id={`${id}-q`}
+          aria-expanded={open}
+          aria-controls={`${id}-a`}
+          onClick={onToggle}
+          className="w-full flex items-center justify-between gap-6 p-6 text-left cursor-pointer"
+        >
+          <span
+            className={`text-lg transition-colors duration-300 motion-safe-transition ${
+              open ? "text-[#1F6306] font-semibold" : "text-[#111827] font-medium"
+            }`}
           >
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </span>
-      </summary>
-      <div className="px-6 pb-6 pt-4 border-t border-dashed border-[#1F6306]">
-        <p className="text-base leading-6 text-[#4B5563]">{a}</p>
+            {q}
+          </span>
+          <span
+            className={`flex items-center justify-center w-6 h-6 rounded-full border shrink-0 transition-colors duration-300 motion-safe-transition ${
+              open ? "border-[#1F6306] bg-[#1F6306]" : "border-[#D1D5DB]"
+            }`}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={open ? "#FFFFFF" : "#9CA3AF"}
+              className={`transition-transform duration-300 motion-safe-transition ${open ? "rotate-180" : ""}`}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </span>
+        </button>
+      </h3>
+      {/* grid-rows 0fr -> 1fr animates to the content's natural height */}
+      <div
+        id={`${id}-a`}
+        role="region"
+        aria-labelledby={`${id}-q`}
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-safe-transition ${
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden" inert={!open}>
+          <div className="px-6 pb-6 pt-4 border-t border-dashed border-[#1F6306]">
+            <p className="text-base leading-6 text-[#4B5563]">{a}</p>
+          </div>
+        </div>
       </div>
-    </details>
+    </div>
   );
 }
 
 export default function FAQ() {
+  // One open at a time; the first answer starts expanded.
+  const [openIndex, setOpenIndex] = useState(0);
+
   return (
     <div className="w-full bg-white font-sans" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {/* Hero + Nav */}
@@ -111,7 +139,14 @@ export default function FAQ() {
       <section className="bg-white py-20 px-6 md:px-16 flex justify-center">
         <div className="max-w-[1280px] w-full flex flex-col gap-4">
           {FAQS.map((item, i) => (
-            <FAQItem key={item.q} q={item.q} a={item.a} defaultOpen={i === 0} />
+            <FAQItem
+              key={item.q}
+              q={item.q}
+              a={item.a}
+              index={i}
+              open={openIndex === i}
+              onToggle={() => setOpenIndex(openIndex === i ? null : i)}
+            />
           ))}
         </div>
       </section>
