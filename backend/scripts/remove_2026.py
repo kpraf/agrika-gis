@@ -23,8 +23,6 @@ import urllib.parse
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlalchemy import text  # noqa: E402
-from app import create_app  # noqa: E402
-from extensions import db  # noqa: E402
 
 BACKEND = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -67,6 +65,11 @@ def main():
         print(f"TARGET: PRODUCTION @ {host}")
         if not args.yes and input("Delete 2026 rows from PRODUCTION? type 'yes': ").strip().lower() != "yes":
             sys.exit("Aborted. Nothing was deleted.")
+
+    # Imported here, not at the top: Config reads DATABASE_URL at import time,
+    # so the --prod override above has to happen first.
+    from app import create_app
+    from extensions import db
 
     app = create_app()
     with app.app_context():

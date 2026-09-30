@@ -16,8 +16,6 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlalchemy import text  # noqa: E402
-from app import create_app  # noqa: E402
-from extensions import db  # noqa: E402
 
 BACKEND = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -49,6 +47,12 @@ def main():
         if not url:
             sys.exit("ERROR: PROD_DATABASE_URL not set (backend/.env.prod). Nothing was done.")
         os.environ["DATABASE_URL"] = url
+        print(f"TARGET: PRODUCTION @ {url.rsplit('@', 1)[-1].split('/', 1)[0]}")
+
+    # Imported here, not at the top: Config reads DATABASE_URL at import time,
+    # so the --prod override above has to happen first.
+    from app import create_app
+    from extensions import db
 
     app = create_app()
     with app.app_context():
