@@ -166,7 +166,8 @@ export default function RiceYieldAnalytics() {
   }, []);
 
   // Municipality list + latest-year value for the list column (re-fetched per season).
-  // The first load also picks a default selection (top 4 by latest yield).
+  // The first load also picks a default selection: the four research-locale
+  // cities (Santa Rosa, Calamba, Cabuyao, Biñan), in that order.
   useEffect(() => {
     if (!latestYear || !season) return;
     let active = true;
@@ -177,11 +178,11 @@ export default function RiceYieldAnalytics() {
         const list = (r.records || []).map((x) => ({ id: x.municipality_id, name: x.name, latest: x.yield }));
         list.sort((a, b) => a.name.localeCompare(b.name));
         setMunis(list);
-        setSelectedMuni((prev) =>
-          prev.length
-            ? prev
-            : [...list].sort((a, b) => (b.latest ?? 0) - (a.latest ?? 0)).slice(0, 4).map((x) => x.id),
-        );
+        const fold = (s) => (s || "").toLowerCase().replace(/ñ/g, "n");
+        const research = ["santa rosa", "calamba", "cabuyao", "binan"]
+          .map((kw) => list.find((m) => fold(m.name).includes(kw))?.id)
+          .filter((id) => id != null);
+        setSelectedMuni((prev) => (prev.length ? prev : research));
       })
       .catch(() => {});
     return () => {
