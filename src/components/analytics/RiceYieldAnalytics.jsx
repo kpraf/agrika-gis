@@ -83,6 +83,16 @@ function QuickButton({ onClick, children }) {
   );
 }
 
+function TrendArrow({ direction }) {
+  if (direction === "up")
+    return <span className="text-[#16A34A] font-bold" title="Increased vs previous year">▲</span>;
+  if (direction === "down")
+    return <span className="text-[#DC2626] font-bold" title="Decreased vs previous year">▼</span>;
+  if (direction === "flat")
+    return <span className="text-[#9CA3AF]" title="No change">–</span>;
+  return <span className="text-[#D1D5DB]">–</span>; // not enough data yet
+}
+
 // Pick the N highest-average series ids for a sensible default view.
 function topByAverage(seriesById, ids, n) {
   const avg = (id) => {
@@ -270,8 +280,8 @@ export default function RiceYieldAnalytics() {
   const setSelected = isBarangay ? setSelectedBrgy : setSelectedMuni;
   const seriesById = isBarangay ? brgySeries : seriesByMuni;
   const years = isBarangay ? brgyYears : meta.years;
-  const entityWord = isBarangay ? "barangay" : "municipality";
-  const entityWordPlural = isBarangay ? "barangays" : "municipalities";
+  const entityWord = isBarangay ? "barangay" : "municipality/city";
+  const entityWordPlural = isBarangay ? "barangays" : "municipalities/cities";
 
   const colorFor = useMemo(() => {
     const map = {};
@@ -342,17 +352,21 @@ export default function RiceYieldAnalytics() {
   }, [compareResp, selectedMuni, isBarangay]);
 
   const hoverEntity = hoverActive ? selectedEntities.find((e) => e.id === hoverId) : null;
-  const statsFor = (id) => {
-    const vals = years.map((y) => seriesById[id]?.[y]).filter((v) => v != null);
-    if (!vals.length) return null;
-    return {
-      avg: vals.reduce((a, b) => a + b, 0) / vals.length,
-      min: Math.min(...vals),
-      max: Math.max(...vals),
-      latest: seriesById[id]?.[years[years.length - 1]],
-    };
+const statsFor = (id) => {
+  const vals = years.map((y) => seriesById[id]?.[y]).filter((v) => v != null);
+  if (!vals.length) return null;
+  const latest = vals[vals.length - 1];
+  const prev = vals.length >= 2 ? vals[vals.length - 2] : null;
+  const trend = prev == null ? null : latest > prev ? "up" : latest < prev ? "down" : "flat";
+  return {
+    avg: vals.reduce((a, b) => a + b, 0) / vals.length,
+    min: Math.min(...vals),
+    max: Math.max(...vals),
+    latest: seriesById[id]?.[years[years.length - 1]],
+    trend,
   };
-  const hoverStats = hoverEntity ? statsFor(hoverEntity.id) : null;
+};
+const hoverStats = hoverEntity ? statsFor(hoverEntity.id) : null;
 
   return (
     <div className="flex w-full h-screen bg-white font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -381,7 +395,7 @@ export default function RiceYieldAnalytics() {
                       level === "municipality" ? "bg-white text-[#1B3315] shadow-sm" : "text-[#4B5563]"
                     }`}
                   >
-                    Municipality
+                    Municipality/City
                   </button>
                   <button
                     type="button"
@@ -646,10 +660,11 @@ export default function RiceYieldAnalytics() {
                     <thead className="bg-[#F9FAFB] text-[#6B7280]">
                       <tr>
                         <th className="text-left font-semibold px-4 py-2 capitalize">{entityWord}</th>
-                        <th className="text-right font-semibold px-4 py-2">Avg</th>
-                        <th className="text-right font-semibold px-4 py-2">Min</th>
-                        <th className="text-right font-semibold px-4 py-2">Max</th>
-                        <th className="text-right font-semibold px-4 py-2">Latest</th>
+                        <th className="text-right font-semibold px-4 py-2">Avg Yield (mt/ha)</th>
+                        <th className="text-right font-semibold px-4 py-2">Min Yield (mt/ha)</th>
+                        <th className="text-right font-semibold px-4 py-2">Max Yield (mt/ha)</th>
+                        <th className="text-right font-semibold px-4 py-2"> Latest Year {years[years.length - 1]}</th>
+                        <th className="text-right font-semibold px-4 py-2">Trend</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -672,6 +687,9 @@ export default function RiceYieldAnalytics() {
                             <td className="px-4 py-2 text-right text-[#6B7280]">{s.min.toFixed(3)}</td>
                             <td className="px-4 py-2 text-right text-[#6B7280]">{s.max.toFixed(3)}</td>
                             <td className="px-4 py-2 text-right text-[#374151]">{s.latest != null ? s.latest : "N/A"}</td>
+                            <td className="px-4 py-2 text-center">
+                            <TrendArrow direction={s.trend} />
+                          </td>
                           </tr>
                         ))}
                     </tbody>

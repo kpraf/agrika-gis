@@ -69,6 +69,6 @@ class Config:
     # Contact form: stored in the DB always; an email notification is also sent
     # via Resend (https://resend.com) when RESEND_API_KEY is set. Without the key
     # the message is still saved, just no email goes out.
-    RESEND_API_KEY = os.environ.get("RESEND_API_KEY").strip()
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
     CONTACT_FROM_EMAIL = os.environ.get("CONTACT_FROM_EMAIL", "onboarding@resend.dev").strip()
     CONTACT_TO_EMAIL = os.environ.get("CONTACT_TO_EMAIL", "agrikagis.official@gmail.com").strip()
