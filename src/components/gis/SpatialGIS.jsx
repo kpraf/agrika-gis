@@ -448,12 +448,27 @@ export default function SpatialGIS() {
   // When the map's drill state changes (e.g. the user clicked a municipality),
   // mirror it into the City filter so the two never disagree.
   const handleSelection = (sel) => {
+    // The province view is only entered by explicitly clearing the active city
+    // (onProvince sets activeCityId=null first). Ignore any stray "province"
+    // report while a city is still active — e.g. right after deselecting a
+    // barangay — so back-from-barangay lands on the city, never the province.
+    if (sel.level === "province" && activeCityId != null) return;
     setSelection(sel);
     // A barangay click stays inside the drilled-in city — don't reset activeCityId.
     if (sel.level === "municipality") setActiveCityId(sel.id);
     else if (sel.level === "province") setActiveCityId(null);
   };
-  const clearBarangay = () => setClearBrgyToken((t) => t + 1);
+  // Back from a barangay to its municipality. Restore the municipality selection
+  // directly (so the panel never depends on the map re-reporting) AND tell the map
+  // to un-isolate + zoom back out.
+  const clearBarangay = () => {
+    setSelection((cur) =>
+      cur?.level === "barangay"
+        ? { level: "municipality", id: cur.municipalityId, name: cur.municipalityName, barangayCount: null }
+        : cur
+    );
+    setClearBrgyToken((t) => t + 1);
+  };
 
   // While the session is being restored, don't render either chrome (avoids a
   // public->portal flash for a logged-in user refreshing on /yield-map).
