@@ -6,10 +6,6 @@ Resend API key is configured, also emails a notification to CONTACT_TO_EMAIL.
 No auth: this backs the public Contact page. Email failures never fail the
 request, since the message is already saved for an admin to read.
 """
-import json
-import urllib.error
-import urllib.request
-
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy import text
 
@@ -37,45 +33,18 @@ def _clean(payload, key):
 
 
 def _send_email(row):
-    import resend
-
-    key = current_app.config.get("RESEND_API_KEY")
-    to = current_app.config.get("CONTACT_TO_EMAIL")
-
-    if not key or not to:
-        return False
-
-    resend.api_key = key
-
-    body = {
-        "from": current_app.config.get(
-            "CONTACT_FROM_EMAIL"
-        ) or "onboarding@resend.dev",
-        "to": [to],
-        "subject": f"[AgriKA-GIS] Contact: {row['subject']}",
-        "text": (
-            f"New contact inquiry from AgriKA-GIS.\n\n"
-            f"Name: {row['full_name']}\n"
-            f"Organization: {row['organization'] or '(none)'}\n"
-            f"Phone: {row['phone']}\n"
-            f"Subject: {row['subject']}\n\n"
-            f"Message:\n{row['message']}\n"
-        ),
-    }
-
-    try:
-        response = resend.Emails.send(body)
-        current_app.logger.info("Resend email sent: %s", response)
-        return True
-    except Exception as exc:
-        current_app.logger.warning("Resend email failed: %s", exc)
-        return False
-    
     """Best-effort Resend notification. Returns True if an email was sent."""
     key = current_app.config.get("RESEND_API_KEY")
     to = current_app.config.get("CONTACT_TO_EMAIL")
     if not key or not to:
         return False
+    try:
+        import resend
+    except ImportError:
+        current_app.logger.warning("resend package not installed; skipping contact email")
+        return False
+
+    resend.api_key = key
     body = {
         "from": current_app.config.get("CONTACT_FROM_EMAIL") or "onboarding@resend.dev",
         "to": [to],
@@ -89,24 +58,11 @@ def _send_email(row):
             f"Message:\n{row['message']}\n"
         ),
     }
-    req = urllib.request.Request(
-        "https://api.resend.com/emails",
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return 200 <= resp.status < 300
-    except urllib.error.HTTPError as exc:
-        error_body = exc.read().decode("utf-8", errors="replace")
-        current_app.logger.warning(
-            "Resend HTTP error %s: %s",
-            exc.code,
-            error_body
-        )
-        return False
-    except (urllib.error.URLError, OSError) as exc:
+        response = resend.Emails.send(body)
+        current_app.logger.info("Resend email sent: %s", response)
+        return True
+    except Exception as exc:  # network/API error - message is already saved
         current_app.logger.warning("Resend email failed: %s", exc)
         return False
 

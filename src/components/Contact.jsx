@@ -118,7 +118,7 @@ export default function Contact() {
               <div className="flex flex-col gap-3 p-6 bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl">
                 <h3 className="text-lg font-bold text-[#15803D]">Thanks, your message is queued.</h3>
                 <p className="text-sm text-[#374151]">
-                  Your Email has been sent to the AgriKa-GIS team. 
+                  Your message has been received by the AgriKA-GIS team.
                   We will get back to you as soon as possible.
                 </p>
                 <button
