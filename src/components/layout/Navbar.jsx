@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 
 const NAV_LINKS = [
@@ -40,7 +41,7 @@ export default function Navbar({ active = "Home" }) {
   return (
     <nav className="relative z-30 flex items-center justify-between px-5 md:px-10 lg:px-12 py-5 lg:py-6">
       <Link to="/" className="relative z-30 flex items-center">
-        <img src="/images/agrika-gis-logo.png" alt="AgriKA-GIS" className="h-12 md:h-16 lg:h-20 w-auto object-contain" />
+        <img src="/images/agrika-gis-logo.png" alt="AgriKA-GIS" className="h-16 md:h-16 lg:h-20 w-auto object-contain" />
       </Link>
 
       <div className="hidden lg:flex items-center gap-8">
@@ -82,16 +83,17 @@ export default function Navbar({ active = "Home" }) {
         </button>
       </div>
 
-      <div
-        id="mobile-menu"
-        aria-hidden={!open}
-        className="lg:hidden fixed inset-0 z-20 flex flex-col bg-[#0E2207] px-5 md:px-10 pt-[104px] md:pt-[136px] pb-8"
-        style={{
-          transition: `clip-path 500ms ${EASE}`,
-          clipPath: `circle(${open ? "150%" : "0%"} at ${ORIGIN})`,
-          pointerEvents: open ? "auto" : "none",
-        }}
-      >
+      {createPortal(
+        <div
+          id="mobile-menu"
+          aria-hidden={!open}
+          className="lg:hidden fixed inset-0 z-[1000] flex flex-col bg-[#0E2207] px-5 md:px-10 pt-[104px] md:pt-[136px] pb-8"
+          style={{
+            transition: `clip-path 500ms ${EASE}`,
+            clipPath: `circle(${open ? "150%" : "0%"} at ${ORIGIN})`,
+            pointerEvents: open ? "auto" : "none",
+          }}
+        >
         {NAV_LINKS.map((link, i) => (
           <Link
             key={link.label}
@@ -114,7 +116,9 @@ export default function Navbar({ active = "Home" }) {
             </svg>
           </Link>
         ))}
-      </div>
+        </div>,
+        document.body
+      )}
     </nav>
   );
 }

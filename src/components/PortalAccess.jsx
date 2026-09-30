@@ -88,8 +88,8 @@ export default function PortalAccess() {
 
       {/* Main card */}
       <div className="relative z-10 w-full max-w-[1024px] min-h-[600px] flex flex-col md:flex-row bg-white rounded-[32px] shadow-[0px_20px_40px_-10px_rgba(27,51,21,0.1)] overflow-hidden">
-        {/* Left image section */}
-        <div className="relative flex w-full md:w-[46%] min-h-[300px] md:min-h-0 p-4">
+        {/* Left image section — hidden on mobile, shown side-by-side on md+ */}
+        <div className="relative hidden md:flex w-full md:w-[46%] min-h-[300px] md:min-h-0 p-4">
           <div className="relative w-full rounded-3xl overflow-hidden">
             <div className="absolute inset-0 bg-[url('/images/male-farmer.png')] bg-cover bg-center" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#1B3315]/80 via-[#1B3315]/20 to-transparent" />
