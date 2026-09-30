@@ -17,11 +17,21 @@ export default function PrivacyPolicy() {
   return (
     <div className="w-full bg-white font-sans" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
       {/* Hero + Nav */}
-      <section className="relative bg-[#0B2005] overflow-hidden flex flex-col">
+      <section className="relative bg-[#0B2005] overflow-hidden min-h-[500px] flex flex-col">
+        <div className="absolute inset-0 bg-[url('/images/farms.png')] bg-cover bg-center" />
+        <div className="absolute inset-0 bg-[#153321]/45" />
+
         <Navbar active="" />
-        <div className="relative z-10 px-6 md:px-12 pt-6 pb-14 max-w-4xl">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-[1.1]">Privacy Policy</h1>
-          <p className="mt-3 text-[#CBD5C0] text-sm">Last updated: {LAST_UPDATED}</p>
+
+        <div className="relative z-10 flex-1 flex flex-col items-start justify-center gap-4 px-6 md:px-12 pb-12 max-w-4xl">
+          <h1 className="text-4xl md:text-6xl font-extrabold text-white leading-[1.05]">
+            Privacy Policy
+          </h1>
+          <p className="text-lg md:text-xl text-[#E5E7EB] max-w-2xl">
+            How AgriKA-GIS collects, uses, and protects the information you share when using the
+            platform.
+          </p>
+          <p className="text-[#CBD5C0] text-sm">Last updated: {LAST_UPDATED}</p>
         </div>
       </section>
 

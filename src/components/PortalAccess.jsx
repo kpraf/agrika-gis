@@ -78,7 +78,7 @@ export default function PortalAccess() {
       {/* Back to Home - sits on the page background, outside the card */}
       <a
         href="/"
-        className="absolute top-8 left-8 z-20 flex items-center gap-2 px-6 py-3 rounded-full bg-[#1F6306] text-white text-base font-semibold hover:bg-[#286A11] transition-colors"
+        className="absolute top-8 left-8 z-20 flex items-center gap-2 px-4 py-2.5 md:px-6 md:py-3 rounded-full bg-[#1F6306] text-white text-sm md:text-base font-semibold hover:bg-[#286A11] transition-colors"
       >
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
           <path d="M8 1L2 6l6 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

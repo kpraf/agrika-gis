@@ -4,6 +4,7 @@ import { contactApi } from "../lib/api";
 import Navbar from "./layout/Navbar";
 import Footer from "./layout/Footer";
 import ContactCTA from "./layout/ContactCTA";
+import Pill from "./layout/Pill";
 
 const STORAGE_KEY = "agrika-gis:contact-info";
 
@@ -108,9 +109,9 @@ export default function Contact() {
         <div className="max-w-[1280px] w-full grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
           {/* Form Column */}
           <div className="flex flex-col gap-6">
-            <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-[#F0FDF4] border border-[#BBF7D0] text-sm text-[#15803D] w-fit">
-              Contact With Us
-            </span>
+            <div className="self-start">
+              <Pill variant="green">Contact With Us</Pill>
+            </div>
             <h2 className="text-3xl md:text-4xl font-bold text-[#111827]">Send an Inquiry</h2>
 
             {submitted ? (

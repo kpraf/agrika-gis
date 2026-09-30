@@ -94,6 +94,41 @@ export default function Navbar({ active = "Home" }) {
             pointerEvents: open ? "auto" : "none",
           }}
         >
+        {/* Top bar inside the overlay — the nav's own logo/button/hamburger sit
+            behind this full-screen menu, so we mirror them here to keep the
+            logo, Portal Access, and a close control visible while open. */}
+        <div
+          className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 md:px-10 py-5 lg:py-6"
+          style={{ transition: "opacity 200ms ease", transitionDelay: open ? "140ms" : "0ms", opacity: open ? 1 : 0 }}
+        >
+          <Link to="/" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} className="flex items-center">
+            <img src="/images/agrika-gis-logo.png" alt="AgriKA-GIS" className="h-16 md:h-16 w-auto object-contain" />
+          </Link>
+          <div className="flex items-center gap-2 md:gap-3">
+            <Link
+              to="/portal-access"
+              tabIndex={open ? 0 : -1}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-4 py-2.5 md:px-6 md:py-3 rounded-full bg-[#286A11] text-white font-semibold text-sm md:text-base hover:bg-[#1F6306] transition-colors"
+            >
+              Portal Access
+              <svg className="hidden md:block" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M2 8h12M9 4l4 4-4 4" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close menu"
+              className="lg:hidden relative flex items-center justify-center w-11 h-11 md:w-12 md:h-12 rounded-full border border-white/25"
+            >
+              <span className={bar} style={{ transform: "rotate(45deg)" }} />
+              <span className={bar} style={{ opacity: 0 }} />
+              <span className={bar} style={{ transform: "rotate(-45deg)" }} />
+            </button>
+          </div>
+        </div>
+
         {NAV_LINKS.map((link, i) => (
           <Link
             key={link.label}
