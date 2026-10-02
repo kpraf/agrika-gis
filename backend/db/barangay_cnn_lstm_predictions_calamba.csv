@@ -1,145 +1,132 @@
 municipality,barangay,year,season,observed,predicted,residual
-City of Calamba,Banadero,2020,Dry,3.78,3.728,0.052
-City of Calamba,Banadero,2020,Wet,3.67,3.996,-0.326
-City of Calamba,Banadero,2021,Dry,4.45,4.942,-0.492
-City of Calamba,Banadero,2021,Wet,3.95,4.151,-0.201
-City of Calamba,Banadero,2022,Dry,4.11,4.288,-0.178
-City of Calamba,Banadero,2022,Wet,3.39,3.45,-0.06
-City of Calamba,Banadero,2023,Dry,4.86,3.925,0.935
-City of Calamba,Banadero,2023,Wet,4.09,3.756,0.334
-City of Calamba,Banadero,2024,Dry,4.75,4.415,0.335
-City of Calamba,Banadero,2024,Wet,4.67,4.998,-0.328
-City of Calamba,Banadero,2025,Dry,5.53,4.78,0.75
-City of Calamba,Banadero,2025,Wet,4.53,4.487,0.043
-City of Calamba,Banlic,2020,Dry,4.96,3.968,0.992
-City of Calamba,Banlic,2020,Wet,4.36,4.083,0.277
-City of Calamba,Banlic,2021,Dry,4.44,3.696,0.744
-City of Calamba,Banlic,2021,Wet,4.18,3.825,0.355
-City of Calamba,Banlic,2022,Dry,4.67,3.536,1.134
-City of Calamba,Banlic,2022,Wet,3.97,3.45,0.52
-City of Calamba,Banlic,2023,Dry,4.13,3.718,0.412
-City of Calamba,Banlic,2023,Wet,4.67,4.551,0.119
-City of Calamba,Banlic,2024,Dry,4.93,4.51,0.42
-City of Calamba,Banlic,2024,Wet,4.12,3.66,0.46
-City of Calamba,Banlic,2025,Dry,4.48,4.253,0.227
-City of Calamba,Banlic,2025,Wet,4.11,4.846,-0.736
-City of Calamba,Bubuyan,2020,Dry,4.89,3.663,1.227
-City of Calamba,Bubuyan,2020,Wet,4.71,3.983,0.727
-City of Calamba,Bubuyan,2021,Dry,5.15,4.543,0.607
-City of Calamba,Bubuyan,2021,Wet,4.41,4.028,0.382
-City of Calamba,Bubuyan,2022,Dry,4.55,4.283,0.267
-City of Calamba,Bubuyan,2022,Wet,4.67,4.179,0.491
-City of Calamba,Bubuyan,2023,Dry,4.9,4.287,0.613
-City of Calamba,Bubuyan,2023,Wet,4.81,4.682,0.128
-City of Calamba,Bubuyan,2024,Dry,4.96,4.792,0.168
-City of Calamba,Bubuyan,2024,Wet,4.86,4.777,0.083
-City of Calamba,Bubuyan,2025,Dry,4.93,4.385,0.545
-City of Calamba,Bubuyan,2025,Wet,4.17,4.459,-0.289
-City of Calamba,Bunggo,2020,Dry,4.76,3.705,1.055
-City of Calamba,Bunggo,2020,Wet,3.99,4.216,-0.226
-City of Calamba,Bunggo,2021,Dry,5.03,4.52,0.51
-City of Calamba,Bunggo,2021,Wet,4.75,4.464,0.286
-City of Calamba,Bunggo,2022,Dry,4.83,3.847,0.983
-City of Calamba,Bunggo,2022,Wet,4.01,3.985,0.025
-City of Calamba,Bunggo,2023,Dry,5.14,4.623,0.517
-City of Calamba,Bunggo,2023,Wet,5.36,3.45,1.91
-City of Calamba,Bunggo,2024,Dry,4.61,3.587,1.023
-City of Calamba,Bunggo,2024,Wet,3.58,4.545,-0.965
-City of Calamba,Bunggo,2025,Dry,4.95,4.056,0.894
-City of Calamba,Bunggo,2025,Wet,5.25,3.658,1.592
-City of Calamba,Burol,2020,Dry,4.2,3.45,0.75
-City of Calamba,Burol,2020,Wet,4.45,3.966,0.484
-City of Calamba,Burol,2021,Dry,4.17,3.79,0.38
-City of Calamba,Burol,2021,Wet,4.29,3.45,0.84
-City of Calamba,Burol,2022,Dry,4.07,3.899,0.171
-City of Calamba,Burol,2022,Wet,4.03,3.844,0.186
-City of Calamba,Burol,2023,Dry,4.52,3.943,0.577
-City of Calamba,Burol,2023,Wet,4.16,3.45,0.71
-City of Calamba,Burol,2024,Dry,4.21,4.279,-0.069
-City of Calamba,Burol,2024,Wet,4.39,4.451,-0.061
-City of Calamba,Burol,2025,Dry,4.29,3.924,0.366
-City of Calamba,Burol,2025,Wet,4.39,4.158,0.232
-City of Calamba,Hornalan,2020,Dry,5.08,3.821,1.259
-City of Calamba,Hornalan,2020,Wet,4.54,4.741,-0.201
-City of Calamba,Hornalan,2021,Dry,4.43,4.488,-0.058
-City of Calamba,Hornalan,2021,Wet,3.75,3.659,0.091
-City of Calamba,Hornalan,2022,Dry,5.2,4.014,1.186
-City of Calamba,Hornalan,2022,Wet,5.04,4.368,0.672
-City of Calamba,Hornalan,2023,Dry,5.4,4.906,0.494
-City of Calamba,Hornalan,2023,Wet,4.59,4.423,0.167
-City of Calamba,Hornalan,2024,Dry,4.88,4.441,0.439
-City of Calamba,Hornalan,2024,Wet,4.91,3.468,1.442
-City of Calamba,Hornalan,2025,Dry,5.23,4.351,0.879
-City of Calamba,Hornalan,2025,Wet,4.7,3.862,0.838
-City of Calamba,Lingga,2020,Dry,4.44,3.869,0.571
-City of Calamba,Lingga,2020,Wet,4.91,4.318,0.592
-City of Calamba,Lingga,2021,Dry,5.58,4.074,1.506
-City of Calamba,Lingga,2021,Wet,4.55,4.019,0.531
-City of Calamba,Lingga,2022,Dry,4.06,4.215,-0.155
-City of Calamba,Lingga,2022,Wet,4.22,4.126,0.094
-City of Calamba,Lingga,2023,Dry,5.23,4.02,1.21
-City of Calamba,Lingga,2023,Wet,5.25,4.741,0.509
-City of Calamba,Lingga,2024,Dry,4.9,4.313,0.587
-City of Calamba,Lingga,2024,Wet,5.37,3.45,1.92
-City of Calamba,Lingga,2025,Dry,5.51,4.088,1.422
-City of Calamba,Lingga,2025,Wet,4.97,3.45,1.52
-City of Calamba,Looc,2020,Dry,4.21,3.45,0.76
-City of Calamba,Looc,2020,Wet,4.17,3.809,0.361
-City of Calamba,Looc,2021,Dry,4.27,4.603,-0.333
-City of Calamba,Looc,2021,Wet,3.71,3.45,0.26
-City of Calamba,Looc,2022,Dry,3.99,3.81,0.18
-City of Calamba,Looc,2022,Wet,3.44,3.583,-0.143
-City of Calamba,Looc,2023,Dry,3.86,4.142,-0.282
-City of Calamba,Looc,2023,Wet,3.78,4.017,-0.237
-City of Calamba,Looc,2024,Dry,3.71,3.835,-0.125
-City of Calamba,Looc,2024,Wet,3.42,4.049,-0.629
-City of Calamba,Looc,2025,Dry,4.34,3.698,0.642
-City of Calamba,Looc,2025,Wet,3.5,3.45,0.05
-City of Calamba,Palingon,2020,Dry,3.93,3.48,0.45
-City of Calamba,Palingon,2020,Wet,4.73,4.326,0.404
-City of Calamba,Palingon,2021,Dry,4.38,3.45,0.93
-City of Calamba,Palingon,2021,Wet,3.5,3.792,-0.292
-City of Calamba,Palingon,2022,Dry,4.58,4.455,0.125
-City of Calamba,Palingon,2022,Wet,4.55,4.501,0.049
-City of Calamba,Palingon,2023,Dry,4.74,4.369,0.371
-City of Calamba,Palingon,2023,Wet,4.85,3.636,1.214
-City of Calamba,Palingon,2024,Dry,4.41,4.152,0.258
-City of Calamba,Palingon,2024,Wet,4.48,3.45,1.03
-City of Calamba,Palingon,2025,Dry,4.74,4.315,0.425
-City of Calamba,Palingon,2025,Wet,3.38,3.45,-0.07
-City of Calamba,Sampiruhan,2020,Dry,4.21,4.806,-0.596
-City of Calamba,Sampiruhan,2020,Wet,4.06,3.937,0.123
-City of Calamba,Sampiruhan,2021,Dry,4.17,4.415,-0.245
-City of Calamba,Sampiruhan,2021,Wet,4.22,3.548,0.672
-City of Calamba,Sampiruhan,2022,Dry,4.38,4.043,0.337
-City of Calamba,Sampiruhan,2022,Wet,4.49,3.775,0.715
-City of Calamba,Sampiruhan,2023,Dry,4.28,3.931,0.349
-City of Calamba,Sampiruhan,2023,Wet,3.61,3.45,0.16
-City of Calamba,Sampiruhan,2024,Dry,4.69,3.45,1.24
-City of Calamba,Sampiruhan,2024,Wet,3.92,4.085,-0.165
-City of Calamba,Sampiruhan,2025,Dry,3.9,4.306,-0.406
-City of Calamba,Sampiruhan,2025,Wet,3.56,3.45,0.11
-City of Calamba,San Juan,2020,Dry,4.46,3.786,0.674
-City of Calamba,San Juan,2020,Wet,3.36,3.994,-0.634
-City of Calamba,San Juan,2021,Dry,3.97,4.296,-0.326
-City of Calamba,San Juan,2021,Wet,3.6,3.988,-0.388
-City of Calamba,San Juan,2022,Dry,4.17,4.054,0.116
-City of Calamba,San Juan,2022,Wet,3.63,4.216,-0.586
-City of Calamba,San Juan,2023,Dry,3.86,4.328,-0.468
-City of Calamba,San Juan,2023,Wet,4.27,3.714,0.556
-City of Calamba,San Juan,2024,Dry,3.32,3.684,-0.364
-City of Calamba,San Juan,2024,Wet,3.42,3.577,-0.157
-City of Calamba,San Juan,2025,Dry,4.84,3.903,0.937
-City of Calamba,San Juan,2025,Wet,4.63,4.057,0.573
-City of Calamba,Uwisan,2020,Dry,3.57,3.745,-0.175
-City of Calamba,Uwisan,2020,Wet,4.05,4.608,-0.558
-City of Calamba,Uwisan,2021,Dry,4.35,4.323,0.027
-City of Calamba,Uwisan,2021,Wet,4.49,3.486,1.004
-City of Calamba,Uwisan,2022,Dry,4.22,4.233,-0.013
-City of Calamba,Uwisan,2022,Wet,3.54,3.45,0.09
-City of Calamba,Uwisan,2023,Dry,4.21,3.611,0.599
-City of Calamba,Uwisan,2023,Wet,4.03,3.821,0.209
-City of Calamba,Uwisan,2024,Dry,4.2,4.404,-0.204
-City of Calamba,Uwisan,2024,Wet,4.14,3.99,0.15
-City of Calamba,Uwisan,2025,Dry,4.97,3.838,1.132
-City of Calamba,Uwisan,2025,Wet,4.5,3.45,1.05
+City of Calamba,Banadero,2020,Dry,5.03,4.72,0.31
+City of Calamba,Banadero,2020,Wet,1.89,4.161,-2.271
+City of Calamba,Banadero,2021,Dry,5.28,4.848,0.432
+City of Calamba,Banadero,2022,Dry,5.28,4.221,1.059
+City of Calamba,Banadero,2022,Wet,4.15,3.749,0.401
+City of Calamba,Banadero,2023,Dry,5.27,4.045,1.225
+City of Calamba,Banadero,2023,Wet,4.61,4.185,0.425
+City of Calamba,Banadero,2024,Dry,5.08,5.144,-0.064
+City of Calamba,Banadero,2024,Wet,2.36,3.537,-1.177
+City of Calamba,Banlic,2020,Dry,6.08,4.717,1.363
+City of Calamba,Banlic,2020,Wet,4.74,4.309,0.431
+City of Calamba,Banlic,2021,Dry,5.43,4.806,0.624
+City of Calamba,Banlic,2021,Wet,4.9,4.187,0.713
+City of Calamba,Banlic,2022,Dry,5.43,4.145,1.285
+City of Calamba,Banlic,2022,Wet,4.56,3.931,0.629
+City of Calamba,Banlic,2023,Dry,5.2,4.335,0.865
+City of Calamba,Banlic,2023,Wet,5.03,4.244,0.786
+City of Calamba,Banlic,2024,Dry,5.43,5.06,0.37
+City of Calamba,Banlic,2024,Wet,4.64,3.734,0.906
+City of Calamba,Banlic,2025,Dry,5.53,4.022,1.508
+City of Calamba,Banlic,2025,Wet,3.19,3.923,-0.733
+City of Calamba,Barangay 7,2020,Dry,5.4,4.639,0.761
+City of Calamba,Barangay 7,2020,Wet,4.82,4.214,0.606
+City of Calamba,Barangay 7,2021,Dry,5.38,4.72,0.66
+City of Calamba,Barangay 7,2021,Wet,5.19,3.972,1.218
+City of Calamba,Barangay 7,2022,Dry,5.38,4.276,1.104
+City of Calamba,Barangay 7,2022,Wet,4.42,3.879,0.541
+City of Calamba,Barangay 7,2023,Dry,3.21,4.201,-0.991
+City of Calamba,Barangay 7,2023,Wet,4.17,4.271,-0.101
+City of Calamba,Barangay 7,2024,Dry,6.37,5.015,1.355
+City of Calamba,Barangay 7,2024,Wet,4.79,3.734,1.056
+City of Calamba,Barangay 7,2025,Dry,5.49,3.855,1.635
+City of Calamba,Barangay 7,2025,Wet,3.21,3.904,-0.694
+City of Calamba,Bucal,2020,Dry,5.68,4.478,1.202
+City of Calamba,Bucal,2020,Wet,5.06,4.103,0.957
+City of Calamba,Bucal,2021,Dry,6.31,4.882,1.428
+City of Calamba,Bucal,2021,Wet,4.56,3.814,0.746
+City of Calamba,Bucal,2022,Dry,5.64,3.86,1.78
+City of Calamba,Bucal,2022,Wet,3.16,3.851,-0.691
+City of Calamba,Bucal,2023,Dry,5.31,3.774,1.536
+City of Calamba,Bucal,2023,Wet,4.92,4.006,0.914
+City of Calamba,Bucal,2024,Dry,4.98,5.174,-0.194
+City of Calamba,Bucal,2024,Wet,4.36,3.613,0.747
+City of Calamba,Bucal,2025,Dry,5.21,4.147,1.063
+City of Calamba,Halang,2020,Dry,4.26,4.084,0.176
+City of Calamba,Halang,2020,Wet,3.81,4.151,-0.341
+City of Calamba,Halang,2021,Dry,5.39,4.152,1.238
+City of Calamba,Halang,2021,Wet,3.58,3.792,-0.212
+City of Calamba,Halang,2022,Dry,5.39,4.007,1.383
+City of Calamba,Halang,2022,Wet,1.73,3.805,-2.075
+City of Calamba,Halang,2023,Dry,3.46,3.774,-0.314
+City of Calamba,Halang,2023,Wet,1.03,4.125,-3.095
+City of Calamba,Halang,2024,Dry,4.81,5.081,-0.271
+City of Calamba,Halang,2024,Wet,4.57,3.641,0.929
+City of Calamba,Halang,2025,Dry,5.5,3.794,1.706
+City of Calamba,Lecheria,2020,Dry,4.96,4.972,-0.012
+City of Calamba,Lecheria,2020,Wet,3.78,4.31,-0.53
+City of Calamba,Lecheria,2021,Dry,5.09,4.982,0.108
+City of Calamba,Lecheria,2021,Wet,2.07,3.942,-1.872
+City of Calamba,Lecheria,2022,Dry,5.09,4.082,1.008
+City of Calamba,Lecheria,2022,Wet,4.05,3.866,0.184
+City of Calamba,Lecheria,2023,Dry,4.77,4.386,0.384
+City of Calamba,Lecheria,2023,Wet,3.7,4.117,-0.417
+City of Calamba,Lecheria,2024,Dry,5.28,5.023,0.257
+City of Calamba,Lecheria,2024,Wet,3.76,3.99,-0.23
+City of Calamba,Lecheria,2025,Dry,5.77,4.777,0.993
+City of Calamba,Lecheria,2025,Wet,4.3,3.857,0.443
+City of Calamba,Lingga,2020,Dry,4.93,5.172,-0.242
+City of Calamba,Lingga,2020,Wet,4.56,4.325,0.235
+City of Calamba,Lingga,2021,Dry,5.49,5.167,0.323
+City of Calamba,Lingga,2021,Wet,4.17,4.2,-0.03
+City of Calamba,Lingga,2022,Dry,5.49,4.393,1.097
+City of Calamba,Lingga,2022,Wet,4.19,4.106,0.084
+City of Calamba,Lingga,2023,Dry,5.11,5.15,-0.04
+City of Calamba,Lingga,2023,Wet,4.51,4.338,0.172
+City of Calamba,Lingga,2024,Dry,4.9,4.974,-0.074
+City of Calamba,Lingga,2024,Wet,4.49,4.447,0.043
+City of Calamba,Lingga,2025,Dry,5.18,5.108,0.072
+City of Calamba,Lingga,2025,Wet,4.73,4.059,0.671
+City of Calamba,Pansol,2020,Dry,5.66,4.307,1.353
+City of Calamba,Pansol,2021,Dry,5.73,4.394,1.336
+City of Calamba,Pansol,2021,Wet,3.98,3.835,0.145
+City of Calamba,Pansol,2022,Dry,5.73,3.827,1.903
+City of Calamba,Pansol,2023,Dry,4.96,3.789,1.171
+City of Calamba,Pansol,2024,Dry,5.23,4.99,0.24
+City of Calamba,Pansol,2024,Wet,5.2,3.795,1.405
+City of Calamba,Pansol,2025,Dry,5.32,4.109,1.211
+City of Calamba,Parian,2020,Dry,4.4,4.058,0.342
+City of Calamba,Parian,2020,Wet,2.19,3.88,-1.69
+City of Calamba,Parian,2021,Dry,5.67,3.903,1.767
+City of Calamba,Parian,2022,Dry,5.67,3.882,1.788
+City of Calamba,Parian,2022,Wet,4.68,3.662,1.018
+City of Calamba,Parian,2023,Dry,5.09,3.578,1.512
+City of Calamba,Parian,2023,Wet,4.32,4.017,0.303
+City of Calamba,Parian,2024,Dry,5.15,4.806,0.344
+City of Calamba,Parian,2024,Wet,3.98,3.519,0.461
+City of Calamba,Real,2020,Dry,4.72,4.21,0.51
+City of Calamba,Real,2020,Wet,3.28,3.976,-0.696
+City of Calamba,Real,2021,Dry,5.56,4.025,1.535
+City of Calamba,Real,2022,Dry,5.56,3.825,1.735
+City of Calamba,Real,2022,Wet,4.46,3.721,0.739
+City of Calamba,Real,2023,Dry,5.34,3.709,1.631
+City of Calamba,Real,2023,Wet,4.47,4.087,0.383
+City of Calamba,Real,2024,Dry,5.33,5.246,0.084
+City of Calamba,Real,2024,Wet,3.7,3.62,0.08
+City of Calamba,Real,2025,Dry,5.49,4.351,1.139
+City of Calamba,Real,2025,Wet,1.12,3.812,-2.692
+City of Calamba,San Jose,2020,Dry,5.54,4.88,0.66
+City of Calamba,San Jose,2020,Wet,4.52,4.32,0.2
+City of Calamba,San Jose,2021,Dry,6.37,4.898,1.472
+City of Calamba,San Jose,2021,Wet,4.54,4.141,0.399
+City of Calamba,San Jose,2022,Dry,6.37,4.41,1.96
+City of Calamba,San Jose,2022,Wet,3.2,3.946,-0.746
+City of Calamba,San Jose,2023,Dry,4.43,4.748,-0.318
+City of Calamba,San Jose,2023,Wet,3.48,4.481,-1.001
+City of Calamba,San Jose,2024,Dry,5.15,5.119,0.031
+City of Calamba,San Jose,2024,Wet,5.09,3.892,1.198
+City of Calamba,San Jose,2025,Dry,5.03,4.585,0.445
+City of Calamba,San Jose,2025,Wet,2.47,3.999,-1.529
+City of Calamba,Uwisan,2020,Dry,5.59,5.16,0.43
+City of Calamba,Uwisan,2020,Wet,4.23,4.363,-0.133
+City of Calamba,Uwisan,2021,Dry,5.71,4.957,0.753
+City of Calamba,Uwisan,2021,Wet,4.52,4.121,0.399
+City of Calamba,Uwisan,2022,Dry,5.71,4.424,1.286
+City of Calamba,Uwisan,2022,Wet,4.47,3.996,0.474
+City of Calamba,Uwisan,2023,Dry,5.58,4.712,0.868
+City of Calamba,Uwisan,2023,Wet,4.73,4.301,0.429
+City of Calamba,Uwisan,2024,Dry,5.37,4.635,0.735
+City of Calamba,Uwisan,2024,Wet,4.21,3.629,0.581
+City of Calamba,Uwisan,2025,Dry,5.26,3.934,1.326
+City of Calamba,Uwisan,2025,Wet,4.5,4.059,0.441

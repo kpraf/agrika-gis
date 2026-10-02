@@ -53,6 +53,9 @@ def main():
     ap = argparse.ArgumentParser(description="Load barangay CNN-LSTM predictions.")
     ap.add_argument("--csv", default=DEF_CSV)
     ap.add_argument("--model-version", default=MODEL_VERSION)
+    ap.add_argument("--replace", action="store_true",
+                    help="First delete every barangay_predictions row (any model version) of the "
+                         "municipalities in the CSV (use when it supersedes what is loaded).")
     args = ap.parse_args()
 
     with open(args.csv, newline="", encoding="utf-8") as fh:
@@ -88,6 +91,17 @@ def main():
             "ON CONFLICT (barangay_id, season_id, model_version) DO UPDATE SET "
             "predicted_yield = EXCLUDED.predicted_yield, generated_at = NOW()"
         )
+
+        if args.replace:
+            # Same transaction as the load below: a failed load leaves the old rows intact.
+            for muni in sorted({r["municipality"] for r in rows}):
+                n = db.session.execute(text(
+                    "DELETE FROM barangay_predictions WHERE barangay_id IN ("
+                    "SELECT b.barangay_id FROM barangays b "
+                    "JOIN municipalities m ON m.municipality_id = b.municipality_id "
+                    "WHERE lower(m.municipality_name) = lower(:m))"
+                ), {"m": muni.strip()}).rowcount
+                print(f"replace: removed {n} existing barangay_predictions rows for {muni}")
 
         loaded = skipped = 0
         unmatched = set()

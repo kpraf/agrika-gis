@@ -86,6 +86,9 @@ def main():
     ap.add_argument("--satellite")
     ap.add_argument("--municipalities", required=True,
                     help="Comma-separated municipality names the CSV covers (scopes the name lookup).")
+    ap.add_argument("--replace", action="store_true",
+                    help="First delete those municipalities' existing rows from each table being "
+                         "loaded (use when the CSV supersedes what is there, e.g. placeholder -> real).")
     args = ap.parse_args()
     munis = [m.strip() for m in args.municipalities.split(",") if m.strip()]
 
@@ -99,6 +102,19 @@ def main():
                     if r.municipality_name in munis}
         if not brgy_map:
             sys.exit(f"No barangays found for municipalities {munis}. Check the names.")
+        if args.replace:
+            for table, path in (("weather_monthly_barangay", args.weather),
+                                ("satellite_monthly_barangay", args.satellite)):
+                if not path or not os.path.exists(path):
+                    continue  # never wipe a table we are not about to reload
+                for muni in munis:
+                    n = db.session.execute(text(
+                        f"DELETE FROM {table} WHERE barangay_id IN ("
+                        "SELECT b.barangay_id FROM barangays b "
+                    "JOIN municipalities m ON m.municipality_id = b.municipality_id "
+                    "WHERE lower(m.municipality_name) = lower(:m))"
+                    ), {"m": muni}).rowcount
+                    print(f"replace: removed {n} existing {table} rows for {muni}")
         load_table("weather_monthly_barangay", args.weather, WEATHER_COLS, brgy_map)
         load_table("satellite_monthly_barangay", args.satellite, SATELLITE_COLS, brgy_map)
     return 0

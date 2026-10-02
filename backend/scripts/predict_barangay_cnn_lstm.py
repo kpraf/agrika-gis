@@ -18,7 +18,13 @@ Inputs
 Output
     db/barangay_cnn_lstm_predictions.csv
         municipality, barangay, year, season, observed, predicted, residual
+
+Usage
+    python backend/scripts/predict_barangay_cnn_lstm.py
+    # another city's sequences, kept in its own file (e.g. Calamba)
+    python backend/scripts/predict_barangay_cnn_lstm.py         --seq db/training_features_barangay_calamba_sequences.csv         --out db/barangay_cnn_lstm_predictions_calamba.csv
 """
+import argparse
 import os
 import sys
 
@@ -42,8 +48,8 @@ FEATURES = ["rain", "temp", "humid", "ndvi", "vv", "vh"]
 KEY = ["municipality", "barangay", "year", "season"]
 
 
-def load_barangay_sequences(cols):
-    df = pd.read_csv(BRGY_SEQ).sort_values(KEY + ["seq_step"])
+def load_barangay_sequences(cols, path=BRGY_SEQ):
+    df = pd.read_csv(path).sort_values(KEY + ["seq_step"])
     keys = df[KEY + ["yield_mt_ha"]].drop_duplicates(KEY).reset_index(drop=True)
     X = np.full((len(keys), STEPS, len(cols)), np.nan, dtype=np.float32)
     idx = {tuple(r): i for i, r in enumerate(keys[KEY].itertuples(index=False, name=None))}
@@ -56,9 +62,14 @@ def load_barangay_sequences(cols):
 
 
 def main():
+    ap = argparse.ArgumentParser(description="Barangay predictions from the municipality-trained CNN-LSTM.")
+    ap.add_argument("--seq", default=BRGY_SEQ, help="Barangay sequences CSV to predict for.")
+    ap.add_argument("--out", default=OUT, help="Output predictions CSV.")
+    args = ap.parse_args()
+
     set_seed(SEED)
     Xm, ym, _groups, _mkeys = load_sequences(FEATURES)   # municipality (train)
-    Xb, bkeys = load_barangay_sequences(FEATURES)        # barangay (predict)
+    Xb, bkeys = load_barangay_sequences(FEATURES, args.seq)  # barangay (predict)
     # Standardize barangay features with the MUNICIPALITY mean/std (same scale).
     Xm_s, Xb_s = standardize(Xm, Xb)
 
@@ -77,13 +88,13 @@ def main():
     out["predicted"] = np.round(pred, 3)
     out["residual"] = np.round(out["observed"] - out["predicted"], 3)
     out = out[["municipality", "barangay", "year", "season", "observed", "predicted", "residual"]]
-    out.to_csv(OUT, index=False)
+    out.to_csv(args.out, index=False)
 
     mae = float(np.mean(np.abs(out["residual"])))
     print(f"predicted {len(out)} barangay-seasons | MAE {mae:.3f} mt/ha "
           f"| pred range {out['predicted'].min():.2f}-{out['predicted'].max():.2f}")
     print(out.head(10).to_string(index=False))
-    print(f"\nwrote {OUT}")
+    print(f"\nwrote {args.out}")
     return 0
 
 

@@ -16,6 +16,7 @@ missing. Run add_barangay_yield_table.py first if the table doesn't exist.
 Usage
     python backend/scripts/load_barangay_yield.py --csv db/barangay_yield_city-of-santa-rosa.csv
     python backend/scripts/load_barangay_yield.py --csv <file> --source "Santa Rosa CAO"
+    python backend/scripts/load_barangay_yield.py --csv <file> --replace   # wipe that city's rows first
 """
 import argparse
 import csv
@@ -48,6 +49,9 @@ def main():
     ap = argparse.ArgumentParser(description="Load a barangay-yield CSV into barangay_yield.")
     ap.add_argument("--csv", required=True, help="CSV from extract_barangay_yield.py")
     ap.add_argument("--source", default="City Agriculture Office (Planting & Harvesting report)")
+    ap.add_argument("--replace", action="store_true",
+                    help="First delete every barangay_yield row of the municipalities in the CSV "
+                         "(use when the CSV supersedes what is loaded, e.g. placeholder -> real data).")
     args = ap.parse_args()
 
     with open(args.csv, newline="", encoding="utf-8") as fh:
@@ -89,6 +93,17 @@ def main():
             "yield_mt_ha = EXCLUDED.yield_mt_ha, area_ha = EXCLUDED.area_ha, "
             "production_mt = EXCLUDED.production_mt, source = EXCLUDED.source"
         )
+
+        if args.replace:
+            # Same transaction as the load below: a failed load leaves the old rows intact.
+            for muni in sorted({r["municipality"] for r in rows}):
+                n = db.session.execute(text(
+                    "DELETE FROM barangay_yield WHERE barangay_id IN ("
+                    "SELECT b.barangay_id FROM barangays b "
+                    "JOIN municipalities m ON m.municipality_id = b.municipality_id "
+                    "WHERE lower(m.municipality_name) = lower(:m))"
+                ), {"m": muni.strip()}).rowcount
+                print(f"replace: removed {n} existing barangay_yield rows for {muni}")
 
         loaded = skipped_nodata = skipped_nomatch = 0
         unmatched = set()
