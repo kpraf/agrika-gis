@@ -203,7 +203,12 @@ def main():
     args = ap.parse_args()
 
     start_date = f"{args.start}-01-01"
-    end_date = f"{args.end}-12-31"
+    # The archive rejects future dates, so for the current/in-progress year clamp
+    # the end to the latest day it can serve (it lags real time by ~5 days).
+    import datetime as _dt
+    requested_end = _dt.date(args.end, 12, 31)
+    archive_max = _dt.date.today() - _dt.timedelta(days=6)
+    end_date = min(requested_end, archive_max).isoformat()
     points = load_points(args.level, args.geojson)
     out_path = args.out or OUT[args.level]
     name_col = "municipality" if args.level == "municipality" else "barangay"
