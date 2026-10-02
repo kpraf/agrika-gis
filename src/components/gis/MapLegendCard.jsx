@@ -66,7 +66,7 @@ export default function MapLegendCard({
     avg != null && hasScale ? classes.findIndex((c, i) => avg >= c.from && (avg < c.to || i === n - 1)) : -1;
 
   return (
-    <div className="flex flex-col gap-3.5 p-6 bg-[#F8FAF5] border border-[#C3C8BD] rounded-xl w-full">
+    <div className="flex flex-col gap-3.5 p-6 bg-[#F9FAFB] border border-[#C3C8BD] rounded-xl w-full">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Map Legend</h4>
         {hasScale && badge && (

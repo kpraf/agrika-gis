@@ -10,7 +10,7 @@ const fmtSigned = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v)}`;
 
 function Shell({ season, year, showBadge, children }) {
   return (
-    <div className="flex flex-col gap-5 p-6 bg-[#F8FAF5] border border-[#C3C8BD] rounded-xl w-full">
+    <div className="flex flex-col gap-5 p-6 bg-[#F9FAFB] border border-[#C3C8BD] rounded-xl w-full">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">
           {`Rice Yield: ${season ?? ""} ${year ?? ""}`.trim()}
@@ -127,13 +127,13 @@ export default function YieldComparisonCard({
             />
           )}
           <div
-            className="absolute top-1.5 w-4 h-4 -ml-2 rounded-full bg-[#1F6306] border-2 border-[#F8FAF5] box-border"
+            className="absolute top-1.5 w-4 h-4 -ml-2 rounded-full bg-[#1F6306] border-2 border-[#F9FAFB] box-border"
             style={{ left: pct(observed, lo, hi) }}
             title={`Observed ${observed} mt/ha`}
           />
           {hasPred && (
             <div
-              className="absolute top-1.5 w-4 h-4 -ml-2 rounded-full bg-[#F8FAF5] border-[3px] border-[#EAB308] box-border"
+              className="absolute top-1.5 w-4 h-4 -ml-2 rounded-full bg-[#F9FAFB] border-[3px] border-[#EAB308] box-border"
               style={{ left: pct(predicted, lo, hi) }}
               title={`Predicted ${predicted} mt/ha`}
             />
