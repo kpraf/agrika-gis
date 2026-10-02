@@ -859,7 +859,12 @@ export default function SpatialGIS() {
                 visible={legendVisible}
                 loading={showingEnvironment && envLoading}
                 emptyHint={
-                  showingEnvironment && !envLoading && !legendVisible
+                  // Only when the Environment layer genuinely has no values for the
+                  // selected year/season — NOT when boundaries are simply toggled off.
+                  showingEnvironment &&
+                  !envLoading &&
+                  layers.boundaries &&
+                  !(legendDrilled ? mapBarangayScale : envScale)
                     ? `No ${envConfig.label} data for ${season ?? ""} ${year ?? ""}`.trim() +
                       ". Try an earlier year."
                     : null
