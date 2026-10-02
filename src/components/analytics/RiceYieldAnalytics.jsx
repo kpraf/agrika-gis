@@ -14,6 +14,7 @@ import {
   LabelList,
 } from "recharts";
 import DashboardSidebar from "../layout/DashboardSidebar";
+import ViewMenu from "./ViewMenu";
 import { yieldApi } from "../../lib/api";
 
 // "Field" palette: lighter, softer series colours. Assigned by SELECTION order
@@ -23,53 +24,6 @@ const PALETTE = [
   "#80CBC4", "#F48FB1", "#C5D86D", "#FFB870", "#90A4AE",
 ];
 const MAX_SELECTED = PALETTE.length;
-
-function IconLine() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 17l5-6 4 4 9-11" />
-    </svg>
-  );
-}
-function IconBar() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 20V10M12 20V4M20 20v-7" />
-    </svg>
-  );
-}
-function IconAverage() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 12h18M3 12l4-4M3 12l4 4" />
-    </svg>
-  );
-}
-function IconZoom() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="7" />
-      <path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
-    </svg>
-  );
-}
-
-function ControlButton({ active, onClick, disabled, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium shadow-sm transition-colors disabled:opacity-40 ${
-        active
-          ? "bg-[#F0FDFA] border-[#99F6E4] text-[#0F766E]"
-          : "bg-white border-[#E5E7EB] text-[#374151] hover:bg-[#F9FAFB]"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 function QuickButton({ onClick, children }) {
   return (
@@ -483,6 +437,15 @@ export default function RiceYieldAnalytics() {
                   ))}
                 </div>
               </div>
+
+              <ViewMenu
+                chartType={chartType}
+                setChartType={setChartType}
+                showAverage={showAverage}
+                setShowAverage={setShowAverage}
+                zoomEnabled={zoomEnabled}
+                setZoomEnabled={setZoomEnabled}
+              />
             </div>
 
             {/* List (left) + chart (right). Stacks below lg. */}
@@ -587,15 +550,6 @@ export default function RiceYieldAnalytics() {
 
               {/* ---------- Right: chart + table ---------- */}
               <div className="flex flex-col gap-4 min-w-0">
-                <div className="flex flex-wrap items-center gap-4 pb-4 border-b border-[#F3F4F6]">
-                  <ControlButton active={chartType === "line"} onClick={() => setChartType("line")}><IconLine /> Line Chart</ControlButton>
-                  <ControlButton active={chartType === "bar"} onClick={() => setChartType("bar")}><IconBar /> Bar Chart</ControlButton>
-                  <ControlButton active={showAverage} onClick={() => setShowAverage((v) => !v)}><IconAverage /> Show Average</ControlButton>
-                  <ControlButton active={zoomEnabled} onClick={() => setZoomEnabled((v) => !v)} disabled={chartType !== "line"}>
-                    <IconZoom /> Toggle Zoom: {zoomEnabled ? "On" : "Off"}
-                  </ControlButton>
-                </div>
-
                 <div className="flex flex-wrap items-center justify-between gap-3 min-h-6">
                   <span className="text-sm text-[#374151]">
                     {hoverEntity && hoverStats
