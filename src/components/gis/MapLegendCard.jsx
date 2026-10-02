@@ -25,7 +25,7 @@ function decimalsFor(span) {
 }
 
 export default function MapLegendCard({
-  visible, scale, colorMode = "yield", rampKey = "green",
+  visible, loading = false, emptyHint = null, scale, colorMode = "yield", rampKey = "green",
   title, badge, subtitle, avg, boundariesOn = true,
 }) {
   const [listOn, setListOn] = useState(() => {
@@ -74,7 +74,20 @@ export default function MapLegendCard({
         )}
       </div>
 
-      {hasScale ? (
+      {loading && !hasScale ? (
+        <div className="flex flex-col gap-3 animate-pulse">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex h-4 w-4 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
+            <span className="text-sm font-medium text-[#6B7280]">Loading layer data…</span>
+          </div>
+          <div className="h-3.5 w-full rounded bg-[#E1E3DE]" />
+          <div className="flex gap-2">
+            <span className="h-2.5 w-10 rounded bg-[#ECEFEA]" />
+            <span className="h-2.5 flex-1 rounded bg-[#ECEFEA]" />
+            <span className="h-2.5 w-10 rounded bg-[#ECEFEA]" />
+          </div>
+        </div>
+      ) : hasScale ? (
         <>
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-semibold text-[#191C1A]">
@@ -141,6 +154,13 @@ export default function MapLegendCard({
             </div>
           </div>
         </>
+      ) : emptyHint ? (
+        <div className="flex items-start gap-2.5 rounded-lg bg-[#FEF3C7]/50 border border-[#FDE68A] px-3 py-2.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+            <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" />
+          </svg>
+          <span className="text-[13px] leading-5 text-[#92400E]">{emptyHint}</span>
+        </div>
       ) : (
         <p className="text-sm text-[#9CA3AF]">No colour layer on the map right now.</p>
       )}

@@ -105,6 +105,7 @@ export default function SpatialGIS() {
   // Environment (remote-sensing) layer: selected metric + its per-municipality values.
   const [envMetric, setEnvMetric] = useState("ndvi");
   const [featuresResp, setFeaturesResp] = useState(null); // { label, unit, stats, records }
+  const [envLoading, setEnvLoading] = useState(false); // environment layer fetch in flight
   const [barangayEnvResp, setBarangayEnvResp] = useState(null); // per-barangay env metric on drill-in
   const [barangayCompareResp, setBarangayCompareResp] = useState(null); // per-barangay observed vs predicted
 
@@ -199,10 +200,12 @@ export default function SpatialGIS() {
     if (viewType !== "environment" || !year || !season) return;
     let active = true;
     setFeaturesResp(null);
+    setEnvLoading(true);
     featuresApi
       .municipalities(year, season, envMetric)
       .then((r) => active && setFeaturesResp(r))
-      .catch(() => active && setFeaturesResp(null));
+      .catch(() => active && setFeaturesResp(null))
+      .finally(() => active && setEnvLoading(false));
     return () => {
       active = false;
     };
@@ -215,10 +218,13 @@ export default function SpatialGIS() {
       return;
     }
     let active = true;
+    setBarangayEnvResp(null);
+    setEnvLoading(true);
     featuresApi
       .barangays(activeCityId, year, season, envMetric)
       .then((r) => active && setBarangayEnvResp(r))
-      .catch(() => active && setBarangayEnvResp(null));
+      .catch(() => active && setBarangayEnvResp(null))
+      .finally(() => active && setEnvLoading(false));
     return () => {
       active = false;
     };
@@ -496,11 +502,11 @@ export default function SpatialGIS() {
           </header>
         )}
 
-        <div className="relative flex flex-1 min-h-0 overflow-hidden lg:overflow-visible">
+        <div className="relative flex flex-1 min-h-0 overflow-hidden min-[1300px]:overflow-visible">
           {/* Backdrop behind an open drawer (below lg only) */}
           {(leftOpen || rightOpen) && (
             <div
-              className="lg:hidden absolute inset-0 z-[940] bg-black/40"
+              className="min-[1300px]:hidden absolute inset-0 z-[940] bg-black/40"
               onClick={() => { setLeftOpen(false); setRightOpen(false); }}
             />
           )}
@@ -508,11 +514,11 @@ export default function SpatialGIS() {
           {/* Left Panel — Map Controls.
               lg+: static column. Below lg: slide-in drawer from the left. */}
           <section
-            className={`bg-white overflow-y-auto lg:static lg:z-auto lg:w-[400px] lg:max-w-none lg:shrink-0 lg:h-full lg:translate-x-0 lg:border-r lg:border-[#C3C8BD] lg:shadow-none absolute top-0 bottom-0 left-0 z-[950] w-[86vw] max-w-[380px] border-r border-[#C3C8BD] shadow-2xl transition-transform duration-300 ${
+            className={`bg-white overflow-y-auto min-[1300px]:static min-[1300px]:z-auto min-[1300px]:w-[400px] min-[1300px]:max-w-none min-[1300px]:shrink-0 min-[1300px]:h-full min-[1300px]:translate-x-0 min-[1300px]:border-r min-[1300px]:border-[#C3C8BD] min-[1300px]:shadow-none absolute top-0 bottom-0 left-0 z-[950] w-[86vw] max-w-[380px] border-r border-[#C3C8BD] shadow-2xl transition-transform duration-300 ${
               leftOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
+            <div className="min-[1300px]:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
               <span className="text-sm font-semibold text-[#1F2937]">Map Controls</span>
               <button type="button" onClick={() => setLeftOpen(false)} aria-label="Close controls" className="p-1.5 -mr-1.5 text-[#6B7280] hover:text-[#1F2937]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -765,6 +771,8 @@ export default function SpatialGIS() {
           <LagunaMap
             boundariesVisible={layers.boundaries}
             detailedTooltips={detailedTooltips}
+            overlayLoading={showingEnvironment && envLoading}
+            overlayLabel={`Loading ${envConfig.label}…`}
             year={year}
             season={season}
             onSelectionChange={handleSelection}
@@ -809,7 +817,7 @@ export default function SpatialGIS() {
               <button
                 type="button"
                 onClick={() => setLeftOpen(true)}
-                className="lg:hidden absolute left-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pl-2 pr-3 rounded-r-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
+                className="min-[1300px]:hidden absolute left-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pl-2 pr-3 rounded-r-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1B6D24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
                 Layers
@@ -817,7 +825,7 @@ export default function SpatialGIS() {
               <button
                 type="button"
                 onClick={() => setRightOpen(true)}
-                className="lg:hidden absolute right-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pr-2 pl-3 rounded-l-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
+                className="min-[1300px]:hidden absolute right-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pr-2 pl-3 rounded-l-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
               >
                 Details
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1B6D24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20V10M18 20V4M6 20v-4" /></svg>
@@ -828,11 +836,11 @@ export default function SpatialGIS() {
           {/* Right Panel — Context.
               lg+: static column. Below lg: slide-in drawer from the right. */}
           <section
-            className={`bg-white overflow-y-auto lg:static lg:z-auto lg:w-[460px] lg:max-w-none lg:shrink-0 lg:h-full lg:translate-x-0 lg:border-l-0 lg:shadow-none absolute top-0 bottom-0 right-0 z-[950] w-[86vw] max-w-[420px] border-l border-[#C3C8BD] shadow-2xl transition-transform duration-300 ${
+            className={`bg-white overflow-y-auto min-[1300px]:static min-[1300px]:z-auto min-[1300px]:w-[460px] min-[1300px]:max-w-none min-[1300px]:shrink-0 min-[1300px]:h-full min-[1300px]:translate-x-0 min-[1300px]:border-l-0 min-[1300px]:shadow-none absolute top-0 bottom-0 right-0 z-[950] w-[86vw] max-w-[420px] border-l border-[#C3C8BD] shadow-2xl transition-transform duration-300 ${
               rightOpen ? "translate-x-0" : "translate-x-full"
             }`}
           >
-            <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
+            <div className="min-[1300px]:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
               <span className="text-sm font-semibold text-[#1F2937]">Details</span>
               <button type="button" onClick={() => setRightOpen(false)} aria-label="Close details" className="p-1.5 -mr-1.5 text-[#6B7280] hover:text-[#1F2937]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -849,6 +857,13 @@ export default function SpatialGIS() {
             <div className="flex flex-col gap-6 p-6">
               <MapLegendCard
                 visible={legendVisible}
+                loading={showingEnvironment && envLoading}
+                emptyHint={
+                  showingEnvironment && !envLoading && !legendVisible
+                    ? `No ${envConfig.label} data for ${season ?? ""} ${year ?? ""}`.trim() +
+                      ". Try an earlier year."
+                    : null
+                }
                 scale={legendScale}
                 colorMode={mapColorMode}
                 rampKey={mapRampKey}

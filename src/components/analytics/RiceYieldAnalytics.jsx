@@ -83,6 +83,49 @@ function QuickButton({ onClick, children }) {
   );
 }
 
+// Loading placeholder for the chart area, shaped to the active chart type so the
+// skeleton reads as "a chart is coming" rather than a generic grey box.
+function ChartSkeleton({ type = "line" }) {
+  const bars = [52, 74, 61, 88, 70, 95, 80, 66];
+  return (
+    <div className="w-full h-full flex gap-3 animate-pulse">
+      {/* Y axis ticks */}
+      <div className="flex flex-col justify-between py-2 w-12 shrink-0">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <span key={i} className="h-2.5 w-full rounded bg-[#F3F4F6]" />
+        ))}
+      </div>
+      <div className="flex-1 flex flex-col">
+        <div className="relative flex-1">
+          {type === "bar" ? (
+            <div className="absolute inset-0 flex items-end justify-around gap-2 px-2">
+              {bars.map((h, i) => (
+                <span key={i} className="flex-1 rounded-t bg-[#E5E7EB]" style={{ height: `${h}%` }} />
+              ))}
+            </div>
+          ) : (
+            <>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <span key={i} className="absolute left-0 right-0 h-px bg-[#F3F4F6]" style={{ top: `${(i + 1) * 20}%` }} />
+              ))}
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polyline points="0,80 14,60 28,66 42,40 56,48 70,24 84,34 100,16" fill="none" stroke="#E5E7EB" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+                <polyline points="0,88 14,78 28,72 42,70 56,58 70,54 84,44 100,40" fill="none" stroke="#EEF0ED" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+              </svg>
+            </>
+          )}
+        </div>
+        {/* X axis ticks */}
+        <div className="flex justify-around gap-2 pt-3">
+          {bars.map((_, i) => (
+            <span key={i} className="h-2.5 w-8 rounded bg-[#F3F4F6]" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Pick the N highest-average series ids for a sensible default view.
 function topByAverage(seriesById, ids, n) {
   const avg = (id) => {
@@ -334,6 +377,11 @@ export default function RiceYieldAnalytics() {
 
   const ChartComponent = chartType === "line" ? LineChart : BarChart;
 
+  // First paint before the municipality list has arrived, or an in-flight fetch
+  // with no plotted values yet — either way show the chart/table skeletons.
+  const booting = !isBarangay && munis.length === 0;
+  const chartLoading = booting || (loading && chartData.every((r) => r.average == null));
+
   const compareChartData = useMemo(() => {
     if (isBarangay || !compareResp) return [];
     return (compareResp.records || [])
@@ -558,14 +606,11 @@ export default function RiceYieldAnalytics() {
                 </div>
 
                 <div className="relative w-full h-[380px]">
-                  {selected.length === 0 ? (
+                  {chartLoading ? (
+                    <ChartSkeleton type={chartType} />
+                  ) : selected.length === 0 ? (
                     <div className="absolute inset-0 flex items-center justify-center text-sm text-[#9CA3AF]">
                       Select {entityWordPlural} from the list to compare.
-                    </div>
-                  ) : loading && chartData.every((r) => r.average == null) ? (
-                    <div className="w-full h-full flex flex-col justify-end gap-3 pb-8 animate-pulse">
-                      <div className="flex-1 pt-6 rounded bg-[#F9FAFB]" />
-                      <div className="h-2 w-full rounded bg-[#F3F4F6]" />
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
@@ -653,7 +698,22 @@ export default function RiceYieldAnalytics() {
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedEntities
+                      {chartLoading &&
+                        Array.from({ length: 4 }).map((_, i) => (
+                          <tr key={`sk-${i}`} className="border-t border-[#F3F4F6] animate-pulse">
+                            <td className="px-4 py-2">
+                              <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle bg-[#E5E7EB]" />
+                              <span className="inline-block h-3 w-28 rounded bg-[#E5E7EB] align-middle" />
+                            </td>
+                            {Array.from({ length: 4 }).map((__, j) => (
+                              <td key={j} className="px-4 py-2 text-right">
+                                <span className="inline-block h-3 w-10 rounded bg-[#F3F4F6]" />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      {!chartLoading &&
+                        selectedEntities
                         .map((e) => ({ e, s: statsFor(e.id) }))
                         .filter((x) => x.s)
                         .sort((a, b) => b.s.avg - a.s.avg)

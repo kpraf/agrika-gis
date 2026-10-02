@@ -94,6 +94,8 @@ export default function LagunaMap({
   barangayHeatmap = false, // yield mode on drill-in: colour barangays by yield, grey the no-data ones
   yieldKey = "", // changes (e.g. "2024-Dry") force the choropleth to restyle
   barangayKey = "", // changes force the barangay choropleth to restyle
+  overlayLoading = false, // show a non-blocking "loading data" pill over the map
+  overlayLabel = "Loading…", // label for that pill
 }) {
   const mapRef = useRef(null);
   // Monotonic id of the latest drill-in, so a slower earlier fetch can't override
@@ -628,6 +630,18 @@ export default function LagunaMap({
         </div>
       )}
 
+      {/* Environment (or other data) loading pill — non-blocking, shown while the
+          selected layer's values are being fetched so the map isn't silently blank
+          until they arrive. Hidden while the barangay-drill pill is up. */}
+      {overlayLoading && !barangaysLoading && (
+        <div className="absolute inset-0 z-[600] flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-2.5 rounded-full bg-white/95 px-4 py-2.5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1)] backdrop-blur-sm">
+            <span className="inline-flex h-4 w-4 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
+            <span className="text-sm font-medium text-[#374151] whitespace-nowrap">{overlayLabel}</span>
+          </div>
+        </div>
+      )}
+
       {/* Search overlay — municipalities + barangays, click a result to fly there */}
       <div className="absolute left-6 right-6 top-6 z-[500] flex justify-center pointer-events-none">
         <div className="w-full max-w-[473px] pointer-events-auto">
@@ -705,27 +719,27 @@ export default function LagunaMap({
       {/* Colour-scale legend — centred along the bottom of the map. Shows for the
           municipality choropleth (province view) or the barangay one (drilled in). */}
       {legendVisible && (
-        <div className="absolute left-3 bottom-20 sm:left-1/2 sm:-translate-x-1/2 sm:bottom-6 z-[500] bg-white/95 backdrop-blur-sm shadow-md rounded-lg px-3 py-2 sm:px-5 sm:py-3 max-w-[calc(100vw-5rem)] sm:max-w-none">
-          <div className="flex items-center gap-2 sm:gap-4">
-            <span className="text-xs sm:text-sm font-semibold text-[#374151] whitespace-nowrap">
+        <div className="absolute left-3 bottom-20 min-[1770px]:left-1/2 min-[1770px]:-translate-x-1/2 min-[1770px]:bottom-6 z-[500] bg-white/95 backdrop-blur-sm shadow-md rounded-lg px-3 py-2 min-[1770px]:px-5 min-[1770px]:py-3 max-w-[calc(100vw-5rem)] min-[1770px]:max-w-none">
+          <div className="flex items-center gap-2 min-[1770px]:gap-4">
+            <span className="text-xs min-[1770px]:text-sm font-semibold text-[#374151] whitespace-nowrap">
               {colorMode === "residual" ? "Residual (obs − pred), mt/ha" : legendLabel}
             </span>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-[10px] sm:text-xs text-[#6B7280]">
+            <div className="flex items-center gap-1.5 min-[1770px]:gap-2">
+              <span className="text-[10px] min-[1770px]:text-xs text-[#6B7280]">
                 {colorMode === "residual" ? "over-predicts" : legendScale.min}
               </span>
-              <div className="flex h-3 sm:h-3.5 w-24 sm:w-52 rounded-full overflow-hidden">
+              <div className="flex h-3 min-[1770px]:h-3.5 w-24 min-[1770px]:w-52 rounded-full overflow-hidden">
                 {(colorMode === "residual" ? RESIDUAL_RAMP : RAMPS[rampKey] || YIELD_RAMP).map((c) => (
                   <span key={c} className="flex-1" style={{ background: c }} />
                 ))}
               </div>
-              <span className="text-[10px] sm:text-xs text-[#6B7280]">
+              <span className="text-[10px] min-[1770px]:text-xs text-[#6B7280]">
                 {colorMode === "residual" ? "under-predicts" : legendScale.max}
               </span>
             </div>
-            {/* "No data" key hidden on phones to keep the legend from colliding with
+            {/* "No data" key hidden below 1770px to keep the legend from colliding with
                 the basemap toggle / zoom; the grey polygons read clearly enough. */}
-            <div className="hidden sm:flex items-center gap-1.5">
+            <div className="hidden min-[1770px]:flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-[#D1D5DB]" />
               <span className="text-xs text-[#6B7280] whitespace-nowrap">No data</span>
             </div>

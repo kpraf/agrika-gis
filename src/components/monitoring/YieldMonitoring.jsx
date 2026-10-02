@@ -121,7 +121,12 @@ export default function YieldMonitoring() {
   useEffect(() => {
     if (!season) return;
     let active = true;
-    const mid = selection?.level === "municipality" ? selection.id : undefined;
+    const mid =
+      selection?.level === "municipality"
+        ? selection.id
+        : selection?.level === "barangay"
+        ? selection.municipalityId
+        : undefined;
     yieldApi.trend(season, mid)
       .then((r) => active && setTrend(r.series || []))
       .catch(() => active && setTrend([]));
@@ -130,7 +135,21 @@ export default function YieldMonitoring() {
 
   // Real per-barangay yields when a municipality is drilled into; cleared at the
   // province view. Colours the barangay choropleth and the drill-in breakdown.
-  const activeCityId = selection?.level === "municipality" ? selection.id : null;
+  // A barangay click stays "drilled into" its parent municipality — resolve the
+  // city id/name for either selection level so the barangay choropleth (and the
+  // no-data greying) and the trend chart don't reset when a barangay is clicked.
+  const activeCityId =
+    selection?.level === "municipality"
+      ? selection.id
+      : selection?.level === "barangay"
+      ? selection.municipalityId
+      : null;
+  const activeCityName =
+    selection?.level === "municipality"
+      ? selection.name
+      : selection?.level === "barangay"
+      ? selection.municipalityName
+      : "";
   useEffect(() => {
     if (!activeCityId || !year || !season) {
       setBarangayResp(null);
@@ -150,7 +169,7 @@ export default function YieldMonitoring() {
   const barangayRecords = barangayResp?.records ?? [];
   const barangayStats = barangayResp?.stats;
   const hasBarangayData = barangayRecords.length > 0;
-  const drilled = selection?.level === "municipality";
+  const drilled = selection?.level === "municipality" || selection?.level === "barangay";
 
   // Default the panel scope to barangays on drill-in, back to municipalities when
   // returning to the province view.
@@ -196,9 +215,9 @@ export default function YieldMonitoring() {
     [barangayStats]
   );
 
-  const trendLabel = selection?.level === "municipality" ? selection.name : "Laguna Province";
+  const trendLabel = activeCityName || "Laguna Province";
   // Short municipality name for the scope tab (drop the "City of " prefix).
-  const shortCity = drilled ? selection.name.replace(/^City of\s+/i, "") : "";
+  const shortCity = drilled ? activeCityName.replace(/^City of\s+/i, "") : "";
   const unitLabel = onBarangay ? "Barangay" : "Municipality";
 
   return (
@@ -215,11 +234,11 @@ export default function YieldMonitoring() {
           <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">{cityLabel}</span>
         </header>
 
-        <div className="relative flex flex-1 min-h-0 overflow-hidden lg:overflow-visible">
+        <div className="relative flex flex-1 min-h-0 overflow-hidden min-[1300px]:overflow-visible">
           {/* Backdrop behind an open drawer (below lg only) */}
           {(leftOpen || rightOpen) && (
             <div
-              className="lg:hidden absolute inset-0 z-[940] bg-black/40"
+              className="min-[1300px]:hidden absolute inset-0 z-[940] bg-black/40"
               onClick={() => { setLeftOpen(false); setRightOpen(false); }}
             />
           )}
@@ -227,11 +246,11 @@ export default function YieldMonitoring() {
           {/* Left Panel — charts.
               lg+: static column. Below lg: slide-in drawer from the left. */}
           <section
-            className={`bg-white overflow-y-auto [scrollbar-gutter:stable] lg:static lg:z-auto lg:w-[440px] lg:max-w-none lg:shrink-0 lg:h-full lg:translate-x-0 lg:border-r lg:border-[#D8DBD6] lg:shadow-sm absolute top-0 bottom-0 left-0 z-[950] w-[86vw] max-w-[400px] border-r border-[#D8DBD6] shadow-2xl transition-transform duration-300 ${
+            className={`bg-white overflow-y-auto [scrollbar-gutter:stable] min-[1300px]:static min-[1300px]:z-auto min-[1300px]:w-[440px] min-[1300px]:max-w-none min-[1300px]:shrink-0 min-[1300px]:h-full min-[1300px]:translate-x-0 min-[1300px]:border-r min-[1300px]:border-[#D8DBD6] min-[1300px]:shadow-sm absolute top-0 bottom-0 left-0 z-[950] w-[86vw] max-w-[400px] border-r border-[#D8DBD6] shadow-2xl transition-transform duration-300 ${
               leftOpen ? "translate-x-0" : "-translate-x-full"
             }`}
           >
-            <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
+            <div className="min-[1300px]:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
               <span className="text-sm font-semibold text-[#1F2937]">Yield Overview</span>
               <button type="button" onClick={() => setLeftOpen(false)} aria-label="Close overview" className="p-1.5 -mr-1.5 text-[#6B7280] hover:text-[#1F2937]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -505,7 +524,7 @@ export default function YieldMonitoring() {
               <button
                 type="button"
                 onClick={() => setLeftOpen(true)}
-                className="lg:hidden absolute left-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pl-2 pr-3 rounded-r-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
+                className="min-[1300px]:hidden absolute left-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pl-2 pr-3 rounded-r-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1B6D24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
                 Overview
@@ -513,7 +532,7 @@ export default function YieldMonitoring() {
               <button
                 type="button"
                 onClick={() => setRightOpen(true)}
-                className="lg:hidden absolute right-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pr-2 pl-3 rounded-l-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
+                className="min-[1300px]:hidden absolute right-0 top-1/2 -translate-y-1/2 z-[850] flex items-center gap-1.5 py-2.5 pr-2 pl-3 rounded-l-xl bg-white/95 backdrop-blur shadow-[0_4px_12px_rgba(0,0,0,0.2)] text-xs font-semibold text-[#1F2937] active:scale-95 transition-transform"
               >
                 Trends
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1B6D24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18M7 14l4-4 3 3 5-6" /></svg>
@@ -524,11 +543,11 @@ export default function YieldMonitoring() {
           {/* Right Panel — historical trend.
               lg+: static column. Below lg: slide-in drawer from the right. */}
           <section
-            className={`bg-white overflow-y-auto lg:static lg:z-auto lg:w-[420px] lg:max-w-none lg:shrink-0 lg:h-full lg:translate-x-0 lg:shadow-[-2px_0_10px_rgba(0,0,0,0.02)] absolute top-0 bottom-0 right-0 z-[950] w-[86vw] max-w-[400px] border-l border-[#D8DBD6] shadow-2xl transition-transform duration-300 ${
+            className={`bg-white overflow-y-auto min-[1300px]:static min-[1300px]:z-auto min-[1300px]:w-[420px] min-[1300px]:max-w-none min-[1300px]:shrink-0 min-[1300px]:h-full min-[1300px]:translate-x-0 min-[1300px]:shadow-[-2px_0_10px_rgba(0,0,0,0.02)] absolute top-0 bottom-0 right-0 z-[950] w-[86vw] max-w-[400px] border-l border-[#D8DBD6] shadow-2xl transition-transform duration-300 ${
               rightOpen ? "translate-x-0" : "translate-x-full"
             }`}
           >
-            <div className="lg:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
+            <div className="min-[1300px]:hidden sticky top-0 z-10 flex items-center justify-between px-4 h-12 bg-white/95 backdrop-blur border-b border-[#E5E7EB]">
               <span className="text-sm font-semibold text-[#1F2937]">Historical Trends</span>
               <button type="button" onClick={() => setRightOpen(false)} aria-label="Close trends" className="p-1.5 -mr-1.5 text-[#6B7280] hover:text-[#1F2937]">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -539,7 +558,7 @@ export default function YieldMonitoring() {
 
               <p className="text-xs leading-5 text-[#6B7280]">
                 Year-over-year actual vs predicted yield for <b>{trendLabel}</b> in the {season} season.
-                {selection?.level === "municipality"
+                {drilled
                   ? " Click “back to all” on the map for the province view."
                   : " Click a municipality on the map to focus its trend."}
               </p>

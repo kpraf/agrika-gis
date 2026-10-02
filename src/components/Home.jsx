@@ -44,7 +44,7 @@ const TEAM = [
   { name: "Ashlie Argana", role: "Frontend Developer", photo: "/images/ash.jpeg" },
   { name: "Kester Praferosa", role: "Machine Learning Engineer", photo: "/images/kester.jpg" },
   { name: "Joshua Ilagan", role: "Backend Developer", photo: "/images/josh.jpg" },
-  { name: "Jean C. Madolora", role: "Data Engineering", photo: null },
+  { name: "Jean C. Madolora", role: "Data Engineering", photo: "/images/jean.jpg" },
 ];
 
 export default function Home() {
