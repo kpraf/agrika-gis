@@ -12,9 +12,13 @@ loader in the right order:
   * barangay yields for the four study cities (Santa Rosa, Cabuyao, Biñan, Calamba)
   * barangay Environment features (weather + satellite) for those cities
   * barangay CNN-LSTM predictions
+  * the contact_messages table (Contact page)
 
-Everything is an idempotent UPSERT, so it is safe to re-run — after a `git pull`
-that brings new/updated CSVs, just run this again to refresh your local data.
+Everything is idempotent, so it is safe to re-run — after a `git pull` that
+brings new/updated CSVs, just run this again to refresh your local data. Most
+steps UPSERT; Calamba's barangay steps use --replace, because the real dataset
+(2026-10) covers different barangays than the old placeholder, whose rows would
+otherwise linger in databases loaded before then.
 
     cd backend
     .\\venv\\Scripts\\python.exe scripts\\load_all_data.py
@@ -54,7 +58,7 @@ STEPS = [
       "--source", "Biñan CAO (Harvesting Accomplishment Report)"]),
     ("load_barangay_yield.py",
      ["--csv", "db/barangay_yield_city-of-calamba.csv",
-      "--source", "Calamba CAO (Harvesting Accomplishment Report)"]),
+      "--source", "Calamba CASD (consolidated harvesting report 2020-2025)", "--replace"]),
     # --- barangay Environment features ---
     ("add_barangay_feature_tables.py", []),
     ("load_barangay_feature_tables.py",
@@ -68,10 +72,13 @@ STEPS = [
     ("load_barangay_feature_tables.py",
      ["--weather", "db/weather_barangay_calamba_monthly.csv",
       "--satellite", "db/satellite_barangay_calamba_monthly.csv",
-      "--municipalities", "City of Calamba"]),
+      "--municipalities", "City of Calamba", "--replace"]),
     # --- barangay predictions ---
     ("load_barangay_predictions.py", ["--csv", "db/barangay_cnn_lstm_predictions.csv"]),
-    ("load_barangay_predictions.py", ["--csv", "db/barangay_cnn_lstm_predictions_calamba.csv"]),
+    ("load_barangay_predictions.py",
+     ["--csv", "db/barangay_cnn_lstm_predictions_calamba.csv", "--replace"]),
+    # --- app tables that hold no CSV data ---
+    ("add_contact_messages_table.py", []),
 ]
 
 
