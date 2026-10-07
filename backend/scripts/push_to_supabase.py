@@ -34,11 +34,14 @@ BACKEND = os.path.abspath(os.path.join(HERE, ".."))
 PRED_CSV = os.path.join(BACKEND, "db", "cnn_lstm_predictions_for_app.csv")
 MODEL_VERSION = "cnn-lstm-s2s1"
 
-# Real per-barangay yield CSVs (one per municipality collected so far).
+# Per-barangay yield CSVs (one per municipality collected so far), plus Cabuyao's estimated gap seasons.
 BARANGAY_CSVS = [
     ("db/barangay_yield_city-of-santa-rosa.csv", "Santa Rosa CAO (Planting & Harvesting report)"),
     ("db/barangay_yield_city-of-cabuyao.csv", "Cabuyao CAO (Harvesting Accomplishment Report)"),
     ("db/barangay_yield_city-of-binan.csv", "Biñan CAO (Harvesting Accomplishment Report)"),
+    # ESTIMATES, not observations (impute_cabuyao_barangay_yield.py): Cabuyao Dry 2022,
+    # Wet 2022, Dry 2023, whose source reports were duplicated. The source says so.
+    ("db/barangay_yield_city-of-cabuyao_estimated.csv", "Estimated - imputed from Santa Rosa-anchored pattern (not observed)"),
 ]
 
 # Barangay Environment features: (weather CSV, satellite CSV, municipalities scope).

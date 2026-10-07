@@ -53,6 +53,11 @@ STEPS = [
     ("load_barangay_yield.py",
      ["--csv", "db/barangay_yield_city-of-cabuyao.csv",
       "--source", "Cabuyao CAO (Harvesting Accomplishment Report)"]),
+    # Estimates, not observations (impute_cabuyao_barangay_yield.py): Cabuyao's three
+    # seasons with unusable source reports. Kept apart from the observed file above.
+    ("load_barangay_yield.py",
+     ["--csv", "db/barangay_yield_city-of-cabuyao_estimated.csv",
+      "--source", "Estimated - imputed from Santa Rosa-anchored pattern (not observed)"]),
     ("load_barangay_yield.py",
      ["--csv", "db/barangay_yield_city-of-binan.csv",
       "--source", "Biñan CAO (Harvesting Accomplishment Report)"]),
