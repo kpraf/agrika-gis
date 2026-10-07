@@ -71,8 +71,13 @@ export default function YieldComparisonCard({
   }
 
   const hasPred = predicted != null;
-  const residual = hasPred ? +(observed - predicted).toFixed(3) : null; // obs − pred (same sign rule as before)
-  const errPct = hasPred ? Math.abs(((predicted - observed) / observed) * 100).toFixed(1) : null;
+  // An imputed (not reported) yield: show it and the prediction, but no residual —
+  // estimate minus prediction says nothing about model error.
+  const isEstimated = isMuni && !!selectedCompare?.estimated;
+  const scored = hasPred && !isEstimated;
+  const residual = scored ? +(observed - predicted).toFixed(3) : null; // obs − pred (same sign rule as before)
+  const errPct = scored ? Math.abs(((predicted - observed) / observed) * 100).toFixed(1) : null;
+  const observedLabel = isEstimated ? "Estimated" : "Observed";
 
   // Axis: province range, snapped out to 0.5 mt/ha
   const vals = [stats?.min, stats?.max, observed, predicted].filter((v) => v != null);
@@ -97,7 +102,7 @@ export default function YieldComparisonCard({
         <div className="flex flex-col gap-1 p-3.5 bg-white border border-[#E1E3DE] rounded-[10px]">
           <span className="flex items-center gap-1.5 text-xs font-semibold text-[#434840]">
             <span className="w-2.5 h-2.5 rounded-full bg-[#1F6306]" />
-            {isMuni ? "Observed" : "Observed avg"}
+            {isMuni ? observedLabel : "Observed avg"}
           </span>
           <span className="text-[26px] font-bold text-[#1B3315]">{observed}</span>
         </div>
@@ -129,7 +134,7 @@ export default function YieldComparisonCard({
           <div
             className="absolute top-1.5 w-4 h-4 -ml-2 rounded-full bg-[#1F6306] border-2 border-[#F9FAFB] box-border"
             style={{ left: pct(observed, lo, hi) }}
-            title={`Observed ${observed} mt/ha`}
+            title={`${observedLabel} ${observed} mt/ha`}
           />
           {hasPred && (
             <div
@@ -162,7 +167,12 @@ export default function YieldComparisonCard({
       </div>
 
       {/* Summary sentence */}
-      {hasPred ? (
+      {isEstimated ? (
+        <span className="text-sm leading-5 text-[#434840]">
+          No yield was reported for {selection.name} in {season} {year}. The value shown is{" "}
+          <b className="text-[#191C1A]">an estimate</b>, so no model error is given.
+        </span>
+      ) : hasPred ? (
         <span className="text-sm leading-5 text-[#434840]">
           The model{" "}
           <b className="text-[#191C1A]">
@@ -180,7 +190,7 @@ export default function YieldComparisonCard({
       )}
 
       {/* Stat tiles */}
-      {hasPred && (
+      {scored && (
         <div className="grid grid-cols-3 gap-2">
           <Tile
             value={compareResp?.stats?.mae ?? "N/A"}

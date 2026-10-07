@@ -23,6 +23,8 @@ Usage
     python backend/scripts/predict_barangay_cnn_lstm.py
     # another city's sequences, kept in its own file (e.g. Calamba)
     python backend/scripts/predict_barangay_cnn_lstm.py         --seq db/training_features_barangay_calamba_sequences.csv         --out db/barangay_cnn_lstm_predictions_calamba.csv
+    # seasons whose yield is only an estimate: predictions, but no observed/residual
+    python backend/scripts/predict_barangay_cnn_lstm.py --no-observed         --seq db/predict_only_barangay_cabuyao_estimated_sequences.csv         --out db/barangay_cnn_lstm_predictions_cabuyao_estimated.csv
 """
 import argparse
 import os
@@ -65,6 +67,9 @@ def main():
     ap = argparse.ArgumentParser(description="Barangay predictions from the municipality-trained CNN-LSTM.")
     ap.add_argument("--seq", default=BRGY_SEQ, help="Barangay sequences CSV to predict for.")
     ap.add_argument("--out", default=OUT, help="Output predictions CSV.")
+    ap.add_argument("--no-observed", action="store_true",
+                    help="The sequences' yield column is an ESTIMATE, not a report: leave "
+                         "observed/residual blank so the output can't be read as model accuracy.")
     args = ap.parse_args()
 
     set_seed(SEED)
@@ -87,11 +92,13 @@ def main():
     out = bkeys.rename(columns={"yield_mt_ha": "observed"}).copy()
     out["predicted"] = np.round(pred, 3)
     out["residual"] = np.round(out["observed"] - out["predicted"], 3)
+    if args.no_observed:
+        out[["observed", "residual"]] = np.nan
     out = out[["municipality", "barangay", "year", "season", "observed", "predicted", "residual"]]
     out.to_csv(args.out, index=False)
 
-    mae = float(np.mean(np.abs(out["residual"])))
-    print(f"predicted {len(out)} barangay-seasons | MAE {mae:.3f} mt/ha "
+    mae = "n/a (no observed)" if args.no_observed else f"{float(np.mean(np.abs(out['residual']))):.3f} mt/ha"
+    print(f"predicted {len(out)} barangay-seasons | MAE {mae} "
           f"| pred range {out['predicted'].min():.2f}-{out['predicted'].max():.2f}")
     print(out.head(10).to_string(index=False))
     print(f"\nwrote {args.out}")

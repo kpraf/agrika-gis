@@ -80,6 +80,9 @@ STEPS = [
       "--municipalities", "City of Calamba", "--replace"]),
     # --- barangay predictions ---
     ("load_barangay_predictions.py", ["--csv", "db/barangay_cnn_lstm_predictions.csv"]),
+    # Predictions for Cabuyao's estimated seasons (no observed yield, so no residual).
+    ("load_barangay_predictions.py",
+     ["--csv", "db/barangay_cnn_lstm_predictions_cabuyao_estimated.csv"]),
     ("load_barangay_predictions.py",
      ["--csv", "db/barangay_cnn_lstm_predictions_calamba.csv", "--replace"]),
     # --- app tables that hold no CSV data ---

@@ -242,8 +242,13 @@ def barangays_compare():
     """Observed vs predicted (+ residual) per barangay for a municipality+year+season.
 
     Observed from barangay_yield, predicted from barangay_predictions (the CNN-LSTM
-    applied to each barangay's features). Only barangays with an observed yield are
-    returned. Each record: { barangay_id, name, observed, predicted, residual }.
+    applied to each barangay's features). Only barangays with a yield row are
+    returned. Each record: { barangay_id, name, observed, predicted, residual,
+    estimated }.
+
+    `estimated` marks a yield that was imputed rather than reported (source starts
+    with "Estimated"). It has no residual and is left out of the MAE: estimate
+    minus prediction is not a measure of model error.
 
     Query params: municipality_id (int), year (int), season (str) — all required.
     """
@@ -256,7 +261,8 @@ def barangays_compare():
     rows = db.session.execute(
         text(
             "SELECT b.barangay_id, b.barangay_name AS name, y.yield_mt_ha AS observed, "
-            "p.predicted_yield AS predicted "
+            "p.predicted_yield AS predicted, "
+            "COALESCE(y.source ILIKE 'estimated%', FALSE) AS estimated "
             "FROM barangay_yield y "
             "JOIN barangays b ON b.barangay_id = y.barangay_id "
             "JOIN seasons s ON s.season_id = y.season_id "
@@ -272,10 +278,12 @@ def barangays_compare():
     for r in rows:
         obs = round(r.observed, 3) if r.observed is not None else None
         prd = round(r.predicted, 3) if r.predicted is not None else None
-        residual = round(obs - prd, 3) if (obs is not None and prd is not None) else None
+        scored = obs is not None and prd is not None and not r.estimated
         records.append({
             "barangay_id": r.barangay_id, "name": r.name,
-            "observed": obs, "predicted": prd, "residual": residual,
+            "observed": obs, "predicted": prd,
+            "residual": round(obs - prd, 3) if scored else None,
+            "estimated": bool(r.estimated),
         })
 
     pred_vals = [r["predicted"] for r in records if r["predicted"] is not None]

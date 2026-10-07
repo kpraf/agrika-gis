@@ -52,6 +52,9 @@ BARANGAY_FEATURE_CSVS = [
      "City of Biñan"),
 ]
 BARANGAY_PRED_CSV = "db/barangay_cnn_lstm_predictions.csv"
+# Predictions for Cabuyao's estimated seasons (see BARANGAY_CSVS): model output only,
+# with no observed yield to score against.
+BARANGAY_PRED_EST_CSV = "db/barangay_cnn_lstm_predictions_cabuyao_estimated.csv"
 
 # Calamba (real): observed yield from the City Agricultural Services Dept.
 # consolidated workbook (extract_calamba_conso.py), real Open-Meteo / CDSE
@@ -114,7 +117,8 @@ def main():
             if not os.path.exists(os.path.join(BACKEND, rel)):
                 sys.exit(f"ERROR: {rel} not found. Nothing was done.")
     if args.with_barangay_model:
-        needed = [BARANGAY_PRED_CSV] + [p for w, s, _ in BARANGAY_FEATURE_CSVS for p in (w, s)]
+        needed = [BARANGAY_PRED_CSV, BARANGAY_PRED_EST_CSV] + [
+            p for w, s, _ in BARANGAY_FEATURE_CSVS for p in (w, s)]
         for rel in needed:
             if not os.path.exists(os.path.join(BACKEND, rel)):
                 sys.exit(f"ERROR: {rel} not found. Nothing was done.")
@@ -166,6 +170,7 @@ def main():
             run("load_barangay_feature_tables.py",
                 ["--weather", weather, "--satellite", sat, "--municipalities", munis], env)
         run("load_barangay_predictions.py", ["--csv", BARANGAY_PRED_CSV], env)
+        run("load_barangay_predictions.py", ["--csv", BARANGAY_PRED_EST_CSV], env)
     if args.with_calamba:
         run("add_barangay_yield_table.py", [], env)
         run("load_barangay_yield.py", ["--csv", CALAMBA_YIELD_CSV, "--source", CALAMBA_SOURCE, "--replace"], env)
