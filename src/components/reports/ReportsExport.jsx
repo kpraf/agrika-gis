@@ -368,25 +368,106 @@ export default function ReportsExport() {
     }
   };
 
-  const handleDownloadTemplate = () => {
+//  const handleDownloadTemplate = () => {
     // Focused import template for the current level — the columns the server
     // expects, with new-season example rows (2026). Use a real municipality name
     // from the dataset so it imports as-is (must match the DB exactly, e.g.
     // "City of Calamba", not "Calamba"). For barangays, replace "Barangay 1" with
     // real barangay names of that municipality.
-    const muniName =
-      (records.length ? [...new Set(records.map((r) => r.municipality))][0] : null) || "City of Calamba";
-    const q = (n) => (/[",\n]/.test(n) ? `"${n.replace(/"/g, '""')}"` : n);
-    const template =
-      importLevel === "barangay"
-        ? "municipality,barangay,year,season,yield\n" +
-          `${q(muniName)},Barangay 1,2026,Dry,5.2\n` +
-          `${q(muniName)},Barangay 1,2026,Wet,4.8\n`
-        : "municipality,year,season,yield\n" +
-          `${q(muniName)},2026,Dry,5.2\n` +
-          `${q(muniName)},2026,Wet,4.8\n`;
-    downloadBlob(template, `agrika-gis-import-template-${importLevel}.csv`, "text/csv;charset=utf-8;");
-  };
+//    const muniName =
+//      (records.length ? [...new Set(records.map((r) => r.municipality))][0] : null) || "City of Calamba";
+//    const q = (n) => (/[",\n]/.test(n) ? `"${n.replace(/"/g, '""')}"` : n);
+//    const template =
+//      importLevel === "barangay"
+//        ? "municipality,barangay,year,season,yield\n" +
+//          `${q(muniName)},Barangay 1,2026,Dry,5.2\n` +
+//          `${q(muniName)},Barangay 1,2026,Wet,4.8\n`
+//        : "municipality,year,season,yield\n" +
+//         `${q(muniName)},2026,Dry,5.2\n` +
+//          `${q(muniName)},2026,Wet,4.8\n`;
+//    downloadBlob(template, `agrika-gis-import-template-${importLevel}.csv`, "text/csv;charset=utf-8;");
+//  };
+
+const IMPORT_TEMPLATE_URL =
+  "/templates/AgriKA-GIS Import Template.xlsx";
+
+const TEMPLATE_SHEETS = [
+  "Planting 1-15",
+  "Planting 16-30",
+  "Planting 1-30",
+  "Harvesting 1-15",
+  "Harvesting 16-30",
+  "Harvesting 1-30",
+];
+
+const [selectedTemplateSheet, setSelectedTemplateSheet] =
+  useState(TEMPLATE_SHEETS[0]);
+
+const handleDownloadTemplate = async () => {
+  try {
+    // Load the original XLSX template
+    const response = await fetch(IMPORT_TEMPLATE_URL);
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch template: ${response.status}`
+      );
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+
+    // Read the XLSX workbook
+    const workbook = XLSX.read(arrayBuffer, {
+      type: "array",
+      cellDates: true,
+    });
+
+    // Get the sheet selected by the user
+    const worksheet = workbook.Sheets[selectedTemplateSheet];
+
+    if (!worksheet) {
+      throw new Error(
+        `Worksheet "${selectedTemplateSheet}" was not found.`
+      );
+    }
+
+    // Convert the selected worksheet to CSV
+    const csv = XLSX.utils.sheet_to_csv(worksheet, {
+      FS: ",",
+      RS: "\n",
+      blankrows: true,
+    });
+
+    // Add UTF-8 BOM for compatibility with Excel
+    const csvWithBom = "\uFEFF" + csv;
+
+    // Create downloadable CSV
+    const blob = new Blob([csvWithBom], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `AgriKA-GIS-${selectedTemplateSheet}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error(
+      "Failed to convert and download template:",
+      error
+    );
+
+    alert(
+      "Unable to download the selected import template."
+    );
+  }
+};
 
   // Step 1: read the CSV and validate it on the server WITHOUT writing (dry run),
   // then show a confirmation with a preview of exactly what will change. The user
@@ -532,16 +613,44 @@ export default function ReportsExport() {
                         </button>
                       ))}
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleDownloadTemplate}
-                      className="flex items-center gap-2 text-sm font-semibold text-[#1F6306] hover:underline"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" />
-                      </svg>
-                      Template
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <select
+                          value={selectedTemplateSheet}
+                          onChange={(e) => setSelectedTemplateSheet(e.target.value)}
+                          className="appearance-none pl-3 pr-8 py-1.5 bg-white border border-[#BFE3AC] rounded-lg text-xs font-medium text-[#1B3315] outline-none cursor-pointer transition-colors hover:border-[#3B9E1C] focus:border-[#3B9E1C] focus:ring-2 focus:ring-[#3B9E1C]/20"
+                        >
+                          {TEMPLATE_SHEETS.map((sheetName) => (
+                            <option key={sheetName} value={sheetName}>
+                              {sheetName}
+                            </option>
+                          ))}
+                        </select>
+                        <svg
+                          width="10"
+                          height="10"
+                          viewBox="0 0 14 14"
+                          fill="none"
+                          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#3B9E1C]"
+                        >
+                          <path d="M2 4l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleDownloadTemplate}
+                        className="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#3B9E1C] text-xs font-medium text-[#1B3315] bg-white transition-colors hover:bg-[#F0FDF4] focus:outline-none focus:ring-2 focus:ring-[#3B9E1C]/20"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3B9E1C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" />
+                        </svg>
+                        <span className="relative">
+                          Download Template
+                          <span className="absolute left-0 -bottom-0.5 h-[1.5px] w-0 bg-[#3B9E1C] transition-all duration-200 group-hover:w-full" />
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 

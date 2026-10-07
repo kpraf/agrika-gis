@@ -37,12 +37,15 @@ def _clean(payload, key):
 
 
 def _send_email(row):
-    import resend
+    try:
+        import resend  # type: ignore[import-not-found]
+    except ImportError:
+        resend = None
 
     key = current_app.config.get("RESEND_API_KEY")
     to = current_app.config.get("CONTACT_TO_EMAIL")
 
-    if not key or not to:
+    if not key or not to or resend is None:
         return False
 
     resend.api_key = key

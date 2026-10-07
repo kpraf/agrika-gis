@@ -8,3 +8,4 @@ GeoAlchemy2>=0.15
 psycopg[binary]>=3.2
 python-dotenv>=1.0
 gunicorn>=21.2
+npm install xlsx 

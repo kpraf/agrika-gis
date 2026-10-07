@@ -22,7 +22,7 @@ def _redacted(url: str) -> str:
 
 def _normalize_db_url(url: str) -> str:
     """Force the psycopg (v3) driver and clean common paste mistakes.
-
+j
     Managed providers (Render, Supabase, Heroku) hand out URLs like
     'postgres://...' or 'postgresql://...'. SQLAlchemy + psycopg3 needs the
     explicit 'postgresql+psycopg://' scheme. We also strip whitespace and any
