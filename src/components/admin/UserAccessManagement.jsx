@@ -497,8 +497,10 @@ export default function UserAccessManagement() {
             {/* Toolbar */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-[#F3F4F6]">
               <div className="pb-1 border-b-2 border-[#1F6306] text-sm font-semibold text-[#1F6306]">Users</div>
-              <div className="flex items-center gap-3">
-                <div className="relative" ref={filterRef}>
+              {/* On phones the role menu hangs off this whole group (right edge = Add User),
+                  not the Filter button, so it can't run off the card's left edge. */}
+              <div className="relative sm:static flex items-center gap-3">
+                <div className="sm:relative" ref={filterRef}>
                   {/* Lifts on hover, presses in on click, turns green while its menu is
                       open; the three bars close into a funnel-flip as it opens. */}
                   <button

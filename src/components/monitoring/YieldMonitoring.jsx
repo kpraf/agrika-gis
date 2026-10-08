@@ -19,6 +19,8 @@ import DashboardSidebar from "../layout/DashboardSidebar";
 import LagunaMap from "../gis/LagunaMap";
 import { yieldApi } from "../../lib/api";
 import { useCityScope } from "../../lib/cityScope";
+import { usePending, useDelayedFlag } from "../../lib/usePending";
+import { LoadingBar, LoadingPill, loadingDim } from "../layout/LoadingIndicators";
 
 // Green ramp shared with the map's choropleth.
 const RAMP = ["#EDF8E9", "#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
@@ -67,6 +69,10 @@ export default function YieldMonitoring() {
   // is pinned to it and every figure on this page is that city's only.
   const cityScope = useCityScope();
   const lockedId = cityScope.locked ? cityScope.municipalityId : null;
+  // True while a request for the current season / year / city is still out; `busy`
+  // is the same, held back a moment so instant (cached) answers don't flash.
+  const [pending, track] = usePending();
+  const busy = useDelayedFlag(pending);
 
   const [meta, setMeta] = useState({ years: [], seasons: [] });
   const [season, setSeason] = useState(null);
@@ -120,7 +126,7 @@ export default function YieldMonitoring() {
     if (!year || !season) return;
     let active = true;
     setLoading(true);
-    yieldApi.municipalities(year, season)
+    track(yieldApi.municipalities(year, season))
       .then((r) => active && setResp(r))
       .catch(() => active && setResp(null))
       .finally(() => active && setLoading(false));
@@ -139,7 +145,7 @@ export default function YieldMonitoring() {
         : selection?.level === "barangay"
         ? selection.municipalityId
         : undefined;
-    yieldApi.trend(season, mid)
+    track(yieldApi.trend(season, mid))
       .then((r) => active && setTrend(r.series || []))
       .catch(() => active && setTrend([]));
     return () => { active = false; };
@@ -172,7 +178,7 @@ export default function YieldMonitoring() {
       return;
     }
     let active = true;
-    yieldApi.barangays(activeCityId, year, season)
+    track(yieldApi.barangays(activeCityId, year, season))
       .then((r) => active && setBarangayResp(r))
       .catch(() => active && setBarangayResp(null));
     return () => { active = false; };
@@ -254,7 +260,8 @@ export default function YieldMonitoring() {
 
       <div className="flex flex-col flex-1 min-w-0 anim-fade-in">
         {/* Top Header */}
-        <header className="flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+        <header className="relative flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+          <LoadingBar active={busy} />
           <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">
             <span className="md:hidden">Yield Monitoring</span>
             <span className="hidden md:inline">Real-Time and Historical Yield Monitoring</span>
@@ -389,6 +396,14 @@ export default function YieldMonitoring() {
                 )
               )}
 
+              {/* Says so while the figures below are being replaced */}
+              {busy && (
+                <div role="status" aria-live="polite" className="flex items-center gap-2 -my-2 text-xs font-medium text-[#6B7280] anim-fade-in">
+                  <span className="inline-flex h-3.5 w-3.5 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
+                  Loading {season} {year} data…
+                </div>
+              )}
+
               {/* View switcher */}
               <div className="flex p-1 gap-1 bg-[#F3F4F6] rounded-lg">
                 {[
@@ -415,7 +430,7 @@ export default function YieldMonitoring() {
                 <label className="text-xs font-semibold text-[#6B7280] uppercase">Yield by {unitLabel} (mt/ha)</label>
                 <div className="bg-[#F9FAFB] border border-[#F3F4F6] rounded-lg p-2">
                   {barData.length ? (
-                    <ResponsiveContainer width="100%" height={Math.max(320, barData.length * 20)}>
+                    <ResponsiveContainer width="100%" height={Math.max(320, barData.length * 20)} className={loadingDim(busy)}>
                       <BarChart data={barData} layout="vertical" margin={{ left: 8, right: 16, top: 4, bottom: 4 }}>
                         <XAxis type="number" domain={[0, "dataMax"]} tick={{ fontSize: 10, fill: "#9CA3AF" }} />
                         <YAxis type="category" dataKey="name" width={92} tick={{ fontSize: 10, fill: "#4B5563" }} interval={0} />
@@ -450,7 +465,7 @@ export default function YieldMonitoring() {
                 <div className="flex items-center gap-3 bg-[#F9FAFB] border border-[#F3F4F6] rounded-lg p-3">
                   {pieData.length ? (
                     <>
-                      <ResponsiveContainer width={130} height={130}>
+                      <ResponsiveContainer width={130} height={130} className={loadingDim(busy)}>
                         <PieChart>
                           <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={30} outerRadius={58} paddingAngle={2}>
                             {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -489,7 +504,7 @@ export default function YieldMonitoring() {
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-[#6B7280] uppercase">Ranked {unitLabel === "Barangay" ? "Barangays" : "Municipalities"}</label>
                 <div className="border border-[#F3F4F6] rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
+                  <table className={`w-full text-sm ${loadingDim(busy)}`}>
                     <thead className="bg-[#F3F4F6] text-[#6B7280]">
                       <tr>
                         <th className="text-left font-semibold px-3 py-2 w-8">#</th>
@@ -542,6 +557,8 @@ export default function YieldMonitoring() {
             barangayHeatmap={drilled}
             barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayStats?.count ?? 0}`}
             lockedMunicipalityId={lockedId}
+            overlayLoading={busy}
+            overlayLabel="Loading yield data…"
             onSelectionChange={setSelection}
           />
 
@@ -598,9 +615,10 @@ export default function YieldMonitoring() {
                 <label className="text-xs font-semibold text-[#6B7280] uppercase">
                   {season} Season: Actual vs Predicted (mt/ha)
                 </label>
-                <div className="bg-[#F9FAFB] border border-[#F3F4F6] rounded-lg p-3">
+                <div className="relative bg-[#F9FAFB] border border-[#F3F4F6] rounded-lg p-3">
+                  <LoadingPill active={busy && trend.length > 0} label="Loading trend…" />
                   {trend.length ? (
-                    <ResponsiveContainer width="100%" height={220}>
+                    <ResponsiveContainer width="100%" height={220} className={loadingDim(busy)}>
                       <LineChart data={trend} margin={{ left: 4, right: 8, top: 8, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                         <XAxis dataKey="year" tick={{ fontSize: 10, fill: "#9CA3AF" }} />

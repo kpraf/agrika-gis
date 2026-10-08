@@ -2,7 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 
 // Compact "View" popover that replaces the Line / Bar / Average / Zoom button row.
 // Sits at the right end of the Compare by / Season filter row.
-export default function ViewMenu({ chartType, setChartType, showAverage, setShowAverage, zoomEnabled, setZoomEnabled }) {
+// iconOnly: round 44px icon button (phone filter row).
+// palette / setPalette / swatches: optional "Colours" choice between the light
+// and dark series colours; swatches = { light: [hex...], dark: [hex...] }.
+export default function ViewMenu({
+  chartType, setChartType, showAverage, setShowAverage, zoomEnabled, setZoomEnabled, iconOnly = false,
+  palette, setPalette, swatches,
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -41,21 +47,24 @@ export default function ViewMenu({ chartType, setChartType, showAverage, setShow
   );
 
   return (
-    <div ref={ref} className="relative ml-auto">
+    <div ref={ref} className={`relative ${iconOnly ? "shrink-0" : "ml-auto"}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
         aria-expanded={open}
-        className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out hover:-translate-y-px hover:shadow-sm active:translate-y-0 active:scale-[0.97] active:shadow-none motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 ${
+        aria-label={iconOnly ? "Chart options" : undefined}
+        className={`group flex items-center justify-center border ${
+          iconOnly ? "w-11 h-11 rounded-full" : "gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] font-medium"
+        } transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out hover:-translate-y-px hover:shadow-sm active:translate-y-0 active:scale-[0.97] active:shadow-none motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 ${
           open
             ? "bg-[#F0FDF4] border-[#1F6306] text-[#1F6306]"
             : "bg-white border-[#E5E7EB] text-[#4B5563] hover:bg-[#F9FAFB] hover:border-[#C3C8BD]"
         }`}
       >
         <svg
-          width="14"
-          height="14"
+          width={iconOnly ? 18 : 14}
+          height={iconOnly ? 18 : 14}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -68,11 +77,11 @@ export default function ViewMenu({ chartType, setChartType, showAverage, setShow
         >
           <path d="M4 6h16M7 12h10M10 18h4" />
         </svg>
-        View
+        {!iconOnly && "View"}
       </button>
 
       {open && (
-        <div className="anim-pop-in origin-top-right absolute right-0 top-[38px] z-20 flex flex-col gap-3 w-[240px] p-3 bg-white border border-[#E5E7EB] rounded-[10px] shadow-[0_12px_24px_rgba(0,0,0,0.1)]">
+        <div className={`anim-pop-in origin-top-right absolute right-0 ${iconOnly ? "top-[52px]" : "top-[38px]"} z-20 flex flex-col gap-3 w-[240px] p-3 bg-white border border-[#E5E7EB] rounded-[10px] shadow-[0_12px_24px_rgba(0,0,0,0.1)]`}>
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#9CA3AF]">Chart type</span>
             <div className="flex gap-2">
@@ -86,6 +95,32 @@ export default function ViewMenu({ chartType, setChartType, showAverage, setShow
               </button>
             </div>
           </div>
+          {setPalette && (
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-[#F3F4F6]">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#9CA3AF]">Colours</span>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { key: "light", label: "Light" },
+                  { key: "dark", label: "Dark" },
+                ].map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setPalette(p.key)}
+                    aria-pressed={palette === p.key}
+                    className={`${seg(palette === p.key)} flex-col !items-start !gap-1.5`}
+                  >
+                    {p.label}
+                    <span className="flex gap-1" aria-hidden="true">
+                      {(swatches?.[p.key] ?? []).slice(0, 5).map((c) => (
+                        <span key={c} className="w-3 h-3 rounded-full" style={{ background: c }} />
+                      ))}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-1 pt-2 border-t border-[#F3F4F6]">
             <Toggle on={showAverage} onClick={() => setShowAverage((v) => !v)}>Show average</Toggle>
             <Toggle on={zoomEnabled && chartType === "line"} onClick={() => setZoomEnabled((v) => !v)} disabled={chartType !== "line"}>

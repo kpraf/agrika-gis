@@ -9,6 +9,8 @@ import YieldComparisonCard from "./YieldComparisonCard";
 import { useAuth } from "../../context/AuthContext";
 import { yieldApi, featuresApi } from "../../lib/api";
 import { useCityScope } from "../../lib/cityScope";
+import { usePending, useDelayedFlag } from "../../lib/usePending";
+import { LoadingBar } from "../layout/LoadingIndicators";
 
 // Environment (remote-sensing) layers the map can visualise — the model's inputs.
 // rampKey maps to a colour family defined in LagunaMap.
@@ -62,6 +64,10 @@ export default function SpatialGIS() {
   // is pinned to it, the City filter is fixed, and the panels show that city only.
   const cityScope = useCityScope();
   const lockedId = cityScope.locked ? cityScope.municipalityId : null;
+  // True while a request for the current season / year / city / layer is still
+  // out; `busy` is the same, held back a moment so cached answers don't flash.
+  const [pending, track] = usePending();
+  const busy = useDelayedFlag(pending);
 
   const [viewType, setViewType] = useState("heatmap");
   const [layers, setLayers] = useState({ boundaries: true });
@@ -157,8 +163,7 @@ export default function SpatialGIS() {
     if (!year || !season) return;
     let active = true;
     setYieldLoading(true);
-    yieldApi
-      .municipalities(year, season)
+    track(yieldApi.municipalities(year, season))
       .then((resp) => active && setYieldResp(resp))
       .catch(() => active && setYieldResp(null))
       .finally(() => active && setYieldLoading(false));
@@ -175,8 +180,7 @@ export default function SpatialGIS() {
       return;
     }
     let active = true;
-    yieldApi
-      .barangays(activeCityId, year, season)
+    track(yieldApi.barangays(activeCityId, year, season))
       .then((resp) => active && setBarangayResp(resp))
       .catch(() => active && setBarangayResp(null));
     return () => {
@@ -197,8 +201,7 @@ export default function SpatialGIS() {
   useEffect(() => {
     if (!year || !season) return;
     let active = true;
-    yieldApi
-      .compare(year, season)
+    track(yieldApi.compare(year, season))
       .then((r) => active && setCompareResp(r))
       .catch(() => active && setCompareResp(null));
     return () => {
@@ -248,8 +251,7 @@ export default function SpatialGIS() {
       return;
     }
     let active = true;
-    yieldApi
-      .barangaysCompare(activeCityId, year, season)
+    track(yieldApi.barangaysCompare(activeCityId, year, season))
       .then((r) => active && setBarangayCompareResp(r))
       .catch(() => active && setBarangayCompareResp(null));
     return () => {
@@ -516,7 +518,8 @@ export default function SpatialGIS() {
           </div>
         ) : (
           /* Portal view: dashboard header */
-          <header className="flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+          <header className="relative flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+            <LoadingBar active={busy || (showingEnvironment && envLoading)} />
             <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">
               <span className="md:hidden">Spatial GIS</span>
               <span className="hidden md:inline">Spatial GIS Visualization and Analysis</span>
@@ -802,8 +805,8 @@ export default function SpatialGIS() {
           <LagunaMap
             boundariesVisible={layers.boundaries}
             detailedTooltips={detailedTooltips}
-            overlayLoading={showingEnvironment && envLoading}
-            overlayLabel={`Loading ${envConfig.label}…`}
+            overlayLoading={busy || (showingEnvironment && envLoading)}
+            overlayLabel={showingEnvironment && envLoading ? `Loading ${envConfig.label}…` : "Loading yield data…"}
             year={year}
             season={season}
             onSelectionChange={handleSelection}

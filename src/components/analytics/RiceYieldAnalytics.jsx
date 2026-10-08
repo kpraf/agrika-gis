@@ -15,10 +15,13 @@ import {
 } from "recharts";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import ViewMenu from "./ViewMenu";
+import MobileFilters from "./MobileFilters";
 import { yieldApi } from "../../lib/api";
 import { useCityScope } from "../../lib/cityScope";
 import { useMediaQuery } from "../../lib/useMediaQuery";
 import { foldText, matchesQuery } from "../../lib/text";
+import { usePending, useDelayedFlag } from "../../lib/usePending";
+import { LoadingBar, LoadingPill, loadingDim } from "../layout/LoadingIndicators";
 
 // "Field" palette: lighter, softer series colours. Assigned by SELECTION order
 // (not list position), so the chosen municipalities always get distinct colours.
@@ -26,6 +29,15 @@ const PALETTE = [
   "#74C476", "#F2C94C", "#7FB3D5", "#F0A080", "#B39DDB",
   "#80CBC4", "#F48FB1", "#C5D86D", "#FFB870", "#90A4AE",
 ];
+// "Dark" set: the same hue families in the same order, stepped down so every
+// line clears 3:1 contrast on the white card and neighbouring colours stay
+// distinguishable for colour-blind readers (checked with the dataviz validator).
+const PALETTE_DARK = [
+  "#187A2F", "#C98500", "#2A78D6", "#EB6834", "#4A3AA7",
+  "#14A08C", "#B0306A", "#7A9A01", "#A0522D", "#0097B2",
+];
+const PALETTES = { light: PALETTE, dark: PALETTE_DARK };
+const PALETTE_KEY = "agrika-gis:chart-palette";
 const MAX_SELECTED = PALETTE.length;
 
 function QuickButton({ onClick, children }) {
@@ -101,6 +113,26 @@ export default function RiceYieldAnalytics() {
   // Phones: the charts drop the unit from every axis tick and the stats table
   // becomes one card per row, so nothing is squeezed or cut off.
   const isPhone = useMediaQuery("(max-width: 639px)");
+  // True while any request for the current filters is still out; `busy` is the
+  // same thing held back a moment so instant (cached) answers don't flash.
+  const [pending, track] = usePending();
+  const busy = useDelayedFlag(pending);
+  // Series colours: "light" (default) or "dark" (higher contrast). Remembered per browser.
+  const [palette, setPaletteState] = useState(() => {
+    try {
+      return localStorage.getItem(PALETTE_KEY) === "dark" ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
+  const setPalette = (p) => {
+    setPaletteState(p);
+    try {
+      localStorage.setItem(PALETTE_KEY, p);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const [meta, setMeta] = useState({ years: [], seasons: [] });
   const [season, setSeason] = useState(null);
@@ -188,8 +220,7 @@ export default function RiceYieldAnalytics() {
   useEffect(() => {
     if (!latestYear || !season) return;
     let active = true;
-    yieldApi
-      .municipalities(latestYear, season)
+    track(yieldApi.municipalities(latestYear, season))
       .then((r) => {
         if (!active) return;
         const list = (r.records || [])
@@ -215,8 +246,7 @@ export default function RiceYieldAnalytics() {
       return;
     }
     let active = true;
-    yieldApi
-      .compare(compareYear, season)
+    track(yieldApi.compare(compareYear, season))
       .then((r) => active && setCompareResp(r))
       .catch(() => active && setCompareResp(null));
     return () => {
@@ -253,7 +283,7 @@ export default function RiceYieldAnalytics() {
     }
     let active = true;
     setLoading(true);
-    Promise.all(selectedMuni.map((id) => yieldApi.trend(season, id).then((r) => [id, r.series || []])))
+    track(Promise.all(selectedMuni.map((id) => yieldApi.trend(season, id).then((r) => [id, r.series || []]))))
       .then((pairs) => {
         if (!active) return;
         const out = {};
@@ -275,8 +305,7 @@ export default function RiceYieldAnalytics() {
     if (level !== "barangay" || !season || !brgyMuniId) return;
     let active = true;
     setLoading(true);
-    yieldApi
-      .barangaySeries(brgyMuniId, season)
+    track(yieldApi.barangaySeries(brgyMuniId, season))
       .then((r) => {
         if (!active) return;
         const list = (r.barangays || []).map((b) => ({ id: b.barangay_id, name: b.name }));
@@ -314,10 +343,10 @@ export default function RiceYieldAnalytics() {
   const colorFor = useMemo(() => {
     const map = {};
     selected.forEach((id, i) => {
-      map[id] = PALETTE[i % PALETTE.length];
+      map[id] = PALETTES[palette][i % PALETTE.length];
     });
     return map;
-  }, [selected]);
+  }, [selected, palette]);
 
   // Keep selection order (so colours stay stable) when building the chart series.
   const selectedEntities = selected.map((id) => entities.find((e) => e.id === id)).filter(Boolean);
@@ -392,6 +421,9 @@ export default function RiceYieldAnalytics() {
   // with no plotted values yet — either way show the chart/table skeletons.
   const booting = !isBarangay && munis.length === 0;
   const chartLoading = booting || (loading && chartData.every((r) => r.average == null));
+  // Filters changed while something is already on screen: keep it, dimmed, under
+  // a "loading" pill (the skeleton above only covers the nothing-to-show case).
+  const updating = busy && !chartLoading;
 
   const compareChartData = useMemo(() => {
     if (isBarangay || !compareResp) return [];
@@ -418,7 +450,8 @@ export default function RiceYieldAnalytics() {
       <DashboardSidebar active="compare" city={city} />
 
       <div className="flex flex-col flex-1 min-w-0 anim-fade-in">
-        <header className="flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+        <header className="relative flex items-center justify-between gap-3 px-4 md:px-10 h-14 md:h-20 shrink-0 bg-white border-b border-[#E5E7EB]">
+          <LoadingBar active={busy} />
           <h1 className="text-base md:text-2xl font-bold text-[#1F2937] tracking-[-0.6px] truncate">
             <span className="md:hidden">Analytics</span>
             <span className="hidden md:inline">Rice Yield Analytics and Comparison</span>
@@ -428,8 +461,35 @@ export default function RiceYieldAnalytics() {
 
         <div className="flex-1 overflow-y-auto sm:p-6 md:p-10">
           <div className="flex flex-col gap-6 p-4 sm:p-6 bg-white sm:border sm:border-[#F3F4F6] sm:shadow-sm sm:rounded-2xl">
-            {/* Level + Season filters (unchanged) */}
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            {/* Phone (<640px): label-free, full-width filters */}
+            <MobileFilters
+              level={level}
+              setLevel={setLevel}
+              barangayAvailable={barangayAvailable}
+              brgyMunis={brgyMunis}
+              brgyMuniId={brgyMuniId}
+              setBrgyMuniId={setBrgyMuniId}
+              seasons={meta.seasons.length ? meta.seasons : ["Dry", "Wet"]}
+              season={season}
+              setSeason={setSeason}
+              viewMenu={
+                <ViewMenu
+                  iconOnly
+                  chartType={chartType}
+                  setChartType={setChartType}
+                  showAverage={showAverage}
+                  setShowAverage={setShowAverage}
+                  zoomEnabled={zoomEnabled}
+                  setZoomEnabled={setZoomEnabled}
+                  palette={palette}
+                  setPalette={setPalette}
+                  swatches={PALETTES}
+                />
+              }
+            />
+
+            {/* Level + Season filters (tablet and up) */}
+            <div className="hidden sm:flex flex-wrap items-center gap-x-6 gap-y-3">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-[#374151]">Compare by</span>
                 <div className="flex p-1 gap-1 bg-[#F3F4F6] rounded-lg">
@@ -502,6 +562,9 @@ export default function RiceYieldAnalytics() {
                 setShowAverage={setShowAverage}
                 zoomEnabled={zoomEnabled}
                 setZoomEnabled={setZoomEnabled}
+                palette={palette}
+                setPalette={setPalette}
+                swatches={PALETTES}
               />
             </div>
 
@@ -561,7 +624,8 @@ export default function RiceYieldAnalytics() {
                 <div
                   ref={listRef}
                   onKeyDown={onListKeyDown}
-                  className="flex flex-col gap-0.5 p-1.5 max-h-[248px] lg:min-h-[420px] lg:max-h-[560px] overflow-y-auto bg-[#F9FAFB]/80 border border-[#F3F4F6] rounded-lg"
+                  aria-busy={updating}
+                  className={`flex flex-col gap-0.5 p-1.5 max-h-[248px] lg:min-h-[420px] lg:max-h-[560px] overflow-y-auto bg-[#F9FAFB]/80 border border-[#F3F4F6] rounded-lg ${loadingDim(updating)}`}
                 >
                   {entities.length === 0 &&
                     (loading || !isBarangay ? (
@@ -635,6 +699,7 @@ export default function RiceYieldAnalytics() {
                   <span className="-mb-2 text-[11px] font-semibold uppercase tracking-[0.5px] text-[#9CA3AF]">Yield, mt/ha</span>
                 )}
                 <div className="relative w-full h-[300px] sm:h-[380px]">
+                  <LoadingPill active={updating} label={`Loading ${season ?? ""} season data…`} />
                   {chartLoading ? (
                     <ChartSkeleton type={chartType} />
                   ) : selected.length === 0 ? (
@@ -642,6 +707,7 @@ export default function RiceYieldAnalytics() {
                       Select {entityWordPlural} from the list to compare.
                     </div>
                   ) : (
+                    <div className={`w-full h-full ${loadingDim(updating)}`}>
                     <ResponsiveContainer width="100%" height="100%">
                       <ChartComponent
                         data={chartData}
@@ -715,6 +781,7 @@ export default function RiceYieldAnalytics() {
                         )}
                       </ChartComponent>
                     </ResponsiveContainer>
+                    </div>
                   )}
                 </div>
 
@@ -725,7 +792,7 @@ export default function RiceYieldAnalytics() {
                 )}
 
                 {/* Summary on phones: one card per selection, tap to isolate its line. */}
-                <div className="sm:hidden flex flex-col gap-2">
+                <div aria-busy={updating} className={`sm:hidden flex flex-col gap-2 ${loadingDim(updating)}`}>
                   {chartLoading &&
                     Array.from({ length: 3 }).map((_, i) => (
                       <div key={`sk-${i}`} className="h-[86px] rounded-xl bg-[#F3F4F6] animate-pulse" />
@@ -771,7 +838,7 @@ export default function RiceYieldAnalytics() {
                 </div>
 
                 {/* Summary table (sm and up). Hovering a row highlights the matching line. */}
-                <div className="hidden sm:block border border-[#F3F4F6] rounded-lg overflow-x-auto">
+                <div aria-busy={updating} className={`hidden sm:block border border-[#F3F4F6] rounded-lg overflow-x-auto ${loadingDim(updating)}`}>
                   <table className="w-full text-sm">
                     <thead className="bg-[#F9FAFB] text-[#6B7280]">
                       <tr>
@@ -852,7 +919,7 @@ export default function RiceYieldAnalytics() {
                   </div>
                 ) : (
                   <>
-                    <div className="w-full h-[280px]">
+                    <div className={`w-full h-[280px] ${loadingDim(updating)}`}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={compareChartData} margin={isPhone ? { top: 8, right: 8, left: 0, bottom: 40 } : { top: 8, right: 16, left: 8, bottom: 40 }}>
                           <CartesianGrid stroke="#F3F4F6" vertical={false} />
