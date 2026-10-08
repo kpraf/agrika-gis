@@ -18,6 +18,7 @@ import {
 import DashboardSidebar from "../layout/DashboardSidebar";
 import LagunaMap from "../gis/LagunaMap";
 import { yieldApi } from "../../lib/api";
+import { useCityScope } from "../../lib/cityScope";
 
 // Green ramp shared with the map's choropleth.
 const RAMP = ["#EDF8E9", "#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
@@ -62,6 +63,10 @@ function StatCard({ label, value, unit }) {
 
 export default function YieldMonitoring() {
   const { city } = useParams();
+  // Agriculturists / rice technicians are limited to their assigned city: the map
+  // is pinned to it and every figure on this page is that city's only.
+  const cityScope = useCityScope();
+  const lockedId = cityScope.locked ? cityScope.municipalityId : null;
 
   const [meta, setMeta] = useState({ years: [], seasons: [] });
   const [season, setSeason] = useState(null);
@@ -81,8 +86,13 @@ export default function YieldMonitoring() {
   const [rightOpen, setRightOpen] = useState(false); // trends drawer
 
   const cityLabel = useMemo(
-    () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
-    [city]
+    () =>
+      cityScope.locked
+        ? cityScope.municipalityName
+        : city
+        ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+        : "Laguna Province",
+    [city, cityScope.locked, cityScope.municipalityName]
   );
 
   // Filter options from the data.
@@ -122,7 +132,9 @@ export default function YieldMonitoring() {
     if (!season) return;
     let active = true;
     const mid =
-      selection?.level === "municipality"
+      lockedId != null
+        ? lockedId
+        : selection?.level === "municipality"
         ? selection.id
         : selection?.level === "barangay"
         ? selection.municipalityId
@@ -131,7 +143,7 @@ export default function YieldMonitoring() {
       .then((r) => active && setTrend(r.series || []))
       .catch(() => active && setTrend([]));
     return () => { active = false; };
-  }, [season, selection]);
+  }, [season, selection, lockedId]);
 
   // Real per-barangay yields when a municipality is drilled into; cleared at the
   // province view. Colours the barangay choropleth and the drill-in breakdown.
@@ -139,13 +151,17 @@ export default function YieldMonitoring() {
   // city id/name for either selection level so the barangay choropleth (and the
   // no-data greying) and the trend chart don't reset when a barangay is clicked.
   const activeCityId =
-    selection?.level === "municipality"
+    lockedId != null
+      ? lockedId
+      : selection?.level === "municipality"
       ? selection.id
       : selection?.level === "barangay"
       ? selection.municipalityId
       : null;
   const activeCityName =
-    selection?.level === "municipality"
+    lockedId != null
+      ? cityScope.municipalityName
+      : selection?.level === "municipality"
       ? selection.name
       : selection?.level === "barangay"
       ? selection.municipalityName
@@ -162,14 +178,26 @@ export default function YieldMonitoring() {
     return () => { active = false; };
   }, [activeCityId, year, season]);
 
-  const records = resp?.records ?? [];
-  const stats = resp?.stats; // municipality stats — also drives the map's colour scale
+  // Municipality rows + their stats. For a locked account that is the one row for
+  // its own city, so no other city's figure (or the province min/max) is shown.
+  const records = useMemo(() => {
+    const all = resp?.records ?? [];
+    return lockedId != null ? all.filter((r) => r.municipality_id === lockedId) : all;
+  }, [resp, lockedId]);
+  const stats = useMemo(() => {
+    if (lockedId == null) return resp?.stats; // also drives the map's colour scale
+    const vals = records.map((r) => r.yield).filter((v) => v != null);
+    if (!vals.length) return null;
+    const avg = Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(3));
+    return { count: vals.length, avg, min: Math.min(...vals), max: Math.max(...vals) };
+  }, [resp, records, lockedId]);
 
   // Real barangay yields for the drilled-in municipality.
   const barangayRecords = barangayResp?.records ?? [];
   const barangayStats = barangayResp?.stats;
   const hasBarangayData = barangayRecords.length > 0;
-  const drilled = selection?.level === "municipality" || selection?.level === "barangay";
+  const drilled =
+    lockedId != null || selection?.level === "municipality" || selection?.level === "barangay";
 
   // Default the panel scope to barangays on drill-in, back to municipalities when
   // returning to the province view.
@@ -310,7 +338,7 @@ export default function YieldMonitoring() {
                         scope === "municipality" ? "bg-[#3B9E1C] text-white shadow-sm" : "text-[#4B5563]"
                       }`}
                     >
-                      Municipalities
+                      {lockedId != null ? "City total" : "Municipalities"}
                     </button>
                     <button
                       type="button"
@@ -513,6 +541,7 @@ export default function YieldMonitoring() {
             barangayColorScale={barangayScale}
             barangayHeatmap={drilled}
             barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayStats?.count ?? 0}`}
+            lockedMunicipalityId={lockedId}
             onSelectionChange={setSelection}
           />
 
@@ -558,7 +587,9 @@ export default function YieldMonitoring() {
 
               <p className="text-xs leading-5 text-[#6B7280]">
                 Year-over-year actual vs predicted yield for <b>{trendLabel}</b> in the {season} season.
-                {drilled
+                {lockedId != null
+                  ? ""
+                  : drilled
                   ? " Click “back to all” on the map for the province view."
                   : " Click a municipality on the map to focus its trend."}
               </p>

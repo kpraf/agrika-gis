@@ -7,11 +7,27 @@ import React from "react";
 //   selection    - from <LagunaMap onSelectionChange>
 //   yieldResp    - { stats, records } observed municipality yields (for the rank)
 //   season, year
+//   lockedCityName - set for an account limited to one city: no province view,
+//                    no link back to it, and no rank among the other cities
 //   onProvince   - () => back to the whole province
 //   onBackToMuni - () => deselect a barangay, back to its municipality
 
-export default function SelectedAreaHeader({ selection, yieldResp, season, year, onProvince, onBackToMuni }) {
+export default function SelectedAreaHeader({
+  selection, yieldResp, season, year, lockedCityName = null, onProvince, onBackToMuni,
+}) {
   const level = selection?.level;
+  const locked = lockedCityName != null;
+
+  // A locked account's map is still loading its city: show the city, not the province.
+  if (locked && level !== "municipality" && level !== "barangay") {
+    return (
+      <div className="flex flex-col gap-1 px-6 pt-6 pb-5 border-b border-[#E1E3DE]">
+        <span className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Selected Area</span>
+        <h3 className="text-2xl font-bold text-[#061E04] tracking-[-0.6px] truncate">{lockedCityName}</h3>
+        <span className="text-[13px] text-[#6B7280]">Loading barangays…</span>
+      </div>
+    );
+  }
 
   // Province view
   if (level !== "municipality" && level !== "barangay") {
@@ -34,7 +50,7 @@ export default function SelectedAreaHeader({ selection, yieldResp, season, year,
   // Rank of the selected municipality by observed yield (1 = highest).
   let rank = null;
   let ranked = 0;
-  if (!isBarangay && yieldResp?.records?.length) {
+  if (!isBarangay && !locked && yieldResp?.records?.length) {
     const sorted = yieldResp.records.filter((r) => r.yield != null).sort((a, b) => b.yield - a.yield);
     ranked = sorted.length;
     const i = sorted.findIndex((r) => r.municipality_id === selection.id);
@@ -47,10 +63,14 @@ export default function SelectedAreaHeader({ selection, yieldResp, season, year,
     <div className="flex items-start gap-3 px-6 pt-6 pb-5 border-b border-[#E1E3DE] anim-fade-in">
       <div className="flex-1 min-w-0 flex flex-col gap-1">
         <div className="flex items-center gap-1.5 text-xs font-semibold flex-wrap">
-          <button type="button" onClick={onProvince} className="text-[#1F6306] hover:underline">
-            Laguna Province
-          </button>
-          <span className="text-[#9CA3AF]">/</span>
+          {!locked && (
+            <>
+              <button type="button" onClick={onProvince} className="text-[#1F6306] hover:underline">
+                Laguna Province
+              </button>
+              <span className="text-[#9CA3AF]">/</span>
+            </>
+          )}
           {isBarangay && (
             <>
               <button
@@ -76,6 +96,7 @@ export default function SelectedAreaHeader({ selection, yieldResp, season, year,
           )}
         </span>
       </div>
+      {(isBarangay || !locked) && (
       <button
         type="button"
         onClick={onBack}
@@ -88,6 +109,7 @@ export default function SelectedAreaHeader({ selection, yieldResp, season, year,
           <path d="M15 18l-6-6 6-6" />
         </svg>
       </button>
+      )}
     </div>
   );
 }

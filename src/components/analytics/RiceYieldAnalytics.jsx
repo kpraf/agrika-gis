@@ -16,6 +16,7 @@ import {
 import DashboardSidebar from "../layout/DashboardSidebar";
 import ViewMenu from "./ViewMenu";
 import { yieldApi } from "../../lib/api";
+import { useCityScope } from "../../lib/cityScope";
 
 // "Field" palette: lighter, softer series colours. Assigned by SELECTION order
 // (not list position), so the chosen municipalities always get distinct colours.
@@ -91,6 +92,10 @@ function topByAverage(seriesById, ids, n) {
 
 export default function RiceYieldAnalytics() {
   const { city } = useParams();
+  // An agriculturist is limited to their assigned city: only that city (and its
+  // barangays) can be listed, charted or compared here.
+  const cityScope = useCityScope();
+  const lockedId = cityScope.locked ? cityScope.municipalityId : null;
 
   const [meta, setMeta] = useState({ years: [], seasons: [] });
   const [season, setSeason] = useState(null);
@@ -113,7 +118,7 @@ export default function RiceYieldAnalytics() {
   // Predicted vs Recorded (municipality-level only).
   const [predMeta, setPredMeta] = useState({ has_predictions: false, years: [] });
   const [compareYear, setCompareYear] = useState(null);
-  const [compareResp, setCompareResp] = useState(null);
+  const [compareRaw, setCompareResp] = useState(null);
 
   // Barangay comparison, always scoped to ONE municipality.
   const [brgyMunis, setBrgyMunis] = useState([]);
@@ -124,8 +129,13 @@ export default function RiceYieldAnalytics() {
   const [brgyYears, setBrgyYears] = useState([]);
 
   const cityLabel = useMemo(
-    () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
-    [city],
+    () =>
+      cityScope.locked
+        ? cityScope.municipalityName
+        : city
+        ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+        : "Laguna Province",
+    [city, cityScope.locked, cityScope.municipalityName]
   );
   const latestYear = meta.years?.[meta.years.length - 1];
 
@@ -144,9 +154,14 @@ export default function RiceYieldAnalytics() {
       .barangayMunicipalities()
       .then((r) => {
         if (!active) return;
-        const list = r.municipalities || [];
+        const list = (r.municipalities || []).filter(
+          (m) => lockedId == null || m.municipality_id === lockedId
+        );
         setBrgyMunis(list);
         if (list.length) setBrgyMuniId(list[0].municipality_id);
+        // One city has nothing to compare against at municipality level, so a
+        // locked account starts on its barangays when the city has that data.
+        if (lockedId != null && list.length) setLevel("barangay");
       })
       .catch(() => {});
     yieldApi
@@ -172,20 +187,22 @@ export default function RiceYieldAnalytics() {
       .municipalities(latestYear, season)
       .then((r) => {
         if (!active) return;
-        const list = (r.records || []).map((x) => ({ id: x.municipality_id, name: x.name, latest: x.yield }));
+        const list = (r.records || [])
+          .filter((x) => lockedId == null || x.municipality_id === lockedId)
+          .map((x) => ({ id: x.municipality_id, name: x.name, latest: x.yield }));
         list.sort((a, b) => a.name.localeCompare(b.name));
         setMunis(list);
         const fold = (s) => (s || "").toLowerCase().replace(/ñ/g, "n");
         const research = ["santa rosa", "calamba", "cabuyao", "binan"]
           .map((kw) => list.find((m) => fold(m.name).includes(kw))?.id)
           .filter((id) => id != null);
-        setSelectedMuni((prev) => (prev.length ? prev : research));
+        setSelectedMuni((prev) => (prev.length ? prev : lockedId != null ? list.map((m) => m.id) : research));
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [latestYear, season]);
+  }, [latestYear, season, lockedId]);
 
   // Observed vs predicted (+ MAE) for the chosen comparison year + season.
   useEffect(() => {
@@ -202,6 +219,26 @@ export default function RiceYieldAnalytics() {
       active = false;
     };
   }, [compareYear, season]);
+
+  // Predicted vs recorded as this account may see it: everything for an
+  // administrator; a locked account gets its own city's row, with the averages and
+  // the error recomputed from that row instead of the province figures.
+  const compareResp = useMemo(() => {
+    if (!compareRaw || lockedId == null) return compareRaw;
+    const records = (compareRaw.records || []).filter((r) => r.municipality_id === lockedId);
+    const own = records[0];
+    const scored = own?.observed != null && own?.predicted != null;
+    return {
+      ...compareRaw,
+      records,
+      stats: {
+        ...compareRaw.stats,
+        observed_avg: own?.observed ?? null,
+        predicted_avg: own?.predicted ?? null,
+        mae: scored ? Number(Math.abs(own.observed - own.predicted).toFixed(3)) : null,
+      },
+    };
+  }, [compareRaw, lockedId]);
 
   // Municipality series for each selected municipality.
   useEffect(() => {

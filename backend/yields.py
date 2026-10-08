@@ -9,10 +9,11 @@ import csv
 import io
 
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required, get_jwt
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import text
 
 from extensions import db
+from models import User
 
 yields_bp = Blueprint("yields", __name__, url_prefix="/api/yield")
 
@@ -587,9 +588,26 @@ def import_yields():
     Both are idempotent upserts (UNIQUE constraints), validate each row, skip and
     report bad rows, and commit the good ones (partial success). Only yield_mt_ha
     is written for barangays (area_ha / production_mt are left untouched).
+
+    Scope: an administrator may import for any municipality. An agriculturist or
+    rice technician may only import rows for the city their account is assigned to;
+    rows for any other city are skipped and reported, at either level.
     """
-    if get_jwt().get("role") not in IMPORT_ROLES:
+    # Role and city come from the users table, not the token's claims, so a role
+    # change, reassignment or deleted account takes effect on the next request.
+    user = db.session.get(User, int(get_jwt_identity()))
+    if user is None:
+        return jsonify({"error": "User no longer exists."}), 401
+    role = user.role.role_name if user.role else None
+    if role not in IMPORT_ROLES:
         return jsonify({"error": "You don't have permission to import yield data."}), 403
+    scope_mid = scope_name = None
+    if role != "administrator":
+        if user.municipality_id is None:
+            return jsonify({"error": "Your account has no city assigned, so it can't import "
+                                     "yield data. Ask an administrator to assign one."}), 403
+        scope_mid = user.municipality_id
+        scope_name = user.municipality.municipality_name
 
     payload = request.get_json(silent=True) or {}
     csv_text = payload.get("csv")
@@ -660,6 +678,10 @@ def import_yields():
         mid = muni.get(raw_muni.lower())
         if mid is None:
             errors.append({"row": i, "error": f"Unknown municipality '{raw_muni}'."})
+            continue
+        if scope_mid is not None and mid != scope_mid:
+            errors.append({"row": i, "error": f"You can only import data for {scope_name}, "
+                                              f"not {raw_muni}."})
             continue
 
         # Barangay level: resolve the barangay within its municipality.

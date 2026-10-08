@@ -22,6 +22,7 @@ function rampColor(value, min, max) {
   return REPORT_RAMP[Math.round(t * (REPORT_RAMP.length - 1))];
 }
 import { yieldApi } from "../../lib/api";
+import { useCityScope } from "../../lib/cityScope";
 
 function deriveStatus(yieldValue) {
   if (yieldValue >= 5) return "Good";
@@ -123,6 +124,12 @@ function printAsPDF(title, rows, columns) {
 
 export default function ReportsExport() {
   const { city } = useParams();
+  // Agriculturists / rice technicians are limited to their assigned city: only its
+  // records are loaded, so the preview, the export and the pickers all stay on it.
+  // (Import is limited to the same city on the server.)
+  const cityScope = useCityScope();
+  const lockedId = cityScope.locked ? cityScope.municipalityId : null;
+  const lockedName = cityScope.locked ? cityScope.municipalityName : "";
   const fileInputRef = useRef(null);
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +158,9 @@ export default function ReportsExport() {
 
   // Map an API /yield/records payload into local rows and frame the year range.
   const applyRecords = (r) => {
-    const mapped = (r.records || []).map((x) => ({
+    const mapped = (r.records || [])
+      .filter((x) => !cityScope.locked || x.municipality === lockedName)
+      .map((x) => ({
       municipality: x.municipality,
       year: x.year,
       season: x.season,
@@ -183,7 +192,11 @@ export default function ReportsExport() {
   useEffect(() => {
     yieldApi
       .barangayMunicipalities()
-      .then((d) => setBarangayMunis(d.municipalities || []))
+      .then((d) =>
+        setBarangayMunis(
+          (d.municipalities || []).filter((m) => lockedId == null || m.municipality_id === lockedId)
+        )
+      )
       .catch(() => {});
   }, []);
 
@@ -225,8 +238,13 @@ export default function ReportsExport() {
   }, [viewLevel, viewBrgyMuni]);
 
   const cityLabel = useMemo(
-    () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
-    [city]
+    () =>
+      cityScope.locked
+        ? cityScope.municipalityName
+        : city
+        ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+        : "Laguna Province",
+    [city, cityScope.locked, cityScope.municipalityName]
   );
 
   const isBarangay = viewLevel === "barangay";
@@ -303,7 +321,7 @@ export default function ReportsExport() {
   // or a municipality's barangays).
   const scopeTitle = isBarangay
     ? `${barangayMunis.find((m) => m.municipality_id === viewBrgyMuni)?.name || "Barangays"} — Barangays`
-    : viewMuni || "Laguna Province";
+    : viewMuni || lockedName || "Laguna Province";
 
   const exportColumns = [
     { key: "name", label: areaColLabel },
@@ -375,7 +393,9 @@ export default function ReportsExport() {
     // "City of Calamba", not "Calamba"). For barangays, replace "Barangay 1" with
     // real barangay names of that municipality.
     const muniName =
-      (records.length ? [...new Set(records.map((r) => r.municipality))][0] : null) || "City of Calamba";
+      lockedName ||
+      (records.length ? [...new Set(records.map((r) => r.municipality))][0] : null) ||
+      "City of Calamba";
     const q = (n) => (/[",\n]/.test(n) ? `"${n.replace(/"/g, '""')}"` : n);
     const template =
       importLevel === "barangay"
@@ -907,7 +927,7 @@ export default function ReportsExport() {
                     onChange={(e) => setViewMuni(e.target.value)}
                     className="px-3 py-2 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
                   >
-                    <option value="">All municipalities</option>
+                    {!cityScope.locked && <option value="">All municipalities</option>}
                     {muniOptions.map((n) => (
                       <option key={n} value={n}>
                         {n}

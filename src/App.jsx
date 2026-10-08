@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { useCityScope } from "./lib/cityScope";
 import Home from "./components/Home";
 import About from "./components/About";
 import FAQ from "./components/FAQ";
@@ -8,23 +9,13 @@ import Contact from "./components/Contact";
 import PrivacyPolicy from "./components/PrivacyPolicy";
 import TermsOfService from "./components/TermsOfService";
 import PortalAccess from "./components/PortalAccess";
+import NotFound from "./components/NotFound";
+import Unauthorized from "./components/Unauthorized";
 import YieldMonitoring from "./components/monitoring/YieldMonitoring";
 import SpatialGIS from "./components/gis/SpatialGIS";
 import RiceYieldAnalytics from "./components/analytics/RiceYieldAnalytics";
 import ReportsExport from "./components/reports/ReportsExport";
 import UserAccessManagement from "./components/admin/UserAccessManagement";
-
-// Simple placeholder so routes are navigable before each module is built
-function Placeholder({ title }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F3F4F6]">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-[#1D211C]">{title}</h1>
-        <p className="text-[#6B7280] mt-2">Module not built yet.</p>
-      </div>
-    </div>
-  );
-}
 
 // Reset scroll to the top on every navigation. Without this, react-router keeps
 // the previous scroll offset, so following a link while scrolled down lands you
@@ -58,10 +49,21 @@ function RequireRole({ allowedRoles, children }) {
   return children;
 }
 
-// Municipality-scoped dashboard wrapper (Agriculturist / Rice Technician only see their own city)
-function MunicipalityDashboard({ moduleTitle }) {
+// Keeps a scoped role (agriculturist / rice technician) on their assigned city.
+// `base` is the module path, e.g. "/monitoring". Any other city in the address —
+// or none, on the public map — is replaced with their own. Administrators and
+// guests pass straight through.
+function OwnCityOnly({ base, children }) {
   const { city } = useParams();
-  return <Placeholder title={`${moduleTitle}: ${city}`} />;
+  const { loading } = useAuth();
+  const scope = useCityScope();
+  if (loading || !scope.locked) return children;
+  if (!scope.slug) {
+    // No city on the account: nothing to scope to. The public map stays viewable.
+    return base === "/yield-map" && !city ? children : <Navigate to="/unauthorized" replace />;
+  }
+  if (city !== scope.slug) return <Navigate to={`${base}/${scope.slug}`} replace />;
+  return children;
 }
 
 export default function App() {
@@ -78,35 +80,49 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/portal-access" element={<PortalAccess />} />
-        <Route path="/unauthorized" element={<Placeholder title="Unauthorized" />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* Module 2 — Real-Time and Historical Yield Monitoring (Agriculturist, Rice Technician, Admin) */}
         <Route
           path="/monitoring/:city"
           element={
             <RequireRole allowedRoles={["agriculturist", "rice_technician"]}>
-              <YieldMonitoring />
+              <OwnCityOnly base="/monitoring">
+                <YieldMonitoring />
+              </OwnCityOnly>
             </RequireRole>
           }
         />
-        {/* Province-wide view (administrator only, no city scope) */}
+        {/* Province-wide view (administrator only, no city scope). A scoped role that
+            opens it is sent to its own city by OwnCityOnly, here and on Modules 4-5. */}
         <Route
           path="/monitoring"
           element={
-            <RequireRole allowedRoles={[]}>
-              <YieldMonitoring />
-            </RequireRole>
+            <OwnCityOnly base="/monitoring">
+              <RequireRole allowedRoles={[]}>
+                <YieldMonitoring />
+              </RequireRole>
+            </OwnCityOnly>
           }
         />
 
         {/* Module 3 — Spatial GIS Visualization and Analysis */}
         {/* Yield map. SpatialGIS itself decides chrome by auth state: logged in = side nav, public = top nav. */}
-        <Route path="/yield-map" element={<SpatialGIS />} />
+        <Route
+          path="/yield-map"
+          element={
+            <OwnCityOnly base="/yield-map">
+              <SpatialGIS />
+            </OwnCityOnly>
+          }
+        />
         <Route
           path="/yield-map/:city"
           element={
             <RequireRole allowedRoles={["agriculturist", "rice_technician"]}>
-              <SpatialGIS />
+              <OwnCityOnly base="/yield-map">
+                <SpatialGIS />
+              </OwnCityOnly>
             </RequireRole>
           }
         />
@@ -116,16 +132,20 @@ export default function App() {
           path="/analytics/:city"
           element={
             <RequireRole allowedRoles={["agriculturist"]}>
-              <RiceYieldAnalytics />
+              <OwnCityOnly base="/analytics">
+                <RiceYieldAnalytics />
+              </OwnCityOnly>
             </RequireRole>
           }
         />
         <Route
           path="/analytics"
           element={
-            <RequireRole allowedRoles={[]}>
-              <RiceYieldAnalytics />
-            </RequireRole>
+            <OwnCityOnly base="/analytics">
+              <RequireRole allowedRoles={[]}>
+                <RiceYieldAnalytics />
+              </RequireRole>
+            </OwnCityOnly>
           }
         />
 
@@ -134,16 +154,20 @@ export default function App() {
           path="/reports/:city"
           element={
             <RequireRole allowedRoles={["agriculturist", "rice_technician"]}>
-              <ReportsExport />
+              <OwnCityOnly base="/reports">
+                <ReportsExport />
+              </OwnCityOnly>
             </RequireRole>
           }
         />
         <Route
           path="/reports"
           element={
-            <RequireRole allowedRoles={[]}>
-              <ReportsExport />
-            </RequireRole>
+            <OwnCityOnly base="/reports">
+              <RequireRole allowedRoles={[]}>
+                <ReportsExport />
+              </RequireRole>
+            </OwnCityOnly>
           }
         />
 
@@ -158,7 +182,7 @@ export default function App() {
         />
 
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

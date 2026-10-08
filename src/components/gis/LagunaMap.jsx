@@ -42,6 +42,9 @@ const BASEMAPS = {
  *
  * Props:
  *   boundariesVisible  - show/hide the boundary layer (default true)
+ *   lockedMunicipalityId - when set, the map is pinned to that municipality: it
+ *       opens drilled into it, only that city can be searched, and there is no way
+ *       back to the province (used for the roles limited to their assigned city)
  *   onSelectionChange  - called with the current selection whenever it changes:
  *       { level: "province", municipalityCount }  |
  *       { level: "municipality", id, name, barangayCount }
@@ -80,6 +83,7 @@ export default function LagunaMap({
   season = "",
   onSelectionChange,
   focusMunicipalityId = null,
+  lockedMunicipalityId = null,
   clearBrgyToken = 0, // bump to clear the clicked-barangay selection from the parent
   onMunicipalitiesLoaded,
   heatmap = false,
@@ -400,6 +404,7 @@ export default function LagunaMap({
   };
 
   const backToProvince = () => {
+    if (lockedMunicipalityId != null) return; // pinned to one city: no province view
     drillReqRef.current += 1; // cancel any in-flight barangay load
     fitTokenRef.current += 1; // invalidate any pending highlight-ready signal
     setSelectedMuni(null);
@@ -453,13 +458,15 @@ export default function LagunaMap({
   // Keep the map in sync with the parent's City filter. Guard against the value
   // we're already showing so map clicks (which the parent echoes back) don't
   // re-drill or bounce us to the province view.
+  // A locked map always follows its pinned city, whatever the parent's filter says.
+  const wantedMuniId = lockedMunicipalityId ?? focusMunicipalityId;
   useEffect(() => {
     const currentId = selectedMuni?.id ?? null;
-    if (focusMunicipalityId === currentId) return;
-    if (focusMunicipalityId == null) backToProvince();
-    else focusMunicipality(focusMunicipalityId);
+    if (wantedMuniId === currentId) return;
+    if (wantedMuniId == null) backToProvince();
+    else focusMunicipality(wantedMuniId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusMunicipalityId, muniGeo]);
+  }, [wantedMuniId, muniGeo]);
 
   // Once a searched barangay's municipality has loaded, zoom to that barangay.
   useEffect(() => {
@@ -478,12 +485,14 @@ export default function LagunaMap({
 
   // Search matches: municipalities + barangays, capped for a tidy dropdown.
   const q = query.trim().toLowerCase();
+  // On a locked map only the pinned city's barangays are searchable.
   const searchResults = q
     ? [
-        ...(muniGeo?.features ?? [])
+        ...(lockedMunicipalityId != null ? [] : muniGeo?.features ?? [])
           .filter((f) => f.properties.name?.toLowerCase().includes(q))
           .map((f) => ({ type: "municipality", id: f.properties.municipality_id, name: f.properties.name })),
         ...barangayIndex
+          .filter((b) => lockedMunicipalityId == null || b.municipality_id === lockedMunicipalityId)
           .filter((b) => b.name?.toLowerCase().includes(q))
           .map((b) => ({
             type: "barangay",
@@ -559,7 +568,9 @@ export default function LagunaMap({
           url={BASEMAPS[basemap].url}
           eventHandlers={{ load: () => setTilesReady(true) }}
         />
-        {boundariesVisible && !selectedMuni && muniGeo && (
+        {/* Province view. Never drawn on a locked map: it would show the other
+            cities for a moment before the pinned one loads. */}
+        {boundariesVisible && !selectedMuni && muniGeo && lockedMunicipalityId == null && (
           <GeoJSON
             key={`municipalities-${basemap}-${yieldSig}`}
             data={muniGeo}
@@ -660,7 +671,7 @@ export default function LagunaMap({
                 }}
                 onFocus={() => setSearchOpen(true)}
                 onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-                placeholder="Search a municipality or barangay..."
+                placeholder={lockedMunicipalityId != null ? "Search a barangay..." : "Search a municipality or barangay..."}
                 className="w-full pl-11 pr-4 py-3.5 text-sm text-[#374151] bg-transparent outline-none placeholder:text-[#6B7280]"
               />
             </div>
@@ -700,8 +711,9 @@ export default function LagunaMap({
         </div>
       </div>
 
-      {/* Back-to-province button, shown when drilled into a municipality */}
-      {selectedMuni && (
+      {/* Back button, shown when drilled into a municipality. On a locked map it
+          only appears to step back from a barangay to the pinned city. */}
+      {selectedMuni && (lockedMunicipalityId == null || selectedBrgy) && (
         <button
           type="button"
           onClick={backOneLevel}

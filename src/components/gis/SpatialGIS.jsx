@@ -8,6 +8,7 @@ import MapLegendCard from "./MapLegendCard";
 import YieldComparisonCard from "./YieldComparisonCard";
 import { useAuth } from "../../context/AuthContext";
 import { yieldApi, featuresApi } from "../../lib/api";
+import { useCityScope } from "../../lib/cityScope";
 
 // Environment (remote-sensing) layers the map can visualise — the model's inputs.
 // rampKey maps to a colour family defined in LagunaMap.
@@ -57,6 +58,10 @@ export default function SpatialGIS() {
   //   logged in  -> portal side nav
   //   public     -> top nav only
   const isPublic = !isAuthenticated;
+  // Agriculturists / rice technicians are limited to their assigned city: the map
+  // is pinned to it, the City filter is fixed, and the panels show that city only.
+  const cityScope = useCityScope();
+  const lockedId = cityScope.locked ? cityScope.municipalityId : null;
 
   const [viewType, setViewType] = useState("heatmap");
   const [layers, setLayers] = useState({ boundaries: true });
@@ -85,7 +90,8 @@ export default function SpatialGIS() {
   const [selection, setSelection] = useState(null); // reported by <LagunaMap />
   const [clearBrgyToken, setClearBrgyToken] = useState(0); // bump to deselect a clicked barangay
   const [municipalities, setMunicipalities] = useState([]); // [{ id, name }] from the map
-  const [activeCityId, setActiveCityId] = useState(null); // null = whole province
+  const [pickedCityId, setActiveCityId] = useState(null); // null = whole province
+  const activeCityId = lockedId ?? pickedCityId; // a locked account never leaves its city
 
   // Filters, backed by the real data available in the DB.
   const [meta, setMeta] = useState({ years: [], seasons: [] });
@@ -110,8 +116,13 @@ export default function SpatialGIS() {
   const [barangayCompareResp, setBarangayCompareResp] = useState(null); // per-barangay observed vs predicted
 
   const cityLabel = useMemo(
-    () => (city ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Laguna Province"),
-    [city]
+    () =>
+      cityScope.locked && cityScope.municipalityName
+        ? cityScope.municipalityName
+        : city
+        ? city.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+        : "Laguna Province",
+    [city, cityScope.locked, cityScope.municipalityName]
   );
 
   const toggleLayer = (key) => setLayers((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -413,6 +424,18 @@ export default function SpatialGIS() {
     selection?.level === "municipality"
       ? (compareResp?.records ?? []).find((r) => r.municipality_id === selection.id)
       : null;
+  // What the city-level comparison card may draw on. A locked account gets its own
+  // city's row only — no province range, province MAE or rank among other cities.
+  const ownRowsOnly = (resp) =>
+    resp && lockedId != null
+      ? {
+          ...resp,
+          records: (resp.records ?? []).filter((r) => r.municipality_id === lockedId),
+          stats: { ...resp.stats, min: null, max: null, mae: null },
+        }
+      : resp;
+  const cardYieldResp = ownRowsOnly(yieldResp);
+  const cardCompareResp = ownRowsOnly(compareResp);
 
   // A clicked barangay: its observed / predicted / residual / environment value,
   // pulled from the per-barangay responses already loaded for the drilled-in city.
@@ -677,14 +700,22 @@ export default function SpatialGIS() {
                         id="city-filter"
                         value={activeCityId ?? ""}
                         onChange={(e) => setActiveCityId(e.target.value ? Number(e.target.value) : null)}
-                        className="w-full appearance-none px-3 py-3 pr-9 bg-white border border-[#C3C8BD] rounded-lg text-base text-[#191C1A] outline-none focus:border-[#3B9E1C] cursor-pointer"
+                        disabled={lockedId != null}
+                        title={lockedId != null ? "Your account is limited to this city" : undefined}
+                        className="w-full appearance-none px-3 py-3 pr-9 bg-white border border-[#C3C8BD] rounded-lg text-base text-[#191C1A] outline-none focus:border-[#3B9E1C] cursor-pointer disabled:bg-[#F3F4F6] disabled:cursor-not-allowed"
                       >
-                        <option value="">All Cities</option>
-                        {municipalities.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name}
-                          </option>
-                        ))}
+                        {lockedId != null ? (
+                          <option value={lockedId}>{cityScope.municipalityName}</option>
+                        ) : (
+                          <>
+                            <option value="">All Cities</option>
+                            {municipalities.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </>
+                        )}
                       </select>
                       <svg
                         width="14"
@@ -696,7 +727,7 @@ export default function SpatialGIS() {
                         <path d="M2 4l5 5 5-5" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
-                    {municipalities.length === 0 && (
+                    {lockedId == null && municipalities.length === 0 && (
                       <span className="text-[11px] text-[#9CA3AF]">Loading municipalities…</span>
                     )}
                   </div>
@@ -777,6 +808,7 @@ export default function SpatialGIS() {
             season={season}
             onSelectionChange={handleSelection}
             focusMunicipalityId={activeCityId}
+            lockedMunicipalityId={lockedId}
             clearBrgyToken={clearBrgyToken}
             onMunicipalitiesLoaded={setMunicipalities}
             heatmap={heatmapOn}
@@ -851,6 +883,7 @@ export default function SpatialGIS() {
               yieldResp={yieldResp}
               season={season}
               year={year}
+              lockedCityName={lockedId != null ? cityScope.municipalityName : null}
               onProvince={() => setActiveCityId(null)}
               onBackToMuni={clearBarangay}
             />
@@ -885,12 +918,13 @@ export default function SpatialGIS() {
                   season={season}
                   year={year}
                   yieldLoading={yieldLoading}
-                  yieldResp={yieldResp}
-                  compareResp={compareResp}
+                  yieldResp={cardYieldResp}
+                  compareResp={cardCompareResp}
                   predMeta={predMeta}
                   selection={selection}
                   selectedYield={selectedYield}
                   selectedCompare={selectedCompare}
+                  ownCityOnly={lockedId != null}
                 />
               )}
               {selection?.level === "barangay" && (
@@ -912,6 +946,7 @@ export default function SpatialGIS() {
                   selectedCompare={selectedBrgyCompare}
                   envValue={selectedBrgyEnv?.value}
                   envLabel={showingEnvironment ? mapLegendLabel : null}
+                  ownCityOnly={lockedId != null}
                 />
               )}
             </div>

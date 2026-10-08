@@ -38,6 +38,7 @@ function Tile({ value, label, tone }) {
 export default function YieldComparisonCard({
   season, year, yieldLoading, yieldResp, compareResp, predMeta,
   selection, selectedYield, selectedCompare, envValue = null, envLabel = null,
+  ownCityOnly = false, // account limited to one city: no province figures or "back to all"
 }) {
   // A clicked municipality OR barangay both show a single area's detail (vs the
   // province averages). `isMuni` is the design component's original name for it.
@@ -78,6 +79,9 @@ export default function YieldComparisonCard({
   const residual = scored ? +(observed - predicted).toFixed(3) : null; // obs − pred (same sign rule as before)
   const errPct = scored ? Math.abs(((predicted - observed) / observed) * 100).toFixed(1) : null;
   const observedLabel = isEstimated ? "Estimated" : "Observed";
+  // A one-city account has no province MAE to show beside its own city's figures;
+  // on a barangay it still gets the MAE across its city's barangays.
+  const showMae = !ownCityOnly || compareResp?.stats?.mae != null;
 
   // Axis: province range, snapped out to 0.5 mt/ha
   const vals = [stats?.min, stats?.max, observed, predicted].filter((v) => v != null);
@@ -191,11 +195,13 @@ export default function YieldComparisonCard({
 
       {/* Stat tiles */}
       {scored && (
-        <div className="grid grid-cols-3 gap-2">
-          <Tile
-            value={compareResp?.stats?.mae ?? "N/A"}
-            label={isMuni ? "Province MAE" : "MAE mt/ha"}
-          />
+        <div className={`grid gap-2 ${showMae ? "grid-cols-3" : "grid-cols-2"}`}>
+          {showMae && (
+            <Tile
+              value={compareResp?.stats?.mae ?? "N/A"}
+              label={ownCityOnly ? "City MAE" : isMuni ? "Province MAE" : "MAE mt/ha"}
+            />
+          )}
           <Tile
             value={fmtSigned(residual)}
             label="Residual"
@@ -209,9 +215,11 @@ export default function YieldComparisonCard({
         </div>
       )}
 
-      <p className="text-xs text-[#9CA3AF]">
-        {isMuni ? "Click “back to all” on the map for the province view." : "Switch to the Predicted layer or click a municipality."}
-      </p>
+      {!ownCityOnly && (
+        <p className="text-xs text-[#9CA3AF]">
+          {isMuni ? "Click “back to all” on the map for the province view." : "Switch to the Predicted layer or click a municipality."}
+        </p>
+      )}
     </Shell>
   );
 }

@@ -73,18 +73,24 @@ export default function Home() {
               className="flex items-center gap-2 px-8 py-4 rounded-full bg-[#286A11] text-white font-semibold hover:bg-[#1F6306] transition-colors"
             >
               Discover More
-              <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center">
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                  <path d="M1 4h6M4 1l3 3-3 3" stroke="white" strokeWidth="1" />
-                </svg>
-              </span>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M10.8 5.2 9.4 9.4 5.2 10.8l1.4-4.2 4.2-1.4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+              </svg>
             </Link>
             <Link
               to="/yield-map"
-              className="flex items-center gap-2 px-8 py-4 rounded-full border border-[#FACC15] text-[#FACC15] font-semibold hover:bg-[#FACC15]/10 transition-colors"
+              className="group flex items-center gap-2 px-8 py-4 rounded-full border border-[#FACC15] text-[#FACC15] font-semibold hover:bg-[#FACC15]/10 transition-colors"
             >
               See Yield Map
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+                className="transition-transform duration-200 ease-out group-hover:translate-x-1 group-focus-visible:translate-x-1 motion-reduce:transition-none"
+              >
                 <path d="M2 8h12M9 4l4 4-4 4" stroke="#FACC15" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Link>
