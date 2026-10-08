@@ -44,14 +44,19 @@ const REPORT_TYPES = [
 
 const SEASONS = ["All", "Wet", "Dry"];
 
-function toCSV(rows, columns) {
+// `footer` is a list of text lines (the data source) written after the rows in
+// every export format, so a report still says where its figures came from once
+// it has left the system.
+function toCSV(rows, columns, footer = []) {
   const escape = (val) => {
     const str = String(val ?? "");
     return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
   };
   const header = columns.map((c) => c.label).join(",");
   const body = rows.map((row) => columns.map((c) => escape(row[c.key])).join(",")).join("\n");
-  return `${header}\n${body}`;
+  // Blank line, then one footer line per row (first column only).
+  const tail = footer.length ? `\n\n${footer.map(escape).join("\n")}` : "";
+  return `${header}\n${body}${tail}`;
 }
 
 function downloadBlob(content, filename, type) {
@@ -67,7 +72,7 @@ function downloadBlob(content, filename, type) {
 }
 
 // Real .xlsx workbook (SheetJS) — one sheet, auto-sized columns.
-function downloadXLSX(title, rows, columns) {
+function downloadXLSX(title, rows, columns, footer = []) {
   const sheetRows = rows.map((row) =>
     Object.fromEntries(
       columns.map((c) => [c.label, row[c.key] ?? ""])
@@ -86,6 +91,11 @@ function downloadXLSX(title, rows, columns) {
       ) + 2,
   }));
 
+  // Source lines under the table, after one blank row.
+  if (footer.length) {
+    XLSX.utils.sheet_add_aoa(ws, [[], ...footer.map((line) => [line])], { origin: -1 });
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Report");
 
@@ -95,7 +105,7 @@ function downloadXLSX(title, rows, columns) {
   );
 }
 
-function printAsPDF(title, rows, columns) {
+function printAsPDF(title, rows, columns, footer = []) {
   const win = window.open("", "_blank", "width=900,height=700");
   if (!win) return;
   const escapeHtml = (s) =>
@@ -112,10 +122,13 @@ function printAsPDF(title, rows, columns) {
       table{width:100%;border-collapse:collapse;margin-top:16px;}
       th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #E5E7EB;font-size:13px;}
       th{background:#F9FAFB;text-transform:uppercase;font-size:11px;color:#6B7280;}
+      footer{margin-top:20px;padding-top:10px;border-top:1px solid #E5E7EB;}
+      footer p{font-size:11px;line-height:1.5;margin:0 0 2px;}
     </style></head><body>
     <h1>${escapeHtml(title)}</h1>
     <p>Generated ${new Date().toLocaleString()} &middot; ${rows.length} record(s)</p>
     <table><thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>
+    ${footer.length ? `<footer>${footer.map((l) => `<p>${escapeHtml(l)}</p>`).join("")}</footer>` : ""}
     </body></html>`);
   win.document.close();
   win.focus();
@@ -166,6 +179,7 @@ export default function ReportsExport() {
       season: x.season,
       yield: x.yield,
       status: deriveStatus(x.yield),
+      source: x.source,
     }));
     setRecords(mapped);
     const ys = mapped.map((m) => m.year);
@@ -227,6 +241,8 @@ export default function ReportsExport() {
             season: x.season,
             yield: x.yield,
             status: deriveStatus(x.yield),
+            source: x.source,
+            estimated: x.estimated,
           }))
         );
       })
@@ -331,6 +347,30 @@ export default function ReportsExport() {
     { key: "status", label: "Status" },
   ];
 
+  // Footer lines naming where the exported figures came from. Municipality yields
+  // are the PRiSM / Ricelytics series; barangay yields are the City Agriculture
+  // Offices' harvest reports. Anything else in the rows (records imported through
+  // this page, estimated seasons) is called out rather than passed off as either.
+  const sourceFooter = () => {
+    const n = (count) => `${count} record${count === 1 ? "" : "s"}`;
+    if (isBarangay) {
+      const estimated = filtered.filter((r) => r.estimated).length;
+      const imported = filtered.filter((r) => /^manual import/i.test(r.source || "")).length;
+      return [
+        "Source: City Agriculture Office harvest reports (barangay level), compiled in AgriKA-GIS.",
+        ...(estimated
+          ? [`${n(estimated)} ${estimated === 1 ? "is an estimate" : "are estimates"} for seasons with no usable report, not reported figures.`]
+          : []),
+        ...(imported ? [`${n(imported)} ${imported === 1 ? "was" : "were"} imported manually through AgriKA-GIS.`] : []),
+      ];
+    }
+    const imported = filtered.filter((r) => !/^ricelytics/i.test(r.source || "Ricelytics")).length;
+    return [
+      "Source: PRiSM / Ricelytics (PhilRice), observed municipality palay yields, compiled in AgriKA-GIS.",
+      ...(imported ? [`${n(imported)} ${imported === 1 ? "was" : "were"} imported manually through AgriKA-GIS.`] : []),
+    ];
+  };
+
   const buildExportRows = () => {
     if (reportType === "importLog") {
       return {
@@ -341,6 +381,7 @@ export default function ReportsExport() {
           { key: "importedAt", label: "Imported At" },
         ],
         title: "Data Import History",
+        footer: [], // a log of uploads, not yield data
       };
     }
     if (reportType === "comparison") {
@@ -364,20 +405,26 @@ export default function ReportsExport() {
           { key: "records", label: "Records" },
         ],
         title: `${areaColLabel} Comparison — ${scopeTitle}`,
+        footer: sourceFooter(),
       };
     }
-    return { rows: filtered, columns: exportColumns, title: `Yield Summary — ${scopeTitle}` };
+    return {
+      rows: filtered,
+      columns: exportColumns,
+      title: `Yield Summary — ${scopeTitle}`,
+      footer: sourceFooter(),
+    };
   };
 
   const handleGenerate = () => {
-    const { rows, columns, title } = buildExportRows();
+    const { rows, columns, title, footer } = buildExportRows();
     if (!rows.length) return;
     if (exportFormat === "pdf") {
-      printAsPDF(title, rows, columns);
+      printAsPDF(title, rows, columns, footer);
     } else if (exportFormat === "excel") {
-      downloadXLSX(title, rows, columns);
+      downloadXLSX(title, rows, columns, footer);
     } else {
-      const csv = toCSV(rows, columns);
+      const csv = toCSV(rows, columns, footer);
       downloadBlob(
         csv,
         `${title.replace(/\s+/g, "-").toLowerCase()}.csv`,

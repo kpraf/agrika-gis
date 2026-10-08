@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import MapControls from "../layout/MapControls";
 import { boundariesApi, onServerSlow } from "../../lib/api";
+import { foldText, matchesQuery } from "../../lib/text";
 
 const DEFAULT_CENTER = [14.2117, 121.1653];
 const DEFAULT_ZOOM = 11;
@@ -128,6 +129,7 @@ export default function LagunaMap({
   // once its municipality's boundaries finish loading.
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [activeResult, setActiveResult] = useState(0); // keyboard-highlighted search result
   const [barangayIndex, setBarangayIndex] = useState([]);
   const [pendingBarangay, setPendingBarangay] = useState(null);
 
@@ -484,16 +486,17 @@ export default function LagunaMap({
   }, [barangayGeo, pendingBarangay]);
 
   // Search matches: municipalities + barangays, capped for a tidy dropdown.
-  const q = query.trim().toLowerCase();
+  // Accents and case are ignored, so "Binan" finds "Biñan".
+  const q = foldText(query);
   // On a locked map only the pinned city's barangays are searchable.
   const searchResults = q
     ? [
         ...(lockedMunicipalityId != null ? [] : muniGeo?.features ?? [])
-          .filter((f) => f.properties.name?.toLowerCase().includes(q))
+          .filter((f) => matchesQuery(f.properties.name, q))
           .map((f) => ({ type: "municipality", id: f.properties.municipality_id, name: f.properties.name })),
         ...barangayIndex
           .filter((b) => lockedMunicipalityId == null || b.municipality_id === lockedMunicipalityId)
-          .filter((b) => b.name?.toLowerCase().includes(q))
+          .filter((b) => matchesQuery(b.name, q))
           .map((b) => ({
             type: "barangay",
             id: b.barangay_id,
@@ -503,6 +506,30 @@ export default function LagunaMap({
           })),
       ].slice(0, 8)
     : [];
+
+  // Keyboard on the search box: Up/Down move through the results (wrapping),
+  // Enter opens the highlighted one, Escape closes the list.
+  const onSearchKeyDown = (e) => {
+    if (e.key === "Escape") {
+      setSearchOpen(false);
+      return;
+    }
+    if (!searchResults.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault(); // keep the text cursor where it is
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      setSearchOpen(true);
+      setActiveResult((i) => (searchOpen ? (i + step + searchResults.length) % searchResults.length : 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      selectResult(searchResults[Math.min(activeResult, searchResults.length - 1)]);
+    }
+  };
+  // Keep the highlighted result in view when the list scrolls.
+  useEffect(() => {
+    if (!searchOpen) return;
+    document.getElementById(`map-search-opt-${activeResult}`)?.scrollIntoView({ block: "nearest" });
+  }, [activeResult, searchOpen]);
 
   const selectResult = (r) => {
     setQuery("");
@@ -668,9 +695,18 @@ export default function LagunaMap({
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setSearchOpen(true);
+                  setActiveResult(0); // new results: start from the top
                 }}
+                onKeyDown={onSearchKeyDown}
                 onFocus={() => setSearchOpen(true)}
                 onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                role="combobox"
+                aria-expanded={searchOpen && !!q}
+                aria-controls="map-search-results"
+                aria-autocomplete="list"
+                aria-activedescendant={
+                  searchOpen && q && searchResults.length ? `map-search-opt-${activeResult}` : undefined
+                }
                 placeholder={lockedMunicipalityId != null ? "Search a barangay..." : "Search a municipality or barangay..."}
                 className="w-full pl-11 pr-4 py-3.5 text-sm text-[#374151] bg-transparent outline-none placeholder:text-[#6B7280]"
               />
@@ -678,15 +714,26 @@ export default function LagunaMap({
           </div>
 
           {searchOpen && q && (
-            <div className="mt-1 bg-white rounded-lg shadow-lg max-h-72 overflow-y-auto border border-[#E5E7EB]">
+            <div
+              id="map-search-results"
+              role="listbox"
+              className="mt-1 bg-white rounded-lg shadow-lg max-h-72 overflow-y-auto border border-[#E5E7EB]"
+            >
               {searchResults.length ? (
-                searchResults.map((r) => (
+                searchResults.map((r, i) => (
                   <button
                     key={`${r.type}-${r.id}`}
+                    id={`map-search-opt-${i}`}
+                    role="option"
+                    aria-selected={i === activeResult}
+                    tabIndex={-1}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()} // keep input from blurring first
+                    onMouseEnter={() => setActiveResult(i)}
                     onClick={() => selectResult(r)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-[#F0FDF4]"
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left ${
+                      i === activeResult ? "bg-[#F0FDF4]" : "hover:bg-[#F0FDF4]"
+                    }`}
                   >
                     <span
                       className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${

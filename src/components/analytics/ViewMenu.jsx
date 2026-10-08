@@ -19,7 +19,7 @@ export default function ViewMenu({ chartType, setChartType, showAverage, setShow
   }, [open]);
 
   const seg = (on) =>
-    `flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors ${
+    `flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm font-medium transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.96] motion-reduce:active:scale-100 ${
       on ? "bg-[#F0FDFA] border-[#99F6E4] text-[#0F766E]" : "bg-white border-[#E5E7EB] text-[#374151] hover:bg-[#F9FAFB]"
     }`;
 
@@ -33,7 +33,7 @@ export default function ViewMenu({ chartType, setChartType, showAverage, setShow
       {children}
       <span className={`relative w-8 h-[18px] rounded-full transition-colors ${on ? "bg-[#3B9E1C]" : "bg-[#D1D5DB]"}`}>
         <span
-          className="absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-transform"
+          className="absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow transition-transform duration-200 ease-out motion-reduce:transition-none"
           style={{ transform: on ? "translateX(14px)" : "translateX(0)" }}
         />
       </span>
@@ -47,18 +47,32 @@ export default function ViewMenu({ chartType, setChartType, showAverage, setShow
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="true"
         aria-expanded={open}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[#E5E7EB] text-[13px] font-medium text-[#4B5563] ${
-          open ? "bg-[#F3F4F6]" : "bg-white hover:bg-[#F9FAFB]"
+        className={`group flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[13px] font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out hover:-translate-y-px hover:shadow-sm active:translate-y-0 active:scale-[0.97] active:shadow-none motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 ${
+          open
+            ? "bg-[#F0FDF4] border-[#1F6306] text-[#1F6306]"
+            : "bg-white border-[#E5E7EB] text-[#4B5563] hover:bg-[#F9FAFB] hover:border-[#C3C8BD]"
         }`}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          aria-hidden="true"
+          className={`transition-transform duration-300 ease-out motion-reduce:transition-none ${
+            open ? "rotate-180" : "group-hover:scale-110"
+          }`}
+        >
           <path d="M4 6h16M7 12h10M10 18h4" />
         </svg>
         View
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[38px] z-20 flex flex-col gap-3 w-[240px] p-3 bg-white border border-[#E5E7EB] rounded-[10px] shadow-[0_12px_24px_rgba(0,0,0,0.1)]">
+        <div className="anim-pop-in origin-top-right absolute right-0 top-[38px] z-20 flex flex-col gap-3 w-[240px] p-3 bg-white border border-[#E5E7EB] rounded-[10px] shadow-[0_12px_24px_rgba(0,0,0,0.1)]">
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[#9CA3AF]">Chart type</span>
             <div className="flex gap-2">

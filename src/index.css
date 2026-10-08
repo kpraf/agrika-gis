@@ -21,6 +21,15 @@
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes agrika-pop-in {
+  from { opacity: 0; transform: scale(0.94) translateY(-6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes agrika-badge-pop {
+  0% { transform: scale(0.5); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
 
 /* Backdrop fade (e.g. the logout dialog) */
 .anim-fade-in { animation: agrika-fade-in 160ms ease-out both; }
@@ -32,9 +41,13 @@
 .anim-page-in-left { animation: agrika-slide-in-left 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 /* Staggered list entrance (set animation-delay inline), e.g. FAQ items */
 .anim-fade-up { animation: agrika-fade-up 480ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* Dropdown opening from its button (set transform-origin with origin-top-right etc.) */
+.anim-pop-in { animation: agrika-pop-in 170ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* Count badge bump when its number changes (re-key the element to replay) */
+.anim-badge-pop { animation: agrika-badge-pop 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .anim-fade-in, .anim-scale-in, .anim-page-in, .anim-page-in-left, .anim-fade-up { animation: none; }
+  .anim-fade-in, .anim-scale-in, .anim-page-in, .anim-page-in-left, .anim-fade-up, .anim-pop-in, .anim-badge-pop { animation: none; }
   .motion-safe-transition { transition: none !important; }
 }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import {
   ResponsiveContainer,
@@ -17,6 +17,8 @@ import DashboardSidebar from "../layout/DashboardSidebar";
 import ViewMenu from "./ViewMenu";
 import { yieldApi } from "../../lib/api";
 import { useCityScope } from "../../lib/cityScope";
+import { useMediaQuery } from "../../lib/useMediaQuery";
+import { foldText, matchesQuery } from "../../lib/text";
 
 // "Field" palette: lighter, softer series colours. Assigned by SELECTION order
 // (not list position), so the chosen municipalities always get distinct colours.
@@ -96,6 +98,9 @@ export default function RiceYieldAnalytics() {
   // barangays) can be listed, charted or compared here.
   const cityScope = useCityScope();
   const lockedId = cityScope.locked ? cityScope.municipalityId : null;
+  // Phones: the charts drop the unit from every axis tick and the stats table
+  // becomes one card per row, so nothing is squeezed or cut off.
+  const isPhone = useMediaQuery("(max-width: 639px)");
 
   const [meta, setMeta] = useState({ years: [], seasons: [] });
   const [season, setSeason] = useState(null);
@@ -192,9 +197,8 @@ export default function RiceYieldAnalytics() {
           .map((x) => ({ id: x.municipality_id, name: x.name, latest: x.yield }));
         list.sort((a, b) => a.name.localeCompare(b.name));
         setMunis(list);
-        const fold = (s) => (s || "").toLowerCase().replace(/ñ/g, "n");
         const research = ["santa rosa", "calamba", "cabuyao", "binan"]
-          .map((kw) => list.find((m) => fold(m.name).includes(kw))?.id)
+          .map((kw) => list.find((m) => foldText(m.name).includes(kw))?.id)
           .filter((id) => id != null);
         setSelectedMuni((prev) => (prev.length ? prev : lockedId != null ? list.map((m) => m.id) : research));
       })
@@ -337,9 +341,25 @@ export default function RiceYieldAnalytics() {
   };
   const listValueHeader = isBarangay ? `${season ?? ""} avg` : `${season ?? ""} ${latestYear ?? ""}`;
 
-  const q = query.trim().toLowerCase();
+  // Keyboard in the pick list: Down from the search box enters the list; Up/Down
+  // move between rows; Up from the first row returns to the box. Each row is a
+  // button, so Enter or Space ticks it.
+  const searchInputRef = useRef(null);
+  const listRef = useRef(null);
+  const onListKeyDown = (e) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const rows = Array.from(listRef.current?.querySelectorAll("button[data-pick]") ?? []);
+    if (!rows.length) return;
+    e.preventDefault(); // don't scroll the page or move the text cursor
+    const at = rows.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") rows[Math.min(at + 1, rows.length - 1)].focus();
+    else if (at <= 0) searchInputRef.current?.focus();
+    else rows[at - 1].focus();
+  };
+
+  const q = foldText(query); // accents and case ignored: "Binan" finds "Biñan"
   const listItems = entities
-    .filter((e) => !q || e.name.toLowerCase().includes(q))
+    .filter((e) => matchesQuery(e.name, q))
     .map((e) => ({ ...e, value: listValue(e) }))
     .sort((a, b) => (sortBy === "yield" ? (b.value ?? -1) - (a.value ?? -1) : a.name.localeCompare(b.name)));
   const byValueDesc = [...entities].map((e) => ({ id: e.id, v: listValue(e) ?? -1 })).sort((a, b) => b.v - a.v);
@@ -406,10 +426,10 @@ export default function RiceYieldAnalytics() {
           <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">{cityLabel}</span>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10">
-          <div className="flex flex-col gap-6 p-6 bg-white border border-[#F3F4F6] shadow-sm rounded-2xl">
+        <div className="flex-1 overflow-y-auto sm:p-6 md:p-10">
+          <div className="flex flex-col gap-6 p-4 sm:p-6 bg-white sm:border sm:border-[#F3F4F6] sm:shadow-sm sm:rounded-2xl">
             {/* Level + Season filters (unchanged) */}
-            <div className="flex flex-wrap items-center gap-6">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-[#374151]">Compare by</span>
                 <div className="flex p-1 gap-1 bg-[#F3F4F6] rounded-lg">
@@ -500,9 +520,11 @@ export default function RiceYieldAnalytics() {
                     <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   </svg>
                   <input
+                    ref={searchInputRef}
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={onListKeyDown}
                     placeholder={`Search ${entityWord}...`}
                     className="w-full pl-9 pr-3 py-2.5 border border-[#E5E7EB] rounded-lg text-sm text-[#374151] outline-none focus:border-[#3B9E1C] placeholder:text-[#9CA3AF]"
                   />
@@ -536,7 +558,11 @@ export default function RiceYieldAnalytics() {
                   <span>{listValueHeader}</span>
                 </div>
 
-                <div className="flex flex-col gap-0.5 p-1.5 min-h-[420px] max-h-[560px] overflow-y-auto bg-[#F9FAFB]/80 border border-[#F3F4F6] rounded-lg">
+                <div
+                  ref={listRef}
+                  onKeyDown={onListKeyDown}
+                  className="flex flex-col gap-0.5 p-1.5 max-h-[248px] lg:min-h-[420px] lg:max-h-[560px] overflow-y-auto bg-[#F9FAFB]/80 border border-[#F3F4F6] rounded-lg"
+                >
                   {entities.length === 0 &&
                     (loading || !isBarangay ? (
                       <div className="flex flex-col gap-2 p-1 animate-pulse">
@@ -555,10 +581,14 @@ export default function RiceYieldAnalytics() {
                       <button
                         key={e.id}
                         type="button"
+                        data-pick
+                        aria-pressed={on}
                         onClick={() => !blocked && toggleEntity(e.id)}
                         onMouseEnter={() => setHoverId(e.id)}
                         onMouseLeave={() => setHoverId(null)}
-                        className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-left transition-colors ${
+                        onFocus={() => setHoverId(e.id)}
+                        onBlur={() => setHoverId(null)}
+                        className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#3B9E1C] ${
                           hovered ? (on ? "bg-[#ECF5E8]" : "bg-[#F3F4F6]") : on ? "bg-white" : ""
                         } ${blocked ? "opacity-50 cursor-not-allowed" : ""}`}
                       >
@@ -593,10 +623,18 @@ export default function RiceYieldAnalytics() {
                       ? `${hoverEntity.name}: avg ${hoverStats.avg.toFixed(3)} · min ${hoverStats.min.toFixed(3)} · max ${hoverStats.max.toFixed(3)} mt/ha`
                       : `${selected.length} ${entityWordPlural} · ${season ?? ""} season`}
                   </span>
-                  {!hoverEntity && <span className="text-xs text-[#9CA3AF]">Hover a name to isolate its line</span>}
+                  {!hoverEntity && (
+                    <span className="text-xs text-[#9CA3AF]">
+                      {isPhone ? "Tap a card below to isolate its line" : "Hover a name to isolate its line"}
+                    </span>
+                  )}
                 </div>
 
-                <div className="relative w-full h-[380px]">
+                {/* On phones the unit sits here once instead of on every axis tick. */}
+                {isPhone && selected.length > 0 && !chartLoading && (
+                  <span className="-mb-2 text-[11px] font-semibold uppercase tracking-[0.5px] text-[#9CA3AF]">Yield, mt/ha</span>
+                )}
+                <div className="relative w-full h-[300px] sm:h-[380px]">
                   {chartLoading ? (
                     <ChartSkeleton type={chartType} />
                   ) : selected.length === 0 ? (
@@ -605,16 +643,26 @@ export default function RiceYieldAnalytics() {
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <ChartComponent data={chartData} margin={{ top: 20, right: 16, left: 8, bottom: 0 }} onMouseLeave={() => setHoverId(null)}>
+                      <ChartComponent
+                        data={chartData}
+                        margin={isPhone ? { top: 20, right: 10, left: 0, bottom: 0 } : { top: 20, right: 16, left: 8, bottom: 0 }}
+                        onMouseLeave={() => setHoverId(null)}
+                      >
                         <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                        <XAxis dataKey="year" tick={{ fontSize: 12, fill: "#6B7280" }} axisLine={{ stroke: "#E5E7EB" }} tickLine={false} />
+                        <XAxis
+                          dataKey="year"
+                          tick={{ fontSize: isPhone ? 11 : 12, fill: "#6B7280" }}
+                          axisLine={{ stroke: "#E5E7EB" }}
+                          tickLine={false}
+                          tickFormatter={(y) => (isPhone ? `'${String(y).slice(2)}` : y)}
+                        />
                         <YAxis
-                          tick={{ fontSize: 12, fill: "#6B7280" }}
+                          tick={{ fontSize: isPhone ? 11 : 12, fill: "#6B7280" }}
                           axisLine={false}
                           tickLine={false}
-                          width={76}
+                          width={isPhone ? 30 : 76}
                           domain={[(min) => Math.floor((min - 0.5) * 2) / 2, (max) => Math.ceil((max + 0.5) * 2) / 2]}
-                          tickFormatter={(v) => `${Number(v).toFixed(1)} mt/ha`}
+                          tickFormatter={(v) => (isPhone ? Number(v).toFixed(1) : `${Number(v).toFixed(1)} mt/ha`)}
                         />
                         <Tooltip
                           contentStyle={{ borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13 }}
@@ -632,7 +680,7 @@ export default function RiceYieldAnalytics() {
                               stroke={colorFor[e.id]}
                               strokeWidth={focus ? 3.5 : 2.5}
                               strokeOpacity={faded ? 0.25 : 1}
-                              dot={{ r: focus ? 4 : 3, fill: colorFor[e.id], fillOpacity: faded ? 0.25 : 1, strokeOpacity: 0 }}
+                              dot={{ r: focus ? 4 : isPhone ? 2 : 3, fill: colorFor[e.id], fillOpacity: faded ? 0.25 : 1, strokeOpacity: 0 }}
                               activeDot={{ r: 5 }}
                               connectNulls
                               isAnimationActive={false}
@@ -676,8 +724,54 @@ export default function RiceYieldAnalytics() {
                   </div>
                 )}
 
-                {/* Summary table. Hovering a row highlights the matching line. */}
-                <div className="border border-[#F3F4F6] rounded-lg overflow-x-auto">
+                {/* Summary on phones: one card per selection, tap to isolate its line. */}
+                <div className="sm:hidden flex flex-col gap-2">
+                  {chartLoading &&
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <div key={`sk-${i}`} className="h-[86px] rounded-xl bg-[#F3F4F6] animate-pulse" />
+                    ))}
+                  {!chartLoading &&
+                    selectedEntities
+                      .map((e) => ({ e, s: statsFor(e.id) }))
+                      .filter((x) => x.s)
+                      .sort((a, b) => b.s.avg - a.s.avg)
+                      .map(({ e, s }) => {
+                        const active = hoverId === e.id;
+                        return (
+                          <button
+                            key={e.id}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => setHoverId(active ? null : e.id)}
+                            className={`flex flex-col gap-2.5 p-3 rounded-xl border text-left transition-[background-color,border-color,transform] duration-150 active:scale-[0.99] motion-reduce:active:scale-100 ${
+                              active ? "bg-[#F8FAF5] border-[#3B9E1C]" : "bg-white border-[#EEF0EC]"
+                            }`}
+                          >
+                            <span className="flex items-center gap-2 w-full">
+                              <span className="w-2.5 h-2.5 shrink-0 rounded-full" style={{ background: colorFor[e.id] }} />
+                              <span className="flex-1 min-w-0 truncate text-sm font-semibold text-[#191C1A]">{e.name}</span>
+                              <span className="text-base font-bold text-[#1B3315] tabular-nums">{s.avg.toFixed(2)}</span>
+                              <span className="text-[10px] font-semibold uppercase text-[#9CA3AF]">avg</span>
+                            </span>
+                            <span className="grid grid-cols-3 gap-2 w-full">
+                              {[
+                                { label: "Min", value: s.min.toFixed(2) },
+                                { label: "Max", value: s.max.toFixed(2) },
+                                { label: "Latest", value: s.latest != null ? Number(s.latest).toFixed(2) : "N/A" },
+                              ].map((m) => (
+                                <span key={m.label} className="flex flex-col px-2 py-1.5 rounded-lg bg-[#F9FAFB]">
+                                  <span className="text-[10px] font-semibold uppercase tracking-[0.4px] text-[#9CA3AF]">{m.label}</span>
+                                  <span className="text-sm font-semibold text-[#374151] tabular-nums">{m.value}</span>
+                                </span>
+                              ))}
+                            </span>
+                          </button>
+                        );
+                      })}
+                </div>
+
+                {/* Summary table (sm and up). Hovering a row highlights the matching line. */}
+                <div className="hidden sm:block border border-[#F3F4F6] rounded-lg overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-[#F9FAFB] text-[#6B7280]">
                       <tr>
@@ -760,17 +854,25 @@ export default function RiceYieldAnalytics() {
                   <>
                     <div className="w-full h-[280px]">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={compareChartData} margin={{ top: 8, right: 16, left: 8, bottom: 40 }}>
+                        <BarChart data={compareChartData} margin={isPhone ? { top: 8, right: 8, left: 0, bottom: 40 } : { top: 8, right: 16, left: 8, bottom: 40 }}>
                           <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-35} textAnchor="end" height={56} />
-                          <YAxis tick={{ fontSize: 12, fill: "#6B7280" }} width={70} tickFormatter={(v) => `${Number(v).toFixed(1)}`} />
+                          <XAxis
+                            dataKey="name"
+                            tick={{ fontSize: isPhone ? 10 : 11, fill: "#6B7280" }}
+                            interval={0}
+                            angle={-35}
+                            textAnchor="end"
+                            height={56}
+                            tickFormatter={(n) => (isPhone ? String(n).replace(/^City of /, "") : n)}
+                          />
+                          <YAxis tick={{ fontSize: isPhone ? 11 : 12, fill: "#6B7280" }} width={isPhone ? 30 : 70} tickFormatter={(v) => `${Number(v).toFixed(1)}`} />
                           <Tooltip formatter={(v) => (v == null ? "N/A" : `${v} mt/ha`)} />
                           <Bar dataKey="observed" name="Recorded" fill="#74C476" radius={[4, 4, 0, 0]} />
                           <Bar dataKey="predicted" name="Predicted" fill="#F2C94C" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
-                    <div className="flex flex-wrap gap-6 px-4 py-3 bg-[#F9FAFB] rounded-lg text-sm">
+                    <div className="flex flex-wrap gap-x-6 gap-y-2 px-4 py-3 bg-[#F9FAFB] rounded-lg text-sm">
                       <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm bg-[#74C476]" />Recorded avg: <b className="text-[#1B3315]">{compareResp?.stats?.observed_avg ?? "N/A"} mt/ha</b></span>
                       <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm bg-[#F2C94C]" />Predicted avg: <b className="text-[#1B3315]">{compareResp?.stats?.predicted_avg ?? "N/A"} mt/ha</b></span>
                       <span>Model MAE: <b className="text-[#1B3315]">{compareResp?.stats?.mae ?? "N/A"} mt/ha</b></span>

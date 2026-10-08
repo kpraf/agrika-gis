@@ -7,6 +7,7 @@ the public yield map consumes these.
 """
 import csv
 import io
+import unicodedata
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -306,12 +307,13 @@ def records():
     """Flat list of every observed municipality yield — for the Reports page.
 
     One row per municipality-year-season: { municipality, year, season, yield,
-    is_proxy }. Small enough (a few hundred rows) to return in one call.
+    is_proxy, source }. Small enough (a few hundred rows) to return in one call.
+    `source` lets an exported report say where its figures came from.
     """
     rows = db.session.execute(
         text(
             "SELECT m.municipality_name, s.year, s.season_type, "
-            "r.observed_yield, r.is_proxy "
+            "r.observed_yield, r.is_proxy, r.source "
             "FROM municipality_yield_records r "
             "JOIN municipalities m ON m.municipality_id = r.municipality_id "
             "JOIN seasons s ON s.season_id = r.season_id "
@@ -326,6 +328,7 @@ def records():
                 "season": r.season_type,
                 "yield": round(r.observed_yield, 3),
                 "is_proxy": r.is_proxy,
+                "source": r.source,
             }
             for r in rows
         ]
@@ -338,7 +341,8 @@ def barangay_records():
     barangay-level counterpart to /records, for the Reports page.
 
     Query param: municipality_id (int, required).
-    One row per barangay-year-season: { barangay, municipality, year, season, yield }.
+    One row per barangay-year-season: { barangay, municipality, year, season, yield,
+    source, estimated }. `estimated` marks an imputed (not reported) yield.
     """
     mid = request.args.get("municipality_id", type=int)
     if not mid:
@@ -346,7 +350,8 @@ def barangay_records():
 
     rows = db.session.execute(
         text(
-            "SELECT b.barangay_name, m.municipality_name, s.year, s.season_type, y.yield_mt_ha "
+            "SELECT b.barangay_name, m.municipality_name, s.year, s.season_type, y.yield_mt_ha, "
+            "y.source, COALESCE(y.source ILIKE 'estimated%', FALSE) AS estimated "
             "FROM barangay_yield y "
             "JOIN barangays b ON b.barangay_id = y.barangay_id "
             "JOIN municipalities m ON m.municipality_id = b.municipality_id "
@@ -365,6 +370,8 @@ def barangay_records():
                 "year": r.year,
                 "season": r.season_type,
                 "yield": round(r.yield_mt_ha, 3),
+                "source": r.source,
+                "estimated": bool(r.estimated),
             }
             for r in rows
         ],
@@ -558,6 +565,13 @@ def trend():
 # loaders: resolve names to ids, get-or-create the (season_type, year) season,
 # then upsert per (target, season). UNIQUE constraints keep re-uploads
 # idempotent. Column headers are case-insensitive and order-independent.
+def _fold(s):
+    """Lower-case with accents removed, so a CSV that spells "City of Binan"
+    (as the PSA / Ricelytics files do) matches "City of Biñan" in the database."""
+    s = unicodedata.normalize("NFD", str(s or ""))
+    return "".join(c for c in s if not unicodedata.combining(c)).strip().lower()
+
+
 def _pick(row, *names):
     """Return the first matching column value: exact header first, then substring."""
     lowered = {(k or "").strip().lower(): v for k, v in row.items()}
@@ -630,7 +644,7 @@ def import_yields():
 
     # municipality name -> id (normalised for spacing/case)
     muni = {
-        r.municipality_name.strip().lower(): r.municipality_id
+        _fold(r.municipality_name): r.municipality_id
         for r in db.session.execute(text("SELECT municipality_id, municipality_name FROM municipalities"))
     }
     # (municipality_id, barangay name) -> barangay_id — barangay names repeat across
@@ -640,7 +654,7 @@ def import_yields():
         for r in db.session.execute(
             text("SELECT barangay_id, barangay_name, municipality_id FROM barangays")
         ):
-            brgy[(r.municipality_id, r.barangay_name.strip().lower())] = r.barangay_id
+            brgy[(r.municipality_id, _fold(r.barangay_name))] = r.barangay_id
 
     season_cache = {}
 
@@ -674,8 +688,12 @@ def import_yields():
         # Skip fully blank lines silently.
         if not any([raw_muni, raw_brgy, raw_year, raw_season, raw_yield]):
             continue
+        # Skip the "Source: ..." footer an exported report ends with, so a report
+        # exported from the Reports page can be imported back without a false error.
+        if raw_muni.lower().startswith("source:") and not any([raw_year, raw_season, raw_yield]):
+            continue
 
-        mid = muni.get(raw_muni.lower())
+        mid = muni.get(_fold(raw_muni))
         if mid is None:
             errors.append({"row": i, "error": f"Unknown municipality '{raw_muni}'."})
             continue
@@ -690,7 +708,7 @@ def import_yields():
             if not raw_brgy:
                 errors.append({"row": i, "error": "Missing barangay."})
                 continue
-            bid = brgy.get((mid, raw_brgy.lower()))
+            bid = brgy.get((mid, _fold(raw_brgy)))
             if bid is None:
                 errors.append({"row": i, "error": f"Unknown barangay '{raw_brgy}' in {raw_muni}."})
                 continue

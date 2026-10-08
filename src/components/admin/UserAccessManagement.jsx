@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import { usersApi } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
+import { foldText, matchesQuery } from "../../lib/text";
 
 // Confirmation dialog for destructive account actions (deactivate / delete).
 function ConfirmDialog({ title, message, isSelf, confirmLabel, danger, busy, onConfirm, onCancel }) {
@@ -39,6 +40,43 @@ function ConfirmDialog({ title, message, isSelf, confirmLabel, danger, busy, onC
         </div>
       </div>
     </div>
+  );
+}
+
+// Brief confirmation shown after a save ("User added successfully."). Closes
+// itself after a few seconds, or on the X.
+function SuccessToast({ message, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, [message, onClose]);
+
+  return createPortal(
+    <div className="fixed inset-x-0 top-6 z-[70] flex justify-center px-4 pointer-events-none">
+      <div
+        role="status"
+        aria-live="polite"
+        className="pointer-events-auto flex items-center gap-3 pl-4 pr-3 py-3 bg-white border border-[#BBF7D0] rounded-xl shadow-lg anim-scale-in"
+      >
+        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#DCFCE7] text-[#15803D] shrink-0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12l5 5L20 7" />
+          </svg>
+        </span>
+        <span className="text-sm font-semibold text-[#1F2937]">{message}</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Dismiss"
+          className="p-1 rounded text-[#9CA3AF] hover:text-[#4B5563] hover:bg-[#F3F4F6]"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -197,10 +235,21 @@ function UserForm({ initial, roles, municipalities, onCancel, onSave }) {
         )}
 
         <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg text-sm font-medium text-[#4B5563] hover:bg-[#F3F4F6]">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-[#4B5563] hover:bg-[#F3F4F6] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             Cancel
           </button>
-          <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg bg-[#1F6306] text-white text-sm font-semibold hover:bg-[#286A11] disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={saving}
+            aria-busy={saving}
+            className="flex items-center justify-center gap-2 min-w-[96px] px-4 py-2 rounded-lg bg-[#1F6306] text-white text-sm font-semibold hover:bg-[#286A11] disabled:opacity-80 disabled:cursor-wait"
+          >
+            {saving && <span className="inline-flex h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
@@ -222,9 +271,24 @@ export default function UserAccessManagement() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState(new Set());
   const [showFilter, setShowFilter] = useState(false);
+  const filterRef = useRef(null);
+  // Close the Filter dropdown on an outside click or Escape.
+  useEffect(() => {
+    if (!showFilter) return;
+    const onDown = (e) => filterRef.current && !filterRef.current.contains(e.target) && setShowFilter(false);
+    const onKey = (e) => e.key === "Escape" && setShowFilter(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [showFilter]);
   const [sort, setSort] = useState({ field: "name", direction: "asc" });
   const [selected, setSelected] = useState(new Set());
   const [formState, setFormState] = useState(null); // null | "new" | user object
+  const [successMsg, setSuccessMsg] = useState(""); // "User added successfully." after a save
+  const clearSuccess = useCallback(() => setSuccessMsg(""), []);
   const [menuOpenFor, setMenuOpenFor] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [page, setPage] = useState(1);
@@ -256,15 +320,15 @@ export default function UserAccessManagement() {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = foldText(search); // accents and case ignored: "Binan" finds "Biñan"
     return users.filter((u) => {
       if (roleFilter.size && !roleFilter.has(u.role)) return false;
       if (!q) return true;
       return (
-        (u.username || "").toLowerCase().includes(q) ||
-        (u.full_name || "").toLowerCase().includes(q) ||
-        roleLabel(u.role).toLowerCase().includes(q) ||
-        (u.municipality || "").toLowerCase().includes(q)
+        matchesQuery(u.username, q) ||
+        matchesQuery(u.full_name, q) ||
+        matchesQuery(roleLabel(u.role), q) ||
+        matchesQuery(u.municipality, q)
       );
     });
   }, [users, search, roleFilter]);
@@ -340,6 +404,7 @@ export default function UserAccessManagement() {
     else await usersApi.create(payload);
     await refetch();
     setFormState(null);
+    setSuccessMsg(initial ? "User updated successfully." : "User added successfully.");
   };
 
   const toggleStatus = (u) => {
@@ -433,25 +498,56 @@ export default function UserAccessManagement() {
             <div className="flex items-center justify-between px-6 py-5 border-b border-[#F3F4F6]">
               <div className="pb-1 border-b-2 border-[#1F6306] text-sm font-semibold text-[#1F6306]">Users</div>
               <div className="flex items-center gap-3">
-                <div className="relative">
+                <div className="relative" ref={filterRef}>
+                  {/* Lifts on hover, presses in on click, turns green while its menu is
+                      open; the three bars close into a funnel-flip as it opens. */}
                   <button
                     type="button"
                     onClick={() => setShowFilter((v) => !v)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E5E7EB] rounded-lg text-sm font-medium text-[#374151] shadow-sm"
+                    aria-haspopup="true"
+                    aria-expanded={showFilter}
+                    className={`group flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium shadow-sm transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out hover:-translate-y-px hover:shadow-md active:translate-y-0 active:scale-[0.97] active:shadow-sm motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 ${
+                      showFilter
+                        ? "bg-[#F0FDF4] border-[#1F6306] text-[#1F6306]"
+                        : "bg-white border-[#E5E7EB] text-[#374151] hover:border-[#C3C8BD]"
+                    }`}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className={`transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                        showFilter ? "rotate-180 text-[#1F6306]" : "text-[#6B7280] group-hover:scale-110"
+                      }`}
+                    >
                       <path d="M4 6h16M7 12h10M10 18h4" />
                     </svg>
                     Filter
                     {roleFilter.size > 0 && (
-                      <span className="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-[#1F6306] text-white">{roleFilter.size}</span>
+                      <span
+                        key={roleFilter.size}
+                        className="anim-badge-pop ml-1 px-1.5 py-0.5 text-xs rounded-full bg-[#1F6306] text-white"
+                      >
+                        {roleFilter.size}
+                      </span>
                     )}
                   </button>
                   {showFilter && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-3 z-20 flex flex-col gap-2">
-                      <span className="text-xs font-semibold uppercase text-[#9CA3AF] px-1">Filter by role</span>
+                    <div className="anim-pop-in origin-top-right absolute right-0 mt-2 w-56 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-3 z-20 flex flex-col gap-1">
+                      <span className="text-xs font-semibold uppercase text-[#9CA3AF] px-2 pb-1">Filter by role</span>
                       {(roles.length ? roles : Object.keys(ROLE_META)).map((key) => (
-                        <label key={key} className="flex items-center gap-2 px-1 py-1 text-sm text-[#374151] cursor-pointer">
+                        <label
+                          key={key}
+                          className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-sm cursor-pointer transition-colors duration-150 hover:bg-[#F3F4F6] ${
+                            roleFilter.has(key) ? "text-[#1F6306] font-medium" : "text-[#374151]"
+                          }`}
+                        >
                           <input type="checkbox" checked={roleFilter.has(key)} onChange={() => toggleRoleFilter(key)} className="accent-[#1F6306]" />
                           {roleLabel(key)}
                         </label>
@@ -775,6 +871,8 @@ export default function UserAccessManagement() {
           onSave={handleSave}
         />
       )}
+
+      {successMsg && <SuccessToast message={successMsg} onClose={clearSuccess} />}
 
       {confirmState && (
         <ConfirmDialog
