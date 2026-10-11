@@ -18,6 +18,8 @@ const ENV_METRICS = [
   { key: "ndvi", label: "NDVI", unit: "", rampKey: "green" },
   { key: "evi", label: "EVI", unit: "", rampKey: "green" },
   { key: "ndwi", label: "NDWI", unit: "", rampKey: "teal" },
+  { key: "vv", label: "SAR VV", unit: "dB", rampKey: "purple" },
+  { key: "vh", label: "SAR VH", unit: "dB", rampKey: "purple" },
   { key: "rainfall", label: "Rainfall", unit: "mm/mo", rampKey: "blue" },
   { key: "temperature", label: "Temp", unit: "°C", rampKey: "warm" },
   { key: "humidity", label: "Humidity", unit: "%", rampKey: "blue" },
@@ -110,6 +112,7 @@ export default function SpatialGIS() {
 
   // CNN-LSTM predictions overlay (empty until model output is loaded).
   const [dataSource, setDataSource] = useState("observed"); // "observed" | "predicted" | "residual"
+  const [dismissedNotice, setDismissedNotice] = useState(null); // key of the map note the user closed
   const [predMeta, setPredMeta] = useState({ has_predictions: false });
   const [predMetaLoading, setPredMetaLoading] = useState(true);
   const [compareResp, setCompareResp] = useState(null); // { stats, records } observed vs predicted
@@ -397,6 +400,34 @@ export default function SpatialGIS() {
       : showingPredicted
       ? !!predScale
       : !!yieldResp);
+  // A season can have a forecast before any yield has been reported for it (the
+  // pipeline predicts a season as soon as its six months are complete). Say so on
+  // the map: point from the empty Observed layer to the forecast, and mark the
+  // forecast as one that cannot be checked yet.
+  const drilledIn = !!activeCityId;
+  const observedCount = drilledIn ? barangayResp?.records?.length ?? 0 : Object.keys(yieldByMuni).length;
+  const forecastCount = drilledIn ? Object.keys(predByBarangay).length : Object.keys(predByMuni).length;
+  const forecastOnly =
+    !showingEnvironment && !busy && predMeta.has_predictions && observedCount === 0 && forecastCount > 0;
+  const noticeKey = `${dataSource}-${activeCityId ?? "all"}-${year}-${season}`;
+  const noticePlace = drilledIn
+    ? ` in ${municipalities.find((m) => m.id === activeCityId)?.name ?? "this city"}`
+    : "";
+  const noticePeriod = `${season ?? ""} ${year ?? ""}`.trim();
+  const mapNotice =
+    forecastOnly && dismissedNotice !== noticeKey
+      ? {
+          text: showingPredicted
+            ? `This is a forecast. No yield has been reported for ${noticePeriod}${noticePlace} yet, so it cannot be compared with an actual harvest.`
+            : showingResidual
+            ? `Residuals need a reported yield, and none has been reported for ${noticePeriod}${noticePlace} yet. The model's forecast is available.`
+            : `No yield has been reported for ${noticePeriod}${noticePlace} yet. The model's forecast for this season is available.`,
+          actionLabel: showingPredicted ? null : "Show forecast",
+          onAction: () => setDataSource("predicted"),
+          onDismiss: () => setDismissedNotice(noticeKey),
+        }
+      : null;
+
   // Barangay choropleth on drill-in: in the observed heatmap view (yields) or the
   // Environment view (selected metric). Active regardless of whether data exists,
   // so no-data barangays grey out instead of the plain green outline.
@@ -665,6 +696,7 @@ export default function SpatialGIS() {
                   </div>
                   <p className="text-[11px] text-[#9CA3AF]">
                     Seasonal average per municipality — the model's inputs (Sentinel + Open-Meteo).
+                    SAR VV / VH are Sentinel-1 radar, which sees through cloud.
                   </p>
                 </div>
               )}
@@ -808,6 +840,7 @@ export default function SpatialGIS() {
             detailedTooltips={detailedTooltips}
             overlayLoading={busy || (showingEnvironment && envLoading)}
             overlayLabel={showingEnvironment && envLoading ? `Loading ${envConfig.label}…` : "Loading yield data…"}
+            notice={mapNotice}
             year={year}
             season={season}
             onSelectionChange={handleSelection}
@@ -904,6 +937,10 @@ export default function SpatialGIS() {
                   !(legendDrilled ? mapBarangayScale : envScale)
                     ? `No ${envConfig.label} data for ${season ?? ""} ${year ?? ""}`.trim() +
                       ". Try an earlier year."
+                    : forecastOnly && showingResidual
+                    ? `No residuals for ${noticePeriod}${noticePlace}. A residual is observed minus predicted, and no yield has been reported yet.`
+                    : forecastOnly && !showingPredicted
+                    ? `No reported yield for ${noticePeriod}${noticePlace} yet. Switch Data Source to Predicted to see the forecast.`
                     : null
                 }
                 scale={legendScale}

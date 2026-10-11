@@ -21,6 +21,10 @@ METRICS = {
     "ndvi":        ("satellite_monthly", "ndvi_mean",         "NDVI",        ""),
     "evi":         ("satellite_monthly", "evi_mean",          "EVI",         ""),
     "ndwi":        ("satellite_monthly", "ndwi_mean",         "NDWI",        ""),
+    # Sentinel-1 radar backscatter (decibels) - sees through cloud, so it has a
+    # value in the wet-season months where the optical indices are blank.
+    "vv":          ("satellite_monthly", "vv_mean",           "SAR VV",      "dB"),
+    "vh":          ("satellite_monthly", "vh_mean",           "SAR VH",      "dB"),
     "rainfall":    ("weather_monthly",   "rainfall_mm",       "Rainfall",    "mm/mo"),
     "temperature": ("weather_monthly",   "temp_mean_c",       "Temperature", "°C"),
     "humidity":    ("weather_monthly",   "humidity_mean_pct", "Humidity",    "%"),

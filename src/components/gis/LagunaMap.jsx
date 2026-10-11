@@ -69,6 +69,7 @@ export const RAMPS = {
   teal: ["#F7FCFD", "#E5F5F9", "#CCECE6", "#99D8C9", "#66C2A4", "#2CA25F", "#006D2C"], // NDWI (moisture)
   blue: ["#F7FBFF", "#DEEBF7", "#C6DBEF", "#9ECAE1", "#6BAED6", "#3182BD", "#08519C"], // rainfall / humidity
   warm: ["#FFF5EB", "#FEE6CE", "#FDD0A2", "#FDAE6B", "#FD8D3C", "#E6550D", "#A63603"], // temperature
+  purple: ["#FCFBFD", "#EFEDF5", "#DADAEB", "#BCBDDC", "#9E9AC8", "#756BB1", "#54278F"], // radar backscatter
 };
 
 function residualColor(value, absMax) {
@@ -101,6 +102,7 @@ export default function LagunaMap({
   barangayKey = "", // changes force the barangay choropleth to restyle
   overlayLoading = false, // show a non-blocking "loading data" pill over the map
   overlayLabel = "Loading…", // label for that pill
+  notice = null, // { text, actionLabel?, onAction?, onDismiss? } - a note about the layer on show
 }) {
   const mapRef = useRef(null);
   // Monotonic id of the latest drill-in, so a slower earlier fetch can't override
@@ -676,6 +678,51 @@ export default function LagunaMap({
           <div className="flex items-center gap-2.5 rounded-full bg-white/95 px-4 py-2.5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1)] backdrop-blur-sm">
             <span className="inline-flex h-4 w-4 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
             <span className="text-sm font-medium text-[#374151] whitespace-nowrap">{overlayLabel}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Note about what the map is showing (e.g. a forecast with no reported yield
+          behind it). Sits under the search bar (and under the "back to ..." pill when
+          there is one); the search results open over it. */}
+      {notice && (
+        <div
+          className={`absolute left-6 right-6 z-[450] flex justify-center pointer-events-none ${
+            // Drilled in, the "back to ..." pill sits right under the search bar: go below it.
+            selectedMuni && (lockedMunicipalityId == null || selectedBrgy) ? "top-[128px]" : "top-[84px]"
+          }`}
+        >
+          <div
+            role="status"
+            aria-live="polite"
+            className="anim-fade-up pointer-events-auto w-full max-w-[473px] flex items-start gap-3 px-4 py-3 rounded-lg bg-[#FFFBEB]/95 border border-[#FCD34D] backdrop-blur-sm shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1)]"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8h.01M11 12h1v5h1" />
+            </svg>
+            <div className="flex-1 min-w-0 flex flex-col items-start gap-2">
+              <p className="text-[13px] leading-snug text-[#78350F]">{notice.text}</p>
+              {notice.actionLabel && (
+                <button
+                  type="button"
+                  onClick={notice.onAction}
+                  className="px-3 py-1.5 rounded-md bg-[#1F6306] text-white text-xs font-semibold hover:bg-[#17500A] active:scale-95 transition"
+                >
+                  {notice.actionLabel}
+                </button>
+              )}
+            </div>
+            {notice.onDismiss && (
+              <button
+                type="button"
+                onClick={notice.onDismiss}
+                aria-label="Dismiss this note"
+                className="shrink-0 -mr-1 -mt-0.5 p-1 text-[#B45309] hover:text-[#78350F]"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            )}
           </div>
         </div>
       )}
