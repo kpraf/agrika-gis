@@ -19,6 +19,9 @@ Run add_feature_tables.py first if the tables do not exist yet.
 Usage
     python backend/scripts/load_feature_tables.py
     python backend/scripts/load_feature_tables.py --only weather
+    # load a different file (the scheduled pipeline loads just its fetch window)
+    python backend/scripts/load_feature_tables.py --weather-csv db/_run/weather_window.csv \
+        --satellite-csv db/_run/satellite_window.csv
 """
 import argparse
 import csv
@@ -67,8 +70,9 @@ def load_table(table, csv_path, value_cols, muni_map):
         f"ON CONFLICT (municipality_id, year, month) DO UPDATE SET {updates}"
     )
 
-    inserted = skipped = 0
+    skipped = 0
     unmatched = set()
+    batch = []
     for r in rows:
         mid = muni_map.get(norm(r["municipality"]))
         if mid is None:
@@ -78,12 +82,17 @@ def load_table(table, csv_path, value_cols, muni_map):
         params = {"municipality_id": mid, "year": int(r["year"]), "month": int(r["month"])}
         for c in value_cols:
             params[c] = num(r.get(c))
-        db.session.execute(sql, params)
-        inserted += 1
+        batch.append(params)
 
+    # One batched statement instead of a round trip per row: the same upsert, but
+    # quick against a database on another continent.
+    before = db.session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
+    if batch:
+        db.session.execute(sql, batch)
     db.session.commit()
     total = db.session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
-    print(f"{table}: upserted {inserted}, skipped {skipped}. table now has {total} rows.")
+    print(f"{table}: upserted {len(batch)} ({total - before} new, {len(batch) - (total - before)} "
+          f"refreshed), skipped {skipped}. table now has {total} rows.")
     if unmatched:
         print(f"  unmatched municipality names: {sorted(unmatched)}")
 
@@ -91,6 +100,8 @@ def load_table(table, csv_path, value_cols, muni_map):
 def main():
     ap = argparse.ArgumentParser(description="Load weather/satellite CSVs into the DB.")
     ap.add_argument("--only", choices=["weather", "satellite"], help="Load just one table.")
+    ap.add_argument("--weather-csv", default=WEATHER_CSV, help="Weather CSV to load.")
+    ap.add_argument("--satellite-csv", default=SATELLITE_CSV, help="Satellite CSV to load.")
     args = ap.parse_args()
 
     app = create_app()
@@ -100,9 +111,9 @@ def main():
             for r in db.session.execute(text("SELECT municipality_id, municipality_name FROM municipalities"))
         }
         if args.only in (None, "weather"):
-            load_table("weather_monthly", WEATHER_CSV, WEATHER_COLS, muni_map)
+            load_table("weather_monthly", args.weather_csv, WEATHER_COLS, muni_map)
         if args.only in (None, "satellite"):
-            load_table("satellite_monthly", SATELLITE_CSV, SATELLITE_COLS, muni_map)
+            load_table("satellite_monthly", args.satellite_csv, SATELLITE_COLS, muni_map)
     return 0
 
 

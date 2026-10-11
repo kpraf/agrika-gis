@@ -30,6 +30,9 @@ Usage
     python backend/scripts/fetch_weather_openmeteo.py
     python backend/scripts/fetch_weather_openmeteo.py --start 2018 --end 2025
     python backend/scripts/fetch_weather_openmeteo.py --level barangay   # 682 points
+    # a window of months only (what the scheduled pipeline does), into its own file
+    python backend/scripts/fetch_weather_openmeteo.py --from-month 2026-08 --to-month 2026-10 \
+        --out db/_run/weather_window.csv
 
 Notes
 -----
@@ -193,6 +196,10 @@ def main():
     ap = argparse.ArgumentParser(description="Fetch Laguna monthly weather from Open-Meteo (ERA5).")
     ap.add_argument("--start", type=int, default=2018, help="First year (default 2018).")
     ap.add_argument("--end", type=int, default=2025, help="Last year, inclusive (default 2025).")
+    ap.add_argument("--from-month", default=None, metavar="YYYY-MM",
+                    help="Fetch only from this month (instead of whole years). Needs --out.")
+    ap.add_argument("--to-month", default=None, metavar="YYYY-MM",
+                    help="Last month of the window, inclusive (default: same as --from-month).")
     ap.add_argument("--level", choices=["municipality", "barangay"], default="municipality")
     ap.add_argument("--sleep", type=float, default=1.0, help="Seconds between API calls.")
     ap.add_argument("--resume", action="store_true",
@@ -202,12 +209,28 @@ def main():
     ap.add_argument("--out", default=None, help="Override the output CSV path.")
     args = ap.parse_args()
 
-    start_date = f"{args.start}-01-01"
+    import calendar
+    import datetime as _dt
+    if args.from_month:
+        if not args.out:
+            sys.exit("ERROR: --from-month fetches a few months only; give it its own --out file "
+                     "so it cannot overwrite the full CSV (run_pipeline.py merges the two).")
+        try:
+            fy, fm = (int(p) for p in args.from_month.split("-"))
+            ty, tm = (int(p) for p in (args.to_month or args.from_month).split("-"))
+            requested_start = _dt.date(fy, fm, 1)
+            requested_end = _dt.date(ty, tm, calendar.monthrange(ty, tm)[1])
+        except ValueError:
+            sys.exit("ERROR: --from-month / --to-month must look like 2026-08.")
+    else:
+        requested_start = _dt.date(args.start, 1, 1)
+        requested_end = _dt.date(args.end, 12, 31)
+    start_date = requested_start.isoformat()
     # The archive rejects future dates, so for the current/in-progress year clamp
     # the end to the latest day it can serve (it lags real time by ~5 days).
-    import datetime as _dt
-    requested_end = _dt.date(args.end, 12, 31)
     archive_max = _dt.date.today() - _dt.timedelta(days=6)
+    if requested_start > archive_max:
+        sys.exit(f"ERROR: the archive only reaches {archive_max}; nothing to fetch from {start_date}.")
     end_date = min(requested_end, archive_max).isoformat()
     points = load_points(args.level, args.geojson)
     out_path = args.out or OUT[args.level]
@@ -224,11 +247,13 @@ def main():
         print(f"resume: {len(done)} names already present, {len(points)} to fetch")
 
     print(f"{len(points)} {args.level} centroids | {start_date} -> {end_date} | Open-Meteo ERA5")
+    failed = 0
     for i, (name, lon, lat) in enumerate(points, 1):
         try:
             monthly = to_monthly(fetch_daily(lat, lon, start_date, end_date))
         except Exception as e:  # noqa: BLE001
             print(f"  [{i}/{len(points)}] {name}: ERROR {e}", file=sys.stderr)
+            failed += 1
             continue
         for (year, month), (rain_mm, temp_c, humidity, days) in monthly.items():
             rows.append({
@@ -255,6 +280,11 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
     print(f"\nwrote {len(rows)} rows -> {out_path}")
+    if failed:
+        # Partial result is on disk (and loadable); the exit code still says so,
+        # so an unattended run is recorded as failed rather than silently short.
+        print(f"{failed} of {len(points)} points failed.", file=sys.stderr)
+        return 2
     return 0
 
 

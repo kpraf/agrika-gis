@@ -33,6 +33,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.abspath(os.path.join(HERE, ".."))
 PRED_CSV = os.path.join(BACKEND, "db", "cnn_lstm_predictions_for_app.csv")
 MODEL_VERSION = "cnn-lstm-s2s1"
+# Forecasts for seasons after the training period (predict_season.py). Normally the
+# scheduled pipeline writes these to production itself; this is the by-hand route.
+FORWARD_PRED_CSV = os.path.join(BACKEND, "db", "cnn_lstm_forward_predictions.csv")
+BARANGAY_FORWARD_PRED_CSV = os.path.join(BACKEND, "db", "barangay_cnn_lstm_forward_predictions.csv")
 
 # Per-barangay yield CSVs (one per municipality collected so far), plus Cabuyao's estimated gap seasons.
 BARANGAY_CSVS = [
@@ -183,6 +187,11 @@ def main():
         # Ensure the predictions table exists, then load.
         run("add_municipality_predictions.py", [], env)
         run("load_municipality_predictions.py", ["--csv", PRED_CSV, "--model-version", MODEL_VERSION], env)
+        if os.path.exists(FORWARD_PRED_CSV):
+            run("load_municipality_predictions.py",
+                ["--csv", FORWARD_PRED_CSV, "--model-version", MODEL_VERSION], env)
+        if os.path.exists(BARANGAY_FORWARD_PRED_CSV):
+            run("load_barangay_predictions.py", ["--csv", BARANGAY_FORWARD_PRED_CSV], env)
 
     print("\nDone. The Render app should now reflect the pushed data.")
     return 0

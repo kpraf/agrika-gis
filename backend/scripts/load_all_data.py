@@ -43,6 +43,9 @@ STEPS = [
     ("add_municipality_predictions.py", []),
     ("load_municipality_predictions.py",
      ["--csv", "db/cnn_lstm_predictions_for_app.csv", "--model-version", MUNI_MODEL_VERSION]),
+    # Forecasts for seasons after the training period (predict_season.py, run by the pipeline).
+    ("load_municipality_predictions.py",
+     ["--csv", "db/cnn_lstm_forward_predictions.csv", "--model-version", MUNI_MODEL_VERSION]),
     ("add_feature_tables.py", []),
     ("load_feature_tables.py", []),
     # --- barangay yields (four study cities) ---
@@ -85,8 +88,12 @@ STEPS = [
      ["--csv", "db/barangay_cnn_lstm_predictions_cabuyao_estimated.csv"]),
     ("load_barangay_predictions.py",
      ["--csv", "db/barangay_cnn_lstm_predictions_calamba.csv", "--replace"]),
+    # Forecasts for seasons after the training period (predict_season.py). Must come
+    # after the Calamba --replace above, which clears Calamba's prediction rows first.
+    ("load_barangay_predictions.py", ["--csv", "db/barangay_cnn_lstm_forward_predictions.csv"]),
     # --- app tables that hold no CSV data ---
     ("add_contact_messages_table.py", []),
+    ("add_pipeline_tables.py", []),
 ]
 
 

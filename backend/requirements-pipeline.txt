@@ -1,0 +1,9 @@
+# Extra packages the data pipeline needs on top of requirements.txt
+# (the web API itself does not use them, so Render does not install them).
+# PyTorch is installed separately from the CPU-only index - see
+# .github/workflows/data-pipeline.yml.
+sentinelhub>=3.11
+shapely>=2.0
+numpy>=2.0
+pandas>=2.2
+scikit-learn>=1.5

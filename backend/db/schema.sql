@@ -223,3 +223,55 @@ CREATE TABLE contact_messages (
     message      TEXT         NOT NULL,
     created_at   TIMESTAMP    NOT NULL DEFAULT NOW()
 );
+
+-- ------------------------------------------------------------
+--  AUDIT TABLES  (Objective 3: traceability). Rows are only ever added.
+--  yield_import_log: one row per CSV import through the web app (who, when,
+--  which city the account was limited to, how many rows changed).
+--  pipeline_runs: one row per run of scripts/run_pipeline.py (when, what
+--  started it, what each stage did). Same DDL as backend/audit.py.
+-- ------------------------------------------------------------
+CREATE TABLE yield_import_log (
+    import_id          SERIAL PRIMARY KEY,
+    imported_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    user_id            INTEGER      NOT NULL,
+    username           VARCHAR(100) NOT NULL,
+    role               VARCHAR(50)  NOT NULL,
+    municipality_scope VARCHAR(100),
+    level              VARCHAR(20)  NOT NULL,
+    source             VARCHAR(120),
+    rows_inserted      INTEGER      NOT NULL DEFAULT 0,
+    rows_updated       INTEGER      NOT NULL DEFAULT 0,
+    rows_skipped       INTEGER      NOT NULL DEFAULT 0
+);
+
+CREATE TABLE pipeline_runs (
+    run_id                   SERIAL PRIMARY KEY,
+    started_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at              TIMESTAMPTZ,
+    triggered_by             VARCHAR(20) NOT NULL,
+    mode                     VARCHAR(20) NOT NULL,
+    window_from              VARCHAR(7),
+    window_to                VARCHAR(7),
+    status                   VARCHAR(20) NOT NULL DEFAULT 'running',
+    stages                   JSONB,
+    weather_rows_new         INTEGER,
+    weather_rows_refreshed   INTEGER,
+    satellite_rows_new       INTEGER,
+    satellite_rows_refreshed INTEGER,
+    predictions_new          INTEGER,
+    processing_units         DOUBLE PRECISION,
+    cells_expected           INTEGER,
+    weather_cells            INTEGER,
+    satellite_cells          INTEGER,
+    integrity_violations     INTEGER,
+    db_encrypted             BOOLEAN,
+    run_ref                  VARCHAR(255),
+    notes                    TEXT,
+    barangays                INTEGER,
+    barangay_rows_new        INTEGER,
+    barangay_rows_refreshed  INTEGER,
+    barangay_cells_expected  INTEGER,
+    barangay_cells           INTEGER,
+    barangay_predictions_new INTEGER
+);

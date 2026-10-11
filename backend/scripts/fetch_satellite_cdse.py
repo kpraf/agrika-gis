@@ -36,10 +36,18 @@ Output  (backend/db/)
     cloud-masked (S2) or had no acquisition (S1) - expected in the wet season;
     handle those gaps when you assemble the training tensor.
 
+Quota: every request costs Copernicus "processing units" (the free tier allows
+30,000 a month). The script adds up what the API says each request cost, prints
+the total, writes it next to the CSV (<out>.meta.json), and stops early if the
+run passes --max-pu, so one run can never use up the month.
+
 Usage
     python backend/scripts/fetch_satellite_cdse.py                 # all municipalities
     python backend/scripts/fetch_satellite_cdse.py --limit 2       # smoke-test 2 areas
     python backend/scripts/fetch_satellite_cdse.py --level barangay --start 2018 --end 2025
+    # a window of months only (what the scheduled pipeline does), into its own file
+    python backend/scripts/fetch_satellite_cdse.py --from-month 2026-08 --to-month 2026-10 \
+        --out db/_run/satellite_window.csv
 """
 import argparse
 import csv
@@ -48,6 +56,7 @@ import math
 import os
 import sys
 import time
+from datetime import datetime, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DB_DIR = os.path.abspath(os.path.join(HERE, "..", "db"))
@@ -162,9 +171,41 @@ def month_key(iso_from):
     return int(iso_from[0:4]), int(iso_from[5:7])
 
 
-def run_statistical(cfg, collection, evalscript, other_args, geom, start, end, resolution):
-    """Return {(year, month): {band_id: {mean,std,min,max,n}}} for one geometry."""
-    from sentinelhub import SentinelHubStatistical, Geometry, CRS
+def parse_month(s):
+    """'2026-08' -> (2026, 8)."""
+    try:
+        year, month = (int(p) for p in s.split("-"))
+        if not 1 <= month <= 12:
+            raise ValueError
+    except ValueError:
+        sys.exit(f"ERROR: month must look like 2026-08 (got {s!r}).")
+    return year, month
+
+
+def time_window(args):
+    """(from, to) for the request: whole calendar months, `to` exclusive.
+
+    `to` is the first instant of the month AFTER the last one wanted, never later
+    than now. Ending on 31 December 23:59:59 instead leaves the last month one
+    second short of a full interval, and the API then drops it - which is how
+    December of the final year went missing from the first full fetch.
+    """
+    if args.from_month:
+        fy, fm = parse_month(args.from_month)
+        ty, tm = parse_month(args.to_month or args.from_month)
+    else:
+        fy, fm, ty, tm = args.start, 1, args.end, 12
+    t_from = datetime(fy, fm, 1)
+    t_to = datetime(ty + 1, 1, 1) if tm == 12 else datetime(ty, tm + 1, 1)
+    now = datetime.now(timezone.utc).replace(tzinfo=None, microsecond=0)
+    if t_from >= now:
+        sys.exit(f"ERROR: {fy}-{fm:02d} has not started yet. Nothing to fetch.")
+    return t_from, min(t_to, now)
+
+
+def run_statistical(cfg, collection, evalscript, other_args, geom, t_from, t_to, resolution):
+    """One geometry: ({(year, month): {band_id: {mean,std,min,max,n}}}, processing units spent)."""
+    from sentinelhub import SentinelHubStatistical, SentinelHubDownloadClient, Geometry, CRS
 
     # Reproject to the local UTM zone so `resolution` is in METRES, not degrees.
     # (A geometry left in WGS84 makes resolution=20 mean 20 degrees/pixel ~ 12 km,
@@ -175,9 +216,12 @@ def run_statistical(cfg, collection, evalscript, other_args, geom, start, end, r
 
     aggregation = SentinelHubStatistical.aggregation(
         evalscript=evalscript,
-        time_interval=(f"{start}-01-01", f"{end}-12-31"),
+        time_interval=(t_from, t_to),
         aggregation_interval="P1M",
         resolution=(resolution, resolution),
+        # The month still in progress is a short last interval: keep it (as a
+        # month-to-date figure) instead of the API's default of skipping it.
+        other_args={"aggregationInterval": {"lastIntervalBehavior": "SHORTEN"}},
     )
     request = SentinelHubStatistical(
         aggregation=aggregation,
@@ -185,7 +229,16 @@ def run_statistical(cfg, collection, evalscript, other_args, geom, start, end, r
         geometry=geo,
         config=cfg,
     )
-    result = request.get_data()[0]
+    # Same request as request.get_data(), but keeping the response headers: the
+    # API reports there what the request cost against the monthly quota.
+    response = SentinelHubDownloadClient(config=cfg).download(
+        [request.download_list[0]], decode_data=False)[0]
+    result = response.decode()
+    try:
+        spent = float({k.lower(): v for k, v in response.headers.items()}
+                      .get("x-processingunits-spent", 0))
+    except (TypeError, ValueError):
+        spent = 0.0
 
     monthly = {}
     for entry in result.get("data", []):
@@ -209,7 +262,7 @@ def run_statistical(cfg, collection, evalscript, other_args, geom, start, end, r
                 "n": max(n, 0),
             }
         monthly[key] = bands
-    return monthly
+    return monthly, spent
 
 
 def main():
@@ -217,6 +270,12 @@ def main():
     ap.add_argument("--level", choices=["municipality", "barangay"], default="municipality")
     ap.add_argument("--start", type=int, default=2018)
     ap.add_argument("--end", type=int, default=2025)
+    ap.add_argument("--from-month", default=None, metavar="YYYY-MM",
+                    help="Fetch only from this month (instead of whole years). Needs --out.")
+    ap.add_argument("--to-month", default=None, metavar="YYYY-MM",
+                    help="Last month of the window, inclusive (default: same as --from-month).")
+    ap.add_argument("--max-pu", type=float, default=0,
+                    help="Stop once this run has spent this many processing units (0 = no cap).")
     ap.add_argument("--resolution", type=int, default=20, help="Sampling resolution in metres.")
     ap.add_argument("--maxcc", type=float, default=0.6, help="Max S2 scene cloud cover (0-1).")
     ap.add_argument("--limit", type=int, default=0, help="Only process the first N areas (smoke test).")
@@ -228,6 +287,10 @@ def main():
                     help="Override the GeoJSON path (e.g. a subset of barangays to conserve PU).")
     ap.add_argument("--out", default=None, help="Override the output CSV path.")
     args = ap.parse_args()
+    if args.from_month and not args.out:
+        sys.exit("ERROR: --from-month fetches a few months only; give it its own --out file "
+                 "so it cannot overwrite the full CSV (run_pipeline.py merges the two).")
+    t_from, t_to = time_window(args)
 
     from sentinelhub import DataCollection
 
@@ -255,13 +318,27 @@ def main():
         areas = [a for a in areas if a[0] not in done]
         print(f"resume: {len(done)} areas already present, {len(areas)} to fetch")
 
-    print(f"{len(areas)} {args.level} | {args.start}-{args.end} | S2 NDVI/EVI/NDWI + S1 VV/VH | {args.resolution} m")
+    print(f"{len(areas)} {args.level} | {t_from:%Y-%m-%d} -> {t_to:%Y-%m-%d %H:%M} UTC | "
+          f"S2 NDVI/EVI/NDWI + S1 VV/VH | {args.resolution} m")
+    failed = 0
+    pu_spent = 0.0
+    n_requests = 0
     for i, (name, geom) in enumerate(areas, 1):
+        if args.max_pu and pu_spent >= args.max_pu:
+            print(f"  stopping: {pu_spent:.0f} processing units spent, cap is {args.max_pu:.0f}. "
+                  f"{len(areas) - i + 1} areas not fetched.", file=sys.stderr)
+            failed += len(areas) - i + 1
+            break
         try:
-            s2m = run_statistical(cfg, s2, EVAL_S2_NDVI, s2_args, geom, args.start, args.end, args.resolution)
-            s1m = run_statistical(cfg, s1, EVAL_S1_VVVH, s1_args, geom, args.start, args.end, args.resolution)
+            s2m, pu2 = run_statistical(cfg, s2, EVAL_S2_NDVI, s2_args, geom, t_from, t_to, args.resolution)
+            pu_spent += pu2
+            n_requests += 1
+            s1m, pu1 = run_statistical(cfg, s1, EVAL_S1_VVVH, s1_args, geom, t_from, t_to, args.resolution)
+            pu_spent += pu1
+            n_requests += 1
         except Exception as e:  # noqa: BLE001
             print(f"  [{i}/{len(areas)}] {name}: ERROR {e}", file=sys.stderr)
+            failed += 1
             continue
 
         for (year, month) in sorted(set(s2m) | set(s1m)):
@@ -288,8 +365,15 @@ def main():
                 "vh_std": vh.get("std"),
                 "s1_valid_px": vv.get("n"),
             })
-        print(f"  [{i}/{len(areas)}] {name}: S2 {len(s2m)} mo, S1 {len(s1m)} mo")
+        print(f"  [{i}/{len(areas)}] {name}: S2 {len(s2m)} mo, S1 {len(s1m)} mo "
+              f"({pu2 + pu1:.1f} PU)")
         time.sleep(args.sleep)
+
+    print(f"\nprocessing units spent: {pu_spent:.1f} over {n_requests} requests")
+    with open((args.out or OUT[args.level]) + ".meta.json", "w", encoding="utf-8") as fh:
+        json.dump({"processing_units": round(pu_spent, 1), "requests": n_requests,
+                   "areas": len(areas), "areas_failed": failed,
+                   "from": t_from.isoformat(), "to": t_to.isoformat()}, fh, indent=2)
 
     if not rows:
         print("No data fetched. Nothing written.", file=sys.stderr)
@@ -303,7 +387,12 @@ def main():
         w = csv.DictWriter(fh, fieldnames=fieldnames)
         w.writeheader()
         w.writerows(rows)
-    print(f"\nwrote {len(rows)} rows -> {out_path}")
+    print(f"wrote {len(rows)} rows -> {out_path}")
+    if failed:
+        # Partial result is on disk (and loadable); the exit code still says so,
+        # so an unattended run is recorded as failed rather than silently short.
+        print(f"{failed} of {len(areas)} areas failed.", file=sys.stderr)
+        return 2
     return 0
 
 

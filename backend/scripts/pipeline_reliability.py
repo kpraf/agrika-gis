@@ -77,6 +77,9 @@ def main():
     app = create_app()
     with app.app_context():
         n_muni = q1("SELECT COUNT(*) FROM municipalities")
+        # The tables keep growing (the scheduled run adds months); evaluate only the
+        # stated years. Both bounds are ints from argparse, so safe to interpolate.
+        yrs = f"year BETWEEN {args.start} AND {args.end}"
         years = args.end - args.start + 1
         expected = n_muni * years * 12
 
@@ -89,18 +92,18 @@ def main():
         # 1. Acquisition -----------------------------------------------------
         p("\n[1] ACQUISITION  (area-month cells present vs expected)")
         for tbl in ("weather_monthly", "satellite_monthly"):
-            rows = q1(f"SELECT COUNT(*) FROM {tbl}")
-            munis = q1(f"SELECT COUNT(DISTINCT municipality_id) FROM {tbl}")
+            rows = q1(f"SELECT COUNT(*) FROM {tbl} WHERE {yrs}")
+            munis = q1(f"SELECT COUNT(DISTINCT municipality_id) FROM {tbl} WHERE {yrs}")
             p(f"  {tbl:<18} {rows}/{expected} cells ({100*rows/expected:.1f}%), "
               f"{munis}/{n_muni} municipalities")
 
         # 2. Completeness ----------------------------------------------------
         p("\n[2] COMPLETENESS  (non-null feature values / expected cells)")
         for f in WEATHER_FEATURES:
-            c = q1(f"SELECT COUNT({f}) FROM weather_monthly")
+            c = q1(f"SELECT COUNT({f}) FROM weather_monthly WHERE {yrs}")
             p(f"  weather.{f:<18} {c}/{expected} ({100*c/expected:.1f}%)")
         for f in SAT_FEATURES:
-            c = q1(f"SELECT COUNT({f}) FROM satellite_monthly")
+            c = q1(f"SELECT COUNT({f}) FROM satellite_monthly WHERE {yrs}")
             p(f"  sat.{f:<21} {c}/{expected} ({100*c/expected:.1f}%)")
 
         # 3. Integrity -------------------------------------------------------
@@ -108,15 +111,15 @@ def main():
         total_violations = 0
         for tbl, cols in RANGES.items():
             for col, (lo, hi) in cols.items():
-                v = q1(f"SELECT COUNT(*) FROM {tbl} WHERE {col} IS NOT NULL "
+                v = q1(f"SELECT COUNT(*) FROM {tbl} WHERE {yrs} AND {col} IS NOT NULL "
                        f"AND ({col} < :lo OR {col} > :hi)", lo=lo, hi=hi)
-                nonfinite = q1(f"SELECT COUNT(*) FROM {tbl} WHERE {col} IS NOT NULL "
+                nonfinite = q1(f"SELECT COUNT(*) FROM {tbl} WHERE {yrs} AND {col} IS NOT NULL "
                                f"AND (NOT ({col} = {col}) OR {col} = 'Infinity' OR {col} = '-Infinity')")
                 total_violations += v + nonfinite
                 flag = "OK" if (v + nonfinite) == 0 else f"** {v} out-of-range, {nonfinite} non-finite"
                 p(f"  {tbl.split('_')[0]}.{col:<18} [{lo},{hi}]  {flag}")
         # EVI outliers reported separately (known EVI instability, not a hard bound)
-        evi_out = q1("SELECT COUNT(*) FROM satellite_monthly WHERE evi_mean IS NOT NULL "
+        evi_out = q1(f"SELECT COUNT(*) FROM satellite_monthly WHERE {yrs} AND evi_mean IS NOT NULL "
                      "AND (evi_mean < -1 OR evi_mean > 1.5)")
         p(f"  sat.evi_mean         (note) {evi_out} values outside [-1,1.5] - known EVI instability, EVI excluded from final model")
         p(f"  --> total integrity violations: {total_violations}")
@@ -136,16 +139,16 @@ def main():
 
         # 5. Gap accounting --------------------------------------------------
         p("\n[5] GAP ACCOUNTING  (are the satellite gaps expected?)")
-        present = q1("SELECT COUNT(*) FROM satellite_monthly")
+        present = q1(f"SELECT COUNT(*) FROM satellite_monthly WHERE {yrs}")
         absent = expected - present
         # S2 optical: NDVI null within acquired rows (cloud), split by season.
-        dry = q1("SELECT COUNT(*) FROM satellite_monthly WHERE ndvi_mean IS NULL AND month BETWEEN 1 AND 6")
-        wet = q1("SELECT COUNT(*) FROM satellite_monthly WHERE ndvi_mean IS NULL AND month BETWEEN 7 AND 12")
+        dry = q1(f"SELECT COUNT(*) FROM satellite_monthly WHERE {yrs} AND ndvi_mean IS NULL AND month BETWEEN 1 AND 6")
+        wet = q1(f"SELECT COUNT(*) FROM satellite_monthly WHERE {yrs} AND ndvi_mean IS NULL AND month BETWEEN 7 AND 12")
         p(f"  S2 optical (NDVI/EVI/NDWI) cloud-masked in acquired months: "
           f"Dry(Jan-Jun)={dry}, Wet(Jul-Dec)={wet} "
           f"-> wet-season clouds ({wet}/{dry+wet} of gaps), expected for optical in the tropics")
         # S1 SAR: VV/VH are present in every acquired row (cloud-independent).
-        vv_nulls = q1("SELECT COUNT(*) FROM satellite_monthly WHERE vv_mean IS NULL")
+        vv_nulls = q1(f"SELECT COUNT(*) FROM satellite_monthly WHERE {yrs} AND vv_mean IS NULL")
         p(f"  S1 SAR (VV/VH): present in all {present} acquired area-months "
           f"({vv_nulls} nulls) -> cloud-independent, coverage complete where acquired")
         p(f"  Fully-absent area-months (no S1 or S2 acquisition at all): "
@@ -161,7 +164,7 @@ def main():
 
         # Verdict ------------------------------------------------------------
         p("\n" + "=" * 68)
-        weather_ok = q1("SELECT COUNT(*) FROM weather_monthly") == expected
+        weather_ok = q1(f"SELECT COUNT(*) FROM weather_monthly WHERE {yrs}") == expected
         p(f" VERDICT: integrity violations = {total_violations} "
           f"({'PASS' if total_violations == 0 else 'REVIEW'}); "
           f"weather complete = {weather_ok}; "

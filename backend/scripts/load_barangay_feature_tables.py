@@ -21,6 +21,10 @@ Usage
         --weather db/weather_barangay_binan_monthly.csv \
         --satellite db/satellite_barangay_binan_monthly.csv \
         --municipalities "City of Biñan"
+    # a pipeline window: the name column holds "<barangay_id>:<name>", so no lookup is needed
+    python backend/scripts/load_barangay_feature_tables.py --by-id \
+        --weather db/_run/weather_barangay_window.csv \
+        --satellite db/_run/satellite_barangay_window.csv
 """
 import argparse
 import csv
@@ -62,20 +66,29 @@ def load_table(table, csv_path, value_cols, brgy_map):
     updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in value_cols)
     sql = text(f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({placeholders}) "
                f"ON CONFLICT (barangay_id, year, month) DO UPDATE SET {updates}")
-    loaded = skipped = 0
+    skipped = 0
     unmatched = set()
+    batch = []
     for r in rows:
-        bid = brgy_map.get(fold(r[name_key]))
+        if brgy_map is None:   # --by-id: "<barangay_id>:<name>"
+            head = str(r[name_key]).split(":", 1)[0]
+            bid = int(head) if head.isdigit() else None
+        else:
+            bid = brgy_map.get(fold(r[name_key]))
         if bid is None:
             unmatched.add(r[name_key]); skipped += 1; continue
         params = {"barangay_id": bid, "year": int(r["year"]), "month": int(r["month"])}
         for c in value_cols:
             params[c] = num(r.get(c))
-        db.session.execute(sql, params)
-        loaded += 1
+        batch.append(params)
+    # One batched statement instead of a round trip per row (same upsert).
+    before = db.session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
+    if batch:
+        db.session.execute(sql, batch)
     db.session.commit()
     total = db.session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
-    print(f"{table}: upserted {loaded}, skipped {skipped}. table now has {total} rows.")
+    print(f"{table}: upserted {len(batch)} ({total - before} new, {len(batch) - (total - before)} "
+          f"refreshed), skipped {skipped}. table now has {total} rows.")
     if unmatched:
         print(f"  unmatched: {sorted(unmatched)}")
 
@@ -84,16 +97,27 @@ def main():
     ap = argparse.ArgumentParser(description="Load barangay weather/satellite CSVs into the DB.")
     ap.add_argument("--weather")
     ap.add_argument("--satellite")
-    ap.add_argument("--municipalities", required=True,
+    ap.add_argument("--municipalities", default="",
                     help="Comma-separated municipality names the CSV covers (scopes the name lookup).")
+    ap.add_argument("--by-id", action="store_true",
+                    help="The name column holds '<barangay_id>:<name>' (pipeline window files); "
+                         "use the id directly instead of looking the name up.")
     ap.add_argument("--replace", action="store_true",
                     help="First delete those municipalities' existing rows from each table being "
                          "loaded (use when the CSV supersedes what is there, e.g. placeholder -> real).")
     args = ap.parse_args()
     munis = [m.strip() for m in args.municipalities.split(",") if m.strip()]
+    if not args.by_id and not munis:
+        sys.exit("ERROR: give --municipalities (or --by-id for a pipeline window file).")
+    if args.by_id and args.replace:
+        sys.exit("ERROR: --replace works per municipality; it cannot be combined with --by-id.")
 
     app = create_app()
     with app.app_context():
+        if args.by_id:
+            load_table("weather_monthly_barangay", args.weather, WEATHER_COLS, None)
+            load_table("satellite_monthly_barangay", args.satellite, SATELLITE_COLS, None)
+            return 0
         rows = db.session.execute(text(
             "SELECT b.barangay_id, b.barangay_name, m.municipality_name "
             "FROM barangays b JOIN municipalities m ON m.municipality_id = b.municipality_id"

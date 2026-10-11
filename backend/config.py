@@ -49,6 +49,46 @@ def _normalize_db_url(url: str) -> str:
     return url
 
 
+_LOCAL_DB_HOSTS = {"localhost", "127.0.0.1", "::1", ""}
+
+
+def _engine_options(url: str) -> dict:
+    """Require an encrypted connection to any database that is not on this machine.
+
+    psycopg's default (sslmode=prefer) falls back to plain text if the server
+    will not do TLS; "require" refuses to connect instead. A local database is
+    left alone (a default local Postgres has no TLS), and so is a URL that
+    already states its own sslmode.
+    """
+    try:
+        from sqlalchemy.engine import make_url
+
+        parsed = make_url(url)
+    except Exception:  # noqa: BLE001 - already reported by _normalize_db_url
+        return {}
+    if (parsed.host or "") in _LOCAL_DB_HOSTS or "sslmode" in parsed.query:
+        return {}
+    return {"connect_args": {"sslmode": "require"}}
+
+
+def _jwt_secret() -> str:
+    """The token-signing secret. There is deliberately no default.
+
+    A built-in fallback would be public (this repository is), and anyone who
+    knows the secret can sign themselves a token for any account - so without
+    one the app refuses to start.
+    """
+    secret = os.environ.get("JWT_SECRET_KEY", "").strip()
+    # The two placeholders this repository has ever shipped count as "not set".
+    if not secret or secret in ("dev-only-change-me", "change-this-to-a-long-random-string"):
+        raise RuntimeError(
+            "JWT_SECRET_KEY is not set. Put a long random value in backend/.env "
+            "(setup_db.ps1 writes one; Render generates one) - the app will not "
+            "start without it."
+        )
+    return secret
+
+
 class Config:
     # SQLAlchemy connection string, e.g. postgresql+psycopg://postgres:pw@localhost:5432/agrika_gis
     SQLALCHEMY_DATABASE_URI = _normalize_db_url(
@@ -58,9 +98,10 @@ class Config:
         )
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = _engine_options(SQLALCHEMY_DATABASE_URI)
 
     # JWT
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "dev-only-change-me")
+    JWT_SECRET_KEY = _jwt_secret()
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
 
     # Which frontend origins may call the API (comma-separated in .env)

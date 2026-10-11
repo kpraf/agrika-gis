@@ -149,8 +149,9 @@ export default function SpatialGIS() {
   // Year options depend on what you're looking at: drilled into a municipality
   // you're viewing barangays (data starts 2020), otherwise the province
   // choropleth (municipality data back to 2018).
-  const yearOptions =
-    activeCityId && meta.barangay_years?.length ? meta.barangay_years : meta.years;
+  // Drilled into a city: the years with barangay yields or barangay forecasts.
+  const barangayYears = meta.barangay_map_years?.length ? meta.barangay_map_years : meta.barangay_years;
+  const yearOptions = activeCityId && barangayYears?.length ? barangayYears : meta.years;
   // If the current year isn't offered for this scope, clamp to the nearest one.
   useEffect(() => {
     if (!year || !yearOptions?.length || yearOptions.includes(year)) return;

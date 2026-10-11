@@ -56,16 +56,34 @@ export default function YieldComparisonCard({
     : null;
 
   if (observed == null) {
+    // A forecast for a season whose yield has not been reported yet: show the
+    // prediction on its own. There is nothing to compare it with, so no residual.
+    const forecast = predicted != null;
     return (
-      <Shell season={season} year={year}>
+      <Shell season={season} year={year} showBadge={forecast}>
         {envValue != null && envLabel && (
           <div className="flex items-center justify-between px-3.5 py-2.5 bg-white border border-[#E1E3DE] rounded-[10px]">
             <span className="text-xs font-semibold text-[#434840]">{envLabel}</span>
             <span className="text-base font-bold text-[#1B3315]">{envValue}</span>
           </div>
         )}
+        {forecast && (
+          <div className="flex flex-col gap-1 p-3.5 bg-white border border-dashed border-[#EAB308] rounded-[10px]">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-[#434840]">
+              <span className="w-2.5 h-2.5 rounded-full border-[2.5px] border-[#EAB308] box-border" />
+              {isMuni ? "Predicted" : "Predicted avg"}
+            </span>
+            <span className="text-[26px] font-bold text-[#1B3315]">
+              {predicted} <span className="text-sm font-semibold text-[#6B7280]">mt/ha</span>
+            </span>
+          </div>
+        )}
         <p className="text-sm text-[#6B7280]">
-          {isMuni ? `No observed yield for ${selection.name} in ${season} ${year}.` : `No yield data for ${season} ${year}.`}
+          {forecast
+            ? `No yield has been reported ${isMuni ? `for ${selection.name} ` : ""}in ${season} ${year} yet, so this forecast cannot be compared.`
+            : isMuni
+            ? `No observed yield for ${selection.name} in ${season} ${year}.`
+            : `No yield data for ${season} ${year}.`}
         </p>
       </Shell>
     );

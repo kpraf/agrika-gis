@@ -9,10 +9,11 @@ import csv
 import io
 import unicodedata
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import text
 
+import audit
 from extensions import db
 from models import User
 
@@ -61,7 +62,23 @@ def meta():
             )
         )
     ]
-    return jsonify({"years": years, "seasons": seasons, "barangay_years": barangay_years})
+    # The map also shows barangay FORECASTS, which exist for a season before any
+    # barangay yield has been reported for it - so its year picker needs those
+    # years too. (Monitoring lists reported yields only and keeps barangay_years.)
+    forecast_years = []
+    if db.session.execute(text("SELECT to_regclass('barangay_predictions')")).scalar() is not None:
+        forecast_years = [
+            r.year
+            for r in db.session.execute(
+                text(
+                    "SELECT DISTINCT s.year FROM barangay_predictions p "
+                    "JOIN seasons s ON s.season_id = p.season_id"
+                )
+            )
+        ]
+    barangay_map_years = sorted(set(barangay_years) | set(forecast_years))
+    return jsonify({"years": years, "seasons": seasons, "barangay_years": barangay_years,
+                    "barangay_map_years": barangay_map_years})
 
 
 @yields_bp.get("/municipalities")
@@ -244,9 +261,10 @@ def barangays_compare():
     """Observed vs predicted (+ residual) per barangay for a municipality+year+season.
 
     Observed from barangay_yield, predicted from barangay_predictions (the CNN-LSTM
-    applied to each barangay's features). Only barangays with a yield row are
-    returned. Each record: { barangay_id, name, observed, predicted, residual,
-    estimated }.
+    applied to each barangay's features). A barangay is returned if it has a yield
+    OR a prediction for that season - a forecast for a season whose yields have
+    not been reported yet comes back with observed = null. Each record:
+    { barangay_id, name, observed, predicted, residual, estimated }.
 
     `estimated` marks a yield that was imputed rather than reported (source starts
     with "Estimated"). It has no residual and is left out of the MAE: estimate
@@ -265,12 +283,12 @@ def barangays_compare():
             "SELECT b.barangay_id, b.barangay_name AS name, y.yield_mt_ha AS observed, "
             "p.predicted_yield AS predicted, "
             "COALESCE(y.source ILIKE 'estimated%', FALSE) AS estimated "
-            "FROM barangay_yield y "
-            "JOIN barangays b ON b.barangay_id = y.barangay_id "
-            "JOIN seasons s ON s.season_id = y.season_id "
-            "LEFT JOIN barangay_predictions p ON p.barangay_id = y.barangay_id AND p.season_id = y.season_id "
-            "WHERE b.municipality_id = :m AND s.year = :y AND s.season_type = :sea "
-            "AND y.yield_mt_ha IS NOT NULL "
+            "FROM barangays b "
+            "JOIN seasons s ON s.year = :y AND s.season_type = :sea "
+            "LEFT JOIN barangay_yield y ON y.barangay_id = b.barangay_id AND y.season_id = s.season_id "
+            "     AND y.yield_mt_ha IS NOT NULL "
+            "LEFT JOIN barangay_predictions p ON p.barangay_id = b.barangay_id AND p.season_id = s.season_id "
+            "WHERE b.municipality_id = :m AND (y.barangay_id IS NOT NULL OR p.barangay_id IS NOT NULL) "
             "ORDER BY b.barangay_name"
         ),
         {"m": mid, "y": year, "sea": season},
@@ -291,7 +309,7 @@ def barangays_compare():
     pred_vals = [r["predicted"] for r in records if r["predicted"] is not None]
     abs_res = [abs(r["residual"]) for r in records if r["residual"] is not None]
     stats = {
-        "count": len(records),
+        "count": sum(1 for r in records if r["observed"] is not None),
         "count_predicted": len(pred_vals),
         "predicted_avg": round(sum(pred_vals) / len(pred_vals), 3) if pred_vals else None,
         "mae": round(sum(abs_res) / len(abs_res), 3) if abs_res else None,
@@ -606,6 +624,10 @@ def import_yields():
     Scope: an administrator may import for any municipality. An agriculturist or
     rice technician may only import rows for the city their account is assigned to;
     rows for any other city are skipped and reported, at either level.
+
+    Every real (non-dry-run) import adds one row to yield_import_log - who, when,
+    which city they were limited to, how many rows changed - in the same
+    transaction as the yields, so no import can be stored without its record.
     """
     # Role and city come from the users table, not the token's claims, so a role
     # change, reassignment or deleted account takes effect on the next request.
@@ -634,6 +656,13 @@ def import_yields():
     # Dry run: validate + count + preview WITHOUT committing (powers the
     # "you're about to import this" confirmation step in the UI).
     dry_run = bool(payload.get("dry_run"))
+    if not dry_run:
+        try:
+            audit.ensure_import_log()
+        except Exception:  # noqa: BLE001 - whatever the cause, refuse rather than import unlogged
+            current_app.logger.exception("yield_import_log is unavailable")
+            return jsonify({"error": "The import log is unavailable, so nothing was imported. "
+                                     "Please try again in a moment."}), 503
 
     try:
         rows = list(csv.DictReader(io.StringIO(csv_text)))
@@ -811,6 +840,7 @@ def import_yields():
     if dry_run:
         db.session.rollback()
     else:
+        audit.log_import(user, role, scope_name, level, source, inserted, updated, len(errors))
         db.session.commit()
     total_table = "barangay_yield" if level == "barangay" else "municipality_yield_records"
     total = db.session.execute(text(f"SELECT COUNT(*) FROM {total_table}")).scalar()

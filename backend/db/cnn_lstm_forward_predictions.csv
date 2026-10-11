@@ -1,0 +1,30 @@
+municipality,year,season,predicted_yield,trained_on_samples,trained_through
+Alaminos,2026,Dry,4.8443,462,Wet 2025
+Bay,2026,Dry,4.8939,462,Wet 2025
+Calauan,2026,Dry,4.778,462,Wet 2025
+Cavinti,2026,Dry,5.0203,462,Wet 2025
+City of Biñan,2026,Dry,4.2549,462,Wet 2025
+City of Cabuyao,2026,Dry,4.4008,462,Wet 2025
+City of Calamba,2026,Dry,4.844,462,Wet 2025
+City of San Pablo,2026,Dry,5.0851,462,Wet 2025
+City of Santa Rosa,2026,Dry,4.6874,462,Wet 2025
+Famy,2026,Dry,4.9904,462,Wet 2025
+Kalayaan,2026,Dry,5.0508,462,Wet 2025
+Liliw,2026,Dry,4.9277,462,Wet 2025
+Los Baños,2026,Dry,4.5291,462,Wet 2025
+Luisiana,2026,Dry,4.4513,462,Wet 2025
+Lumban,2026,Dry,5.1752,462,Wet 2025
+Mabitac,2026,Dry,5.0407,462,Wet 2025
+Magdalena,2026,Dry,5.1441,462,Wet 2025
+Majayjay,2026,Dry,4.7935,462,Wet 2025
+Nagcarlan,2026,Dry,4.6371,462,Wet 2025
+Paete,2026,Dry,4.1619,462,Wet 2025
+Pagsanjan,2026,Dry,5.0478,462,Wet 2025
+Pakil,2026,Dry,4.6611,462,Wet 2025
+Pangil,2026,Dry,4.6839,462,Wet 2025
+Pila,2026,Dry,5.0462,462,Wet 2025
+Rizal,2026,Dry,4.8011,462,Wet 2025
+Santa Cruz,2026,Dry,4.8948,462,Wet 2025
+Santa Maria,2026,Dry,5.0481,462,Wet 2025
+Siniloan,2026,Dry,4.556,462,Wet 2025
+Victoria,2026,Dry,5.1392,462,Wet 2025

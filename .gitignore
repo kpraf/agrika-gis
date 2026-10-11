@@ -19,3 +19,5 @@ npm-debug.log*
 backend/db/pipeline_last_run.json
 backend/db/pipeline_reliability_report.txt
 .env.prod
+backend/db/_run/
+backend/db/security_test_report.txt

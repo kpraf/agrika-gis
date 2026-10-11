@@ -1,0 +1,43 @@
+municipality,barangay,year,season,predicted,trained_on_samples,trained_through
+City of Biñan,Canlalay,2026,Dry,3.5447,462,Wet 2025
+City of Biñan,Langkiwa,2026,Dry,3.9981,462,Wet 2025
+City of Biñan,Loma,2026,Dry,4.6856,462,Wet 2025
+City of Biñan,Platero,2026,Dry,3.5102,462,Wet 2025
+City of Biñan,San Francisco,2026,Dry,3.6695,462,Wet 2025
+City of Biñan,Timbao,2026,Dry,4.445,462,Wet 2025
+City of Biñan,Zapote,2026,Dry,4.0176,462,Wet 2025
+City of Cabuyao,Baclaran,2026,Dry,4.3268,462,Wet 2025
+City of Cabuyao,Banaybanay,2026,Dry,4.4465,462,Wet 2025
+City of Cabuyao,Bigaa,2026,Dry,4.0957,462,Wet 2025
+City of Cabuyao,Butong,2026,Dry,4.2075,462,Wet 2025
+City of Cabuyao,Gulod,2026,Dry,4.6656,462,Wet 2025
+City of Cabuyao,Mamatid,2026,Dry,3.8171,462,Wet 2025
+City of Cabuyao,Marinig,2026,Dry,4.3591,462,Wet 2025
+City of Cabuyao,Niugan,2026,Dry,4.5611,462,Wet 2025
+City of Cabuyao,Pulo,2026,Dry,3.9923,462,Wet 2025
+City of Cabuyao,Sala,2026,Dry,4.1448,462,Wet 2025
+City of Cabuyao,San Isidro,2026,Dry,4.0514,462,Wet 2025
+City of Calamba,Banadero,2026,Dry,4.5395,462,Wet 2025
+City of Calamba,Banlic,2026,Dry,4.5053,462,Wet 2025
+City of Calamba,Barangay 7,2026,Dry,4.3784,462,Wet 2025
+City of Calamba,Bucal,2026,Dry,4.9016,462,Wet 2025
+City of Calamba,Halang,2026,Dry,4.3312,462,Wet 2025
+City of Calamba,Lecheria,2026,Dry,4.7941,462,Wet 2025
+City of Calamba,Lingga,2026,Dry,5.1765,462,Wet 2025
+City of Calamba,Pansol,2026,Dry,4.2298,462,Wet 2025
+City of Calamba,Parian,2026,Dry,3.6591,462,Wet 2025
+City of Calamba,Real,2026,Dry,4.3851,462,Wet 2025
+City of Calamba,San Jose,2026,Dry,4.8109,462,Wet 2025
+City of Calamba,Uwisan,2026,Dry,4.5388,462,Wet 2025
+City of Santa Rosa,Aplaya,2026,Dry,3.9212,462,Wet 2025
+City of Santa Rosa,Balibago,2026,Dry,3.8741,462,Wet 2025
+City of Santa Rosa,Caingin,2026,Dry,3.9378,462,Wet 2025
+City of Santa Rosa,Dila,2026,Dry,3.7255,462,Wet 2025
+City of Santa Rosa,Dita,2026,Dry,3.7903,462,Wet 2025
+City of Santa Rosa,Labas,2026,Dry,3.7414,462,Wet 2025
+City of Santa Rosa,Macabling,2026,Dry,4.4744,462,Wet 2025
+City of Santa Rosa,Malitlit,2026,Dry,4.8457,462,Wet 2025
+City of Santa Rosa,Pooc,2026,Dry,3.656,462,Wet 2025
+City of Santa Rosa,Pulong Santa Cruz,2026,Dry,4.3268,462,Wet 2025
+City of Santa Rosa,Sinalhan,2026,Dry,3.9328,462,Wet 2025
+City of Santa Rosa,Tagapo,2026,Dry,3.7538,462,Wet 2025

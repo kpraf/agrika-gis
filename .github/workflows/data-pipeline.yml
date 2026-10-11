@@ -1,0 +1,109 @@
+# Objective 3: the scheduled data pipeline.
+#
+# Every Monday at 02:00 Philippine time this fetches the recent months of weather
+# (Open-Meteo) and Sentinel-1 / Sentinel-2 statistics (Copernicus) for the 30
+# municipalities and for every barangay with a reported yield, loads them into the
+# production database, checks them, and predicts the latest season once its six
+# months are complete. Every run adds one row to the pipeline_runs table.
+#
+# It can also be started by hand: Actions tab -> Data pipeline -> Run workflow.
+#
+# Needs three repository secrets (Settings -> Secrets and variables -> Actions):
+#   CDSE_CLIENT_ID, CDSE_CLIENT_SECRET   Copernicus Data Space OAuth client
+#   PIPELINE_DATABASE_URL                 the production (Supabase) connection string
+# Secrets are encrypted by GitHub, masked in the logs, and never given to pull
+# requests - this workflow only runs on the schedule or a manual start.
+name: Data pipeline
+
+on:
+  schedule:
+    - cron: "0 18 * * 0" # Sunday 18:00 UTC = Monday 02:00 in the Philippines (UTC+8)
+  workflow_dispatch:
+    inputs:
+      from_month:
+        description: "First month to fetch, YYYY-MM (blank = last month)"
+        required: false
+        type: string
+      to_month:
+        description: "Last month to fetch, YYYY-MM (blank = current month)"
+        required: false
+        type: string
+      skip_fetch:
+        description: "Do not fetch: load the data files already in the repository (uses no Copernicus units)"
+        required: false
+        type: boolean
+        default: false
+      skip_predict:
+        description: "Skip the prediction stage"
+        required: false
+        type: boolean
+        default: false
+
+# The job only reads the repository; it cannot push, comment or change settings.
+permissions:
+  contents: read
+
+# Never two runs at once: a second one waits for the first to finish.
+concurrency:
+  group: data-pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Fetch, load, verify, predict
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # Third-party actions are pinned to an exact commit, not a movable tag.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-pipeline.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r backend/requirements-pipeline.txt
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Check the secrets are present
+        env:
+          CDSE_CLIENT_ID: ${{ secrets.CDSE_CLIENT_ID }}
+          CDSE_CLIENT_SECRET: ${{ secrets.CDSE_CLIENT_SECRET }}
+          DATABASE_URL: ${{ secrets.PIPELINE_DATABASE_URL }}
+        run: |
+          missing=0
+          for name in CDSE_CLIENT_ID CDSE_CLIENT_SECRET DATABASE_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repository secret for $name is not set (see the comment at the top of this workflow)."
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: Run the pipeline
+        env:
+          CDSE_CLIENT_ID: ${{ secrets.CDSE_CLIENT_ID }}
+          CDSE_CLIENT_SECRET: ${{ secrets.CDSE_CLIENT_SECRET }}
+          DATABASE_URL: ${{ secrets.PIPELINE_DATABASE_URL }}
+          FROM_MONTH: ${{ inputs.from_month }}
+          TO_MONTH: ${{ inputs.to_month }}
+          SKIP_FETCH: ${{ inputs.skip_fetch }}
+          SKIP_PREDICT: ${{ inputs.skip_predict }}
+        run: |
+          # The API code refuses to load without a token-signing secret. The pipeline
+          # issues no tokens, so it gets a random one that lives only for this run.
+          export JWT_SECRET_KEY="$(openssl rand -hex 32)"
+          args=(--incremental)
+          if [ -n "$FROM_MONTH" ]; then args+=(--from-month "$FROM_MONTH"); fi
+          if [ -n "$TO_MONTH" ]; then args+=(--to-month "$TO_MONTH"); fi
+          if [ "$SKIP_FETCH" = "true" ]; then args+=(--skip-fetch); fi
+          if [ "$SKIP_PREDICT" = "true" ]; then args+=(--skip-predict); fi
+          python backend/scripts/run_pipeline.py "${args[@]}"
