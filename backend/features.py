@@ -95,8 +95,10 @@ def barangays():
     """Per-barangay seasonal average of one feature for a municipality + year +
     season — for the Environment layer on the map's barangay drill-in.
 
-    Only barangays that have an OBSERVED yield for this year+season are returned
-    (a barangay lights up only where we have ground truth; everything else greys).
+    Only rice barangays are returned: those with at least one REPORTED yield on
+    record, in any season (everything else greys). This is the same rule the
+    scheduled pipeline uses to decide which barangays to fetch, so the layer also
+    shows for the season in progress, before its yields have been reported.
 
     Query params: municipality_id (int), metric, year (int), season ('Dry'|'Wet').
     """
@@ -115,14 +117,14 @@ def barangays():
             f"SELECT b.barangay_id, b.barangay_name AS name, AVG(t.{col}) AS value "
             f"FROM {btable} t "
             f"JOIN barangays b ON b.barangay_id = t.barangay_id "
-            f"JOIN barangay_yield y ON y.barangay_id = b.barangay_id "
-            f"JOIN seasons s ON s.season_id = y.season_id "
             f"WHERE b.municipality_id = :m AND t.year = :y AND t.month = ANY(:months) "
-            f"AND t.{col} IS NOT NULL AND y.yield_mt_ha IS NOT NULL "
-            f"AND s.year = :y AND s.season_type = :sea "
+            f"AND t.{col} IS NOT NULL "
+            f"AND EXISTS (SELECT 1 FROM barangay_yield y WHERE y.barangay_id = b.barangay_id "
+            f"            AND y.yield_mt_ha IS NOT NULL "
+            f"            AND NOT COALESCE(y.source ILIKE 'estimated%', FALSE)) "
             f"GROUP BY b.barangay_id, b.barangay_name ORDER BY b.barangay_name"
         ),
-        {"m": mid, "y": year, "sea": season, "months": months},
+        {"m": mid, "y": year, "months": months},
     ).all()
 
     records = [
