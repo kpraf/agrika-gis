@@ -102,7 +102,9 @@ export default function LagunaMap({
   barangayKey = "", // changes force the barangay choropleth to restyle
   overlayLoading = false, // show a non-blocking "loading data" pill over the map
   overlayLabel = "Loading…", // label for that pill
-  notice = null, // { text, actionLabel?, onAction?, onDismiss? } - a note about the layer on show
+  notice = null, // { title?, text, actionLabel?, onAction?, onDismiss? } - a note about the layer on show
+  layerChip = null, // { label, sub, kind: "observed" | "predicted" | "residual" } - names the layer on show
+  forecastOutline = false, // dashed outlines on areas with data (the Predicted layer)
 }) {
   const mapRef = useRef(null);
   // Monotonic id of the latest drill-in, so a slower earlier fetch can't override
@@ -250,6 +252,14 @@ export default function LagunaMap({
     ? { color: "#1B6D24", weight: 1.2, fillColor: "#3B9E1C", fillOpacity: 0 }
     : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
 
+  // The "back to ..." pill: shown when drilled into a municipality; on a locked map
+  // only to step back from a barangay to the pinned city.
+  const backPillShown = !!selectedMuni && (lockedMunicipalityId == null || !!selectedBrgy);
+
+  // Predicted layer: dash the outline of every area that has a value, so a
+  // forecast never looks like reported data even though it shares the green ramp.
+  const dash = forecastOutline ? { dashArray: "5 4", lineCap: "butt" } : { dashArray: null };
+
   // Per-barangay choropleth: in barangayHeatmap mode, colour each barangay on the
   // local scale using the SAME palette/mode as the municipality layer (yield green,
   // Environment ramp, or the diverging residual ramp), and grey the ones with no
@@ -267,9 +277,10 @@ export default function LagunaMap({
     }
     return {
       color: sat ? "#FFFFFF" : "#0E2207",
-      weight: 0.8,
+      weight: forecastOutline ? 1.4 : 0.8,
       fillColor: brgyFill(rec.yield),
       fillOpacity: sat ? 0.6 : 0.8,
+      ...dash,
     };
   };
   // Isolate a clicked barangay: highlight it, dim the rest. Declarative (folded
@@ -339,12 +350,13 @@ export default function LagunaMap({
     }
     return {
       color: sat ? "#FFFFFF" : "#0E2207",
-      weight: 1,
+      weight: forecastOutline ? 1.8 : 1,
       fillColor:
         colorMode === "residual"
           ? residualColor(rec.yield, colorScale?.max)
           : yieldColor(rec.yield, colorScale?.min, colorScale?.max, RAMPS[rampKey] || YIELD_RAMP),
       fillOpacity: sat ? 0.6 : 0.85,
+      ...dash,
     };
   };
 
@@ -688,39 +700,46 @@ export default function LagunaMap({
       {notice && (
         <div
           className={`absolute left-6 right-6 z-[450] flex justify-center pointer-events-none ${
-            // Drilled in, the "back to ..." pill sits right under the search bar: go below it.
-            selectedMuni && (lockedMunicipalityId == null || selectedBrgy) ? "top-[128px]" : "top-[84px]"
+            // The "back to ..." pill and the layer chip share the row right under the
+            // search bar: go below it whenever either is showing. On a phone the two
+            // do not fit side by side, so the chip takes a second row and the note a third.
+            backPillShown && layerChip
+              ? "top-[172px] sm:top-[128px]"
+              : backPillShown || layerChip
+              ? "top-[128px]"
+              : "top-[84px]"
           }`}
         >
           <div
             role="status"
             aria-live="polite"
-            className="anim-fade-up pointer-events-auto w-full max-w-[473px] flex items-start gap-3 px-4 py-3 rounded-lg bg-[#FFFBEB]/95 border border-[#FCD34D] backdrop-blur-sm shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1)]"
+            className="anim-fade-up pointer-events-auto w-full max-w-[473px] flex items-center gap-3 pl-3.5 pr-2.5 py-2.5 rounded-xl bg-white shadow-[0_6px_16px_rgba(0,0,0,0.14)]"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 8h.01M11 12h1v5h1" />
             </svg>
-            <div className="flex-1 min-w-0 flex flex-col items-start gap-2">
-              <p className="text-[13px] leading-snug text-[#78350F]">{notice.text}</p>
-              {notice.actionLabel && (
-                <button
-                  type="button"
-                  onClick={notice.onAction}
-                  className="px-3 py-1.5 rounded-md bg-[#1F6306] text-white text-xs font-semibold hover:bg-[#17500A] active:scale-95 transition"
-                >
-                  {notice.actionLabel}
-                </button>
-              )}
-            </div>
+            <p className="flex-1 min-w-0 text-[13px] leading-[18px] text-[#374151] text-pretty">
+              {notice.title && <b className="font-semibold text-[#1F2937]">{notice.title} </b>}
+              {notice.text}
+            </p>
+            {notice.actionLabel && (
+              <button
+                type="button"
+                onClick={notice.onAction}
+                className="shrink-0 px-3 py-[7px] rounded-lg bg-[#191C1A] text-white text-xs font-semibold whitespace-nowrap hover:bg-black active:scale-95 transition"
+              >
+                {notice.actionLabel}
+              </button>
+            )}
             {notice.onDismiss && (
               <button
                 type="button"
                 onClick={notice.onDismiss}
                 aria-label="Dismiss this note"
-                className="shrink-0 -mr-1 -mt-0.5 p-1 text-[#B45309] hover:text-[#78350F]"
+                className="shrink-0 p-1 rounded text-[#9CA3AF] hover:text-[#4B5563] hover:bg-[#F3F4F6]"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
               </button>
             )}
           </div>
@@ -805,9 +824,38 @@ export default function LagunaMap({
         </div>
       </div>
 
+      {/* Names the layer on show. Same row as the back button, on the opposite side
+          (one row lower on a phone when the back button is there).
+          Keyed by kind, so it remounts and plays anim-fade-up on every switch. */}
+      {layerChip && (
+        <div
+          key={layerChip.kind}
+          role="status"
+          aria-live="polite"
+          className={`anim-fade-up absolute right-6 z-[600] flex items-center gap-2.5 pl-2.5 pr-3.5 py-2 rounded-full bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] pointer-events-none ${
+            // Phone: the back pill is too wide to share the row, so drop below it.
+            backPillShown ? "top-[128px] sm:top-20" : "top-20"
+          }`}
+        >
+          <span
+            className={`shrink-0 w-3 h-3 rounded-full box-border ${
+              layerChip.kind === "predicted"
+                ? "bg-white border-2 border-dashed border-[#1B3315]"
+                : layerChip.kind === "residual"
+                ? "bg-[#2166AC]"
+                : "bg-[#3B9E1C]"
+            }`}
+          />
+          <span className="flex flex-col leading-tight">
+            <span className="text-[13px] font-bold text-[#191C1A] whitespace-nowrap">{layerChip.label}</span>
+            <span className="hidden sm:block text-[11px] text-[#6B7280] whitespace-nowrap">{layerChip.sub}</span>
+          </span>
+        </div>
+      )}
+
       {/* Back button, shown when drilled into a municipality. On a locked map it
           only appears to step back from a barangay to the pinned city. */}
-      {selectedMuni && (lockedMunicipalityId == null || selectedBrgy) && (
+      {backPillShown && (
         <button
           type="button"
           onClick={backOneLevel}

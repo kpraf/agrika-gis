@@ -26,7 +26,7 @@ function decimalsFor(span) {
 
 export default function MapLegendCard({
   visible, loading = false, emptyHint = null, scale, colorMode = "yield", rampKey = "green",
-  title, badge, subtitle, avg, boundariesOn = true,
+  title, badge, subtitle, avg, boundariesOn = true, forecast = false,
 }) {
   const [listOn, setListOn] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) !== "off"; } catch { return true; }
@@ -116,6 +116,12 @@ export default function MapLegendCard({
                 <span>Under-predicts</span>
               </div>
             )}
+            {forecast && (
+              <div className="flex items-center gap-2 text-[11px] text-[#6B7280]">
+                <span className="w-4 h-3 rounded-[2px] border-[1.5px] border-dashed border-[#1B3315]" />
+                Dashed outline = model forecast, not a reported harvest
+              </div>
+            )}
           </div>
 
           {/* Range list toggle */}
@@ -155,11 +161,11 @@ export default function MapLegendCard({
           </div>
         </>
       ) : emptyHint ? (
-        <div className="flex items-start gap-2.5 rounded-lg bg-[#FEF3C7]/50 border border-[#FDE68A] px-3 py-2.5">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+        <div className="flex items-start gap-2.5 rounded-lg bg-white border border-[#E1E3DE] px-3 py-2.5">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0" aria-hidden="true">
             <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" />
           </svg>
-          <span className="text-[13px] leading-5 text-[#92400E]">{emptyHint}</span>
+          <span className="text-[13px] leading-5 text-[#374151]">{emptyHint}</span>
         </div>
       ) : (
         <p className="text-sm text-[#9CA3AF]">No colour layer on the map right now.</p>

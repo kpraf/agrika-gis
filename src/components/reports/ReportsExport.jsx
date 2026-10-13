@@ -768,8 +768,12 @@ export default function ReportsExport() {
                   </div>
                 )}
                 {importResult?.error && (
-                  <div className="rounded-lg bg-[#FEF2F2] border border-[#FECACA] px-4 py-3 text-sm text-[#B91C1C]">
-                    {importResult.error}
+                  <div role="alert" className="flex items-start gap-2 rounded-lg bg-white border border-[#E1E3DE] px-4 py-3 text-sm leading-5 text-[#374151]">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B42318" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0" aria-hidden="true">
+                      <path d="M12 3 2.5 19.5h19L12 3z" />
+                      <path d="M12 10v4M12 17h.01" />
+                    </svg>
+                    <span>{importResult.error}</span>
                   </div>
                 )}
                 {importResult && !importResult.error && (

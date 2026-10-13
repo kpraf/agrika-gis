@@ -5,24 +5,92 @@ import { usersApi } from "../../lib/api";
 import { useAuth } from "../../context/AuthContext";
 import { foldText, matchesQuery } from "../../lib/text";
 
-// Confirmation dialog for destructive account actions (deactivate / delete).
-function ConfirmDialog({ title, message, isSelf, confirmLabel, danger, busy, onConfirm, onCancel }) {
+// Small red warning mark used by the error lines (no tinted box).
+function WarnIcon({ size = 16, className = "" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#B42318" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 ${className}`} aria-hidden="true">
+      <path d="M12 3 2.5 19.5h19L12 3z" />
+      <path d="M12 10v4M12 17h.01" />
+    </svg>
+  );
+}
+
+// Confirmation for deactivate / delete - "Quiet" option 1a from the design handoff
+// (handoff/quiet-dialogs/ConfirmDialog.jsx), unchanged.
+//   subject - { name, username, role }  the one account being acted on (single actions)
+//   count   - number of accounts         (bulk actions; used when there's no subject)
+//   danger  - true for Delete (red button), false for Deactivate (dark button)
+//   isSelf  - the current user is among the accounts
+// Uses initials() and roleLabel(), defined further down; fine, since it only runs
+// after the module has loaded.
+function ConfirmDialog({ title, message, isSelf, confirmLabel, danger, busy, subject, count, onConfirm, onCancel }) {
+  const selfLine = danger
+    ? "You'll be signed out, and this account can't be recovered."
+    : "You'll be signed out and locked out of the portal.";
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4 anim-fade-in">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 flex flex-col gap-4 anim-scale-in">
-        <h2 className="text-lg font-bold text-[#1F2937]">{title}</h2>
-        <p className="text-sm text-[#4B5563] leading-6">{message}</p>
-        {isSelf && (
-          <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            This is <b>your own account</b>. You may lose access to the portal.
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        className="w-full max-w-[440px] bg-white rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.18)] overflow-hidden anim-scale-in"
+      >
+        <div className="flex flex-col gap-4 px-6 pt-6 pb-5">
+          <div className="flex flex-col gap-1.5">
+            <h2 id="confirm-title" className="text-lg font-bold text-[#1F2937]">{title}</h2>
+            <p className="text-sm leading-[22px] text-[#4B5563] text-pretty">{message}</p>
           </div>
-        )}
-        <div className="flex items-center justify-end gap-2 pt-1">
+
+          {/* Who this affects */}
+          {subject ? (
+            <div className="flex items-center gap-3 p-3 border border-[#E5E7EB] rounded-xl">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[#E1EDE0] text-[#1F6306] text-sm font-semibold shrink-0">
+                {initials(subject.name)}
+              </span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-semibold text-[#1F2937] truncate">{subject.name}</span>
+                <span className="text-xs text-[#6B7280] truncate">
+                  @{subject.username} · {roleLabel(subject.role)}
+                </span>
+              </div>
+              {isSelf && (
+                <span className="px-2 py-0.5 rounded-full bg-[#F3F4F6] text-[11px] font-semibold text-[#374151]">You</span>
+              )}
+            </div>
+          ) : count ? (
+            <div className="flex items-center gap-3 p-3 border border-[#E5E7EB] rounded-xl">
+              <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[#E1EDE0] text-[#1F6306] text-sm font-semibold shrink-0">
+                {count}
+              </span>
+              <span className="flex-1 text-sm font-semibold text-[#1F2937]">
+                {count} account{count === 1 ? "" : "s"} selected
+              </span>
+              {isSelf && (
+                <span className="px-2 py-0.5 rounded-full bg-[#F3F4F6] text-[11px] font-semibold text-[#374151]">Includes you</span>
+              )}
+            </div>
+          ) : null}
+
+          {/* Own-account warning: one line, no tinted box */}
+          {isSelf && (
+            <div className="flex items-start gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B42318" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5" aria-hidden="true">
+                <path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+              </svg>
+              <p className="text-[13px] leading-5 text-[#374151]">
+                <b className="font-semibold text-[#B42318]">This is your account.</b> {selfLine}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 px-6 py-3.5 bg-[#F9FAFB] border-t border-[#F3F4F6]">
           <button
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className="px-4 py-2 rounded-lg border border-[#D1D5DB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50"
+            className="px-4 py-2 rounded-lg text-sm font-medium text-[#374151] hover:bg-[#F3F4F6] disabled:opacity-50"
           >
             Cancel
           </button>
@@ -30,8 +98,9 @@ function ConfirmDialog({ title, message, isSelf, confirmLabel, danger, busy, onC
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className={`px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2 disabled:opacity-60 ${
-              danger ? "bg-[#DC2626] hover:bg-[#B91C1C]" : "bg-[#1F6306] hover:bg-[#184f05]"
+            autoFocus={!danger}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 ${
+              danger ? "bg-[#B42318] hover:bg-[#912018]" : "bg-[#191C1A] hover:bg-black"
             }`}
           >
             {busy && <span className="inline-flex h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />}
@@ -165,7 +234,10 @@ function UserForm({ initial, roles, municipalities, onCancel, onSave }) {
         <h2 className="text-lg font-bold text-[#1F2937]">{isEdit ? "Edit User" : "Add User"}</h2>
 
         {error && (
-          <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
+          <div role="alert" className="flex items-start gap-2 px-3 py-2 rounded-lg bg-white border border-[#E1E3DE] text-sm leading-5 text-[#374151]">
+            <WarnIcon className="mt-0.5" />
+            <span>{error}</span>
+          </div>
         )}
 
         <label className="flex flex-col gap-1 text-sm">
@@ -415,7 +487,8 @@ export default function UserAccessManagement() {
     }
     setConfirmState({
       title: "Deactivate account?",
-      message: `${displayName(u)} will be marked Inactive and won't be able to sign in until reactivated.`,
+      message: "They won't be able to sign in until someone reactivates them. Their data stays.",
+      subject: { name: displayName(u), username: u.username, role: u.role },
       isSelf: u.id === currentUser?.id,
       confirmLabel: "Deactivate",
       danger: false,
@@ -427,7 +500,8 @@ export default function UserAccessManagement() {
     setMenuOpenFor(null);
     setConfirmState({
       title: "Delete account?",
-      message: `${displayName(u)}'s account will be permanently deleted. This cannot be undone.`,
+      message: "The account will be permanently deleted. This can't be undone.",
+      subject: { name: displayName(u), username: u.username, role: u.role },
       isSelf: u.id === currentUser?.id,
       confirmLabel: "Delete",
       danger: true,
@@ -444,7 +518,8 @@ export default function UserAccessManagement() {
     }
     setConfirmState({
       title: `Deactivate ${selected.size} account${selected.size === 1 ? "" : "s"}?`,
-      message: "The selected account(s) will be marked Inactive and won't be able to sign in until reactivated.",
+      message: "They won't be able to sign in until someone reactivates them. Their data stays.",
+      count: selected.size,
       isSelf: selected.has(currentUser?.id),
       confirmLabel: "Deactivate",
       danger: false,
@@ -459,7 +534,8 @@ export default function UserAccessManagement() {
   const bulkDelete = () => {
     setConfirmState({
       title: `Delete ${selected.size} account${selected.size === 1 ? "" : "s"}?`,
-      message: "The selected account(s) will be permanently deleted. This cannot be undone.",
+      message: "These accounts will be permanently deleted. This can't be undone.",
+      count: selected.size,
       isSelf: selected.has(currentUser?.id),
       confirmLabel: "Delete",
       danger: true,
@@ -572,9 +648,19 @@ export default function UserAccessManagement() {
 
             {/* Error banner */}
             {error && (
-              <div className="flex items-center justify-between px-6 py-3 bg-red-50 border-b border-red-200 text-sm text-red-700">
-                <span>{error}</span>
-                <button onClick={() => setError("")} className="text-red-500 hover:text-red-700">✕</button>
+              <div role="alert" className="flex items-center justify-between gap-3 px-6 py-3 bg-[#F9FAFB] border-b border-[#E5E7EB] text-sm text-[#374151]">
+                <span className="flex items-start gap-2">
+                  <WarnIcon className="mt-0.5" />
+                  <span>{error}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setError("")}
+                  aria-label="Dismiss this message"
+                  className="shrink-0 p-1 rounded text-[#9CA3AF] hover:text-[#4B5563] hover:bg-[#F3F4F6]"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
               </div>
             )}
 

@@ -417,11 +417,16 @@ export default function SpatialGIS() {
   const mapNotice =
     forecastOnly && dismissedNotice !== noticeKey
       ? {
-          text: showingPredicted
-            ? `This is a forecast. No yield has been reported for ${noticePeriod}${noticePlace} yet, so it cannot be compared with an actual harvest.`
+          title: showingPredicted
+            ? "This is a forecast."
             : showingResidual
-            ? `Residuals need a reported yield, and none has been reported for ${noticePeriod}${noticePlace} yet. The model's forecast is available.`
-            : `No yield has been reported for ${noticePeriod}${noticePlace} yet. The model's forecast for this season is available.`,
+            ? "No residuals yet."
+            : `No reported yield for ${noticePeriod}${noticePlace} yet.`,
+          text: showingPredicted
+            ? `No harvest has been reported for ${noticePeriod}${noticePlace}, so it can't be checked yet.`
+            : showingResidual
+            ? "A residual needs a reported yield. The forecast is ready."
+            : "The forecast is ready.",
           actionLabel: showingPredicted ? null : "Show forecast",
           onAction: () => setDataSource("predicted"),
           onDismiss: () => setDismissedNotice(noticeKey),
@@ -507,6 +512,16 @@ export default function SpatialGIS() {
       : showingPredicted
       ? compareResp?.stats?.predicted_avg
       : yieldResp?.stats?.avg;
+
+  // Option 1b: name the Data Source on the map; dash the forecast.
+  const layerChip =
+    showingEnvironment || !legendVisible
+      ? null
+      : showingResidual
+      ? { kind: "residual", label: "Residual", sub: "Observed − predicted" }
+      : showingPredicted
+      ? { kind: "predicted", label: "Predicted yield", sub: "CNN-LSTM forecast" }
+      : { kind: "observed", label: "Observed yield", sub: "Reported harvest" };
 
   // When the map's drill state changes (e.g. the user clicked a municipality),
   // mirror it into the City filter so the two never disagree.
@@ -841,6 +856,8 @@ export default function SpatialGIS() {
             overlayLoading={busy || (showingEnvironment && envLoading)}
             overlayLabel={showingEnvironment && envLoading ? `Loading ${envConfig.label}…` : "Loading yield data…"}
             notice={mapNotice}
+            layerChip={layerChip}
+            forecastOutline={showingPredicted}
             year={year}
             season={season}
             onSelectionChange={handleSelection}
@@ -951,6 +968,7 @@ export default function SpatialGIS() {
                 subtitle={`${season ?? ""} ${year ?? ""}`.trim()}
                 avg={legendAvg}
                 boundariesOn={layers.boundaries}
+                forecast={showingPredicted}
               />
               {/* Observed vs predicted only makes sense for a clicked area —
                   hidden at the province level until you drill into a city or barangay. */}
