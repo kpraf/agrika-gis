@@ -427,6 +427,12 @@ export default function SpatialGIS() {
             : showingResidual
             ? "A residual needs a reported yield. The forecast is ready."
             : "The forecast is ready.",
+          // Short version shown on the layer chip before the note is opened.
+          status: showingPredicted
+            ? "not yet checked"
+            : showingResidual
+            ? "needs reported yield"
+            : "no reported yield",
           actionLabel: showingPredicted ? null : "Show forecast",
           onAction: () => setDataSource("predicted"),
           onDismiss: () => setDismissedNotice(noticeKey),

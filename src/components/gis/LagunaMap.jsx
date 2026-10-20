@@ -102,7 +102,7 @@ export default function LagunaMap({
   barangayKey = "", // changes force the barangay choropleth to restyle
   overlayLoading = false, // show a non-blocking "loading data" pill over the map
   overlayLabel = "Loading…", // label for that pill
-  notice = null, // { title?, text, actionLabel?, onAction?, onDismiss? } - a note about the layer on show
+  notice = null, // { title?, text, status?, actionLabel?, onAction?, onDismiss? } - a note about the layer on show; status is the short version on the layer chip
   layerChip = null, // { label, sub, kind: "observed" | "predicted" | "residual" } - names the layer on show
   forecastOutline = false, // dashed outlines on areas with data (the Predicted layer)
 }) {
@@ -136,6 +136,10 @@ export default function LagunaMap({
   const [activeResult, setActiveResult] = useState(0); // keyboard-highlighted search result
   const [barangayIndex, setBarangayIndex] = useState([]);
   const [pendingBarangay, setPendingBarangay] = useState(null);
+  const searchInputRef = useRef(null);
+  const [noteOpen, setNoteOpen] = useState(false); // layer chip expanded to show the note
+  // Collapse the note whenever the layer or its message changes.
+  useEffect(() => setNoteOpen(false), [layerChip?.kind, notice?.text]);
 
   // "server waking up" signal (free-tier cold start), scoped to the map overlay.
   const [serverSlow, setServerSlow] = useState(false);
@@ -694,88 +698,79 @@ export default function LagunaMap({
         </div>
       )}
 
-      {/* Note about what the map is showing (e.g. a forecast with no reported yield
-          behind it). Sits under the search bar (and under the "back to ..." pill when
-          there is one); the search results open over it. */}
-      {notice && (
-        <div
-          className={`absolute left-6 right-6 z-[450] flex justify-center pointer-events-none ${
-            // The "back to ..." pill and the layer chip share the row right under the
-            // search bar: go below it whenever either is showing. On a phone the two
-            // do not fit side by side, so the chip takes a second row and the note a third.
-            backPillShown && layerChip
-              ? "top-[172px] sm:top-[128px]"
-              : backPillShown || layerChip
-              ? "top-[128px]"
-              : "top-[84px]"
-          }`}
-        >
-          <div
-            role="status"
-            aria-live="polite"
-            className="anim-fade-up pointer-events-auto w-full max-w-[473px] flex items-center gap-3 pl-3.5 pr-2.5 py-2.5 rounded-xl bg-white shadow-[0_6px_16px_rgba(0,0,0,0.14)]"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 8h.01M11 12h1v5h1" />
-            </svg>
-            <p className="flex-1 min-w-0 text-[13px] leading-[18px] text-[#374151] text-pretty">
-              {notice.title && <b className="font-semibold text-[#1F2937]">{notice.title} </b>}
-              {notice.text}
-            </p>
-            {notice.actionLabel && (
-              <button
-                type="button"
-                onClick={notice.onAction}
-                className="shrink-0 px-3 py-[7px] rounded-lg bg-[#191C1A] text-white text-xs font-semibold whitespace-nowrap hover:bg-black active:scale-95 transition"
-              >
-                {notice.actionLabel}
-              </button>
-            )}
-            {notice.onDismiss && (
-              <button
-                type="button"
-                onClick={notice.onDismiss}
-                aria-label="Dismiss this note"
-                className="shrink-0 p-1 rounded text-[#9CA3AF] hover:text-[#4B5563] hover:bg-[#F3F4F6]"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Search overlay — municipalities + barangays, click a result to fly there */}
-      <div className="absolute left-6 right-6 top-6 z-[500] flex justify-center pointer-events-none">
+      {/* Location bar: back arrow + where you are + search, in one bar. */}
+      <div className="absolute left-4 right-4 sm:left-6 sm:right-6 top-4 sm:top-6 z-[500] flex justify-center pointer-events-none">
         <div className="w-full max-w-[473px] pointer-events-auto">
           <div className="bg-white/95 backdrop-blur-sm shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] rounded-lg">
-            <div className="relative flex items-center">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="absolute left-4 text-[#9CA3AF]">
-                <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setSearchOpen(true);
-                  setActiveResult(0); // new results: start from the top
-                }}
-                onKeyDown={onSearchKeyDown}
-                onFocus={() => setSearchOpen(true)}
-                onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-                role="combobox"
-                aria-expanded={searchOpen && !!q}
-                aria-controls="map-search-results"
-                aria-autocomplete="list"
-                aria-activedescendant={
-                  searchOpen && q && searchResults.length ? `map-search-opt-${activeResult}` : undefined
-                }
-                placeholder={lockedMunicipalityId != null ? "Search a barangay..." : "Search a municipality or barangay..."}
-                className="w-full pl-11 pr-4 py-3.5 text-sm text-[#374151] bg-transparent outline-none placeholder:text-[#6B7280]"
-              />
+            <div className="relative flex items-center h-12">
+              {backPillShown ? (
+                <button
+                  type="button"
+                  onClick={backOneLevel}
+                  aria-label={selectedBrgy ? `Back to ${selectedMuni.name}` : "Back to all of Laguna"}
+                  className="shrink-0 flex items-center justify-center w-12 h-12 border-r border-[#E5E7EB] text-[#1F6306] rounded-l-lg hover:bg-[#F0FDF4]"
+                >
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="absolute left-4 text-[#9CA3AF]" aria-hidden="true">
+                  <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              )}
+
+              <div className="relative flex-1 min-w-0 h-full">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setSearchOpen(true);
+                    setActiveResult(0); // new results: start from the top
+                  }}
+                  onKeyDown={onSearchKeyDown}
+                  onFocus={() => setSearchOpen(true)}
+                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                  role="combobox"
+                  aria-expanded={searchOpen && !!q}
+                  aria-controls="map-search-results"
+                  aria-autocomplete="list"
+                  aria-activedescendant={
+                    searchOpen && q && searchResults.length ? `map-search-opt-${activeResult}` : undefined
+                  }
+                  placeholder={
+                    backPillShown || lockedMunicipalityId != null
+                      ? "Search a barangay..."
+                      : "Search a municipality or barangay..."
+                  }
+                  className={`w-full h-full ${backPillShown ? "pl-3 pr-10" : "pl-11 pr-4"} text-sm text-[#374151] bg-transparent outline-none placeholder:text-[#6B7280]`}
+                />
+                {/* Drilled in and idle: show where you are. Tapping it starts a search. */}
+                {backPillShown && !searchOpen && !query && (
+                  <button
+                    type="button"
+                    onClick={() => searchInputRef.current?.focus()}
+                    className="absolute inset-0 flex flex-col justify-center pl-3 pr-10 text-left bg-white rounded-r-lg"
+                  >
+                    <span className="text-sm font-semibold text-[#1F2937] truncate">
+                      {selectedBrgy ? selectedBrgy.name : selectedMuni.name}
+                    </span>
+                    <span className="text-[11px] text-[#6B7280] truncate">
+                      {selectedBrgy ? `${selectedMuni.name} · Search a barangay` : "Search a barangay"}
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              {backPillShown && (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="absolute right-4 text-[#6B7280] pointer-events-none" aria-hidden="true">
+                  <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              )}
             </div>
           </div>
 
@@ -824,50 +819,76 @@ export default function LagunaMap({
         </div>
       </div>
 
-      {/* Names the layer on show. Same row as the back button, on the opposite side
-          (one row lower on a phone when the back button is there).
-          Keyed by kind, so it remounts and plays anim-fade-up on every switch. */}
-      {layerChip && (
-        <div
-          key={layerChip.kind}
-          role="status"
-          aria-live="polite"
-          className={`anim-fade-up absolute right-6 z-[600] flex items-center gap-2.5 pl-2.5 pr-3.5 py-2 rounded-full bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] pointer-events-none ${
-            // Phone: the back pill is too wide to share the row, so drop below it.
-            backPillShown ? "top-[128px] sm:top-20" : "top-20"
-          }`}
-        >
-          <span
-            className={`shrink-0 w-3 h-3 rounded-full box-border ${
-              layerChip.kind === "predicted"
-                ? "bg-white border-2 border-dashed border-[#1B3315]"
-                : layerChip.kind === "residual"
-                ? "bg-[#2166AC]"
-                : "bg-[#3B9E1C]"
-            }`}
-          />
-          <span className="flex flex-col leading-tight">
-            <span className="text-[13px] font-bold text-[#191C1A] whitespace-nowrap">{layerChip.label}</span>
-            <span className="hidden sm:block text-[11px] text-[#6B7280] whitespace-nowrap">{layerChip.sub}</span>
-          </span>
-        </div>
-      )}
+      {/* One chip: names the layer and, when there is a note, its status. Tap to read
+          the note. Keyed by kind so it replays anim-fade-up on every switch. */}
+      {(layerChip || notice) && (
+        <div className="absolute left-4 right-4 sm:left-6 sm:right-6 top-[76px] sm:top-[84px] z-[450] flex justify-center pointer-events-none">
+          <div className="w-full max-w-[473px] flex">
+            <div
+              key={layerChip?.kind ?? "note"}
+              className={`anim-fade-up pointer-events-auto max-w-full bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] transition-[border-radius] ${
+                noteOpen ? "rounded-xl" : "rounded-[20px]"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => notice && setNoteOpen((o) => !o)}
+                aria-expanded={notice ? noteOpen : undefined}
+                aria-controls={notice ? "map-layer-note" : undefined}
+                className={`flex items-center gap-2 pl-3 pr-3 py-2 text-left ${notice ? "cursor-pointer" : "cursor-default"}`}
+              >
+                <span
+                  className={`shrink-0 w-3 h-3 rounded-full box-border ${
+                    layerChip?.kind === "predicted"
+                      ? "bg-white border-2 border-dashed border-[#1B3315]"
+                      : layerChip?.kind === "residual"
+                      ? "bg-[#2166AC]"
+                      : "bg-[#3B9E1C]"
+                  }`}
+                />
+                <span className="text-[13px] font-bold text-[#191C1A] whitespace-nowrap">
+                  {layerChip?.label ?? notice.title}
+                </span>
+                {notice?.status ? (
+                  <span className="text-xs font-semibold text-[#B45309] truncate">· {notice.status}</span>
+                ) : (
+                  layerChip?.sub && <span className="hidden sm:inline text-xs text-[#6B7280] whitespace-nowrap">· {layerChip.sub}</span>
+                )}
+                {notice && (
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+                    className={`shrink-0 transition-transform duration-200 ${noteOpen ? "rotate-180" : ""}`}>
+                    <path d="M4 6l4 4 4-4" stroke="#6B7280" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
 
-      {/* Back button, shown when drilled into a municipality. On a locked map it
-          only appears to step back from a barangay to the pinned city. */}
-      {backPillShown && (
-        <button
-          type="button"
-          onClick={backOneLevel}
-          className="absolute left-6 top-20 z-[600] flex items-center gap-2 px-4 py-2 rounded-lg bg-white shadow-md text-sm font-semibold text-[#1F6306] hover:bg-[#F0FDF4]"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {selectedBrgy
-            ? `${selectedBrgy.name} · back to ${selectedMuni.name.replace(/^City of /, "")}`
-            : `${selectedMuni.name} · back to all`}
-        </button>
+              {notice && noteOpen && (
+                <div id="map-layer-note" role="status" className="anim-fade-up flex flex-col gap-2.5 pl-8 pr-3 pb-3 -mt-0.5">
+                  <p className="text-[13px] leading-[18px] text-[#4B5563] text-pretty">
+                    {notice.title && <b className="font-semibold text-[#1F2937]">{notice.title} </b>}
+                    {notice.text}
+                  </p>
+                  {(notice.actionLabel || notice.onDismiss) && (
+                    <div className="flex items-center gap-2">
+                      {notice.actionLabel && (
+                        <button type="button" onClick={notice.onAction}
+                          className="px-3 py-[7px] rounded-lg bg-[#191C1A] text-white text-xs font-semibold whitespace-nowrap hover:bg-black active:scale-95 transition">
+                          {notice.actionLabel}
+                        </button>
+                      )}
+                      {notice.onDismiss && (
+                        <button type="button" onClick={notice.onDismiss}
+                          className="px-2.5 py-[7px] rounded-lg text-xs font-medium text-[#6B7280] hover:bg-[#F3F4F6]">
+                          Hide note
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Colour-scale legend — centred along the bottom of the map. Shows for the
