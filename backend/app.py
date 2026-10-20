@@ -21,93 +21,142 @@ LANDING_HTML = """<!doctype html>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AgriKA-GIS API</title>
+  <meta name="robots" content="noindex" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
   <style>
-    :root { color-scheme: light; }
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh; display: flex; flex-direction: column;
-      font-family: "Plus Jakarta Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: #F8FAF5; color: #191C1A;
+      font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #0B2005; color: #191C1A;
     }
-    header { background: #0B2005; padding: 18px 24px; display: flex; justify-content: center; }
-    header img { height: 56px; width: auto; object-fit: contain; }
-    main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px 24px; }
-    .card {
-      width: 100%; max-width: 440px; background: #fff; border: 1px solid #C3C8BD;
-      border-radius: 16px; padding: 40px 32px; text-align: center;
-      display: flex; flex-direction: column; align-items: center;
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -4px rgba(0,0,0,0.06);
-    }
-    .eyebrow { margin: 0 0 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.7px;
-      text-transform: uppercase; color: #434840; }
-    .status {
-      display: inline-flex; align-items: center; gap: 10px; padding: 10px 18px; border-radius: 999px;
-      font-size: 14px; font-weight: 600; border: 1px solid transparent;
-    }
-    .status .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-    .status.checking { background: #FEF3C7; border-color: #FDE68A; color: #92400E; }
-    .status.checking .dot { background: #F59E0B; animation: pulse 1.1s ease-in-out infinite; }
-    .status.ok { background: #ECFDF3; border-color: #A7E1A1; color: #1B6D24; }
-    .status.ok .dot { background: #3B9E1C; box-shadow: 0 0 0 0 rgba(59,158,28,0.5); animation: ring 1.6s ease-out infinite; }
-    .status.bad { background: #FEE2E2; border-color: #FECACA; color: #991B1B; }
-    .status.bad .dot { background: #EF4444; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
-    @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(59,158,28,0.5);} 100% { box-shadow: 0 0 0 10px rgba(59,158,28,0);} }
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px; margin: 26px auto 0; padding: 13px 26px;
-      border-radius: 999px; background: #286A11; color: #fff; font-weight: 600; font-size: 15px;
-      text-decoration: none; transition: transform 0.08s ease, background 0.15s ease, opacity 0.2s ease;
-    }
-    .btn:hover { background: #1F6306; transform: translateY(-1px); }
-    .btn.disabled { opacity: 0.45; pointer-events: none; }
-    .hint { margin-top: 14px; font-size: 12px; color: #6B7280; min-height: 16px; }
-    footer { padding: 18px 24px 28px; text-align: center; font-size: 12px; color: #9CA3AF; }
-    footer a { color: #6B7280; }
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 40px 20px; }
+    .logo { height: 72px; width: auto; }
+    .card { width: 100%; max-width: 400px; background: #fff; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 24px 48px rgba(0,0,0,.35); }
+    .top { display: flex; flex-direction: column; gap: 18px; padding: 28px 28px 24px; }
+    .eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .7px; text-transform: uppercase; color: #6B7280; }
+    .state { display: flex; align-items: flex-start; gap: 12px; }
+    .dot { width: 10px; height: 10px; margin-top: 8px; border-radius: 50%; flex: none; background: #9CA3AF; }
+    .title { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.3px; color: #1F2937; }
+    .sub { margin: 4px 0 0; font-size: 14px; line-height: 21px; color: #4B5563; text-wrap: pretty; }
+    .bar { position: relative; height: 3px; border-radius: 2px; background: #ECEFEA; overflow: hidden; }
+    .bar::after { content: ""; position: absolute; inset: 0; width: 40%; border-radius: 2px; background: #3B9E1C;
+      animation: slide 1.4s ease-in-out infinite; }
+    .bottom { display: flex; flex-direction: column; gap: 10px; padding: 20px 28px 24px; border-top: 1px solid #F3F4F6; }
+    .btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 10px;
+      background: #1F6306; color: #fff; font-size: 15px; font-weight: 600; text-decoration: none; transition: background .15s; }
+    .btn:hover { background: #0B2005; }
+    .btn[aria-disabled="true"] { background: #ECEFEA; color: #9CA3AF; pointer-events: none; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
+    .meta { font-size: 12px; color: #9CA3AF; }
+    .again { padding: 5px 10px; border: 0; border-radius: 6px; background: none; font: inherit; font-size: 12px;
+      font-weight: 600; color: #1F6306; cursor: pointer; }
+    .again:hover { background: #F0FDF4; }
+    footer { display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; padding: 0 20px 28px; font-size: 12px; color: #8FA58A; }
+    footer a { font-family: "JetBrains Mono", monospace; color: #C7E9C0; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    [data-state="checking"] .dot, [data-state="waking"] .dot { animation: blink 1.1s ease-in-out infinite; }
+    [data-state="waking"] .dot { background: #D99A0E; }
+    [data-state="ok"] .dot { background: #3B9E1C; animation: ring 1.6s ease-out infinite; }
+    [data-state="down"] .dot { background: #B42318; }
+    [data-state="ok"] .bar, [data-state="down"] .bar { display: none; }
+
+    @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(59,158,28,.5); } 100% { box-shadow: 0 0 0 8px rgba(59,158,28,0); } }
+    @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+    @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; } }
   </style>
 </head>
 <body>
-  <header>
-    <img src="/static/agrika-gis-logo.png" alt="AgriKA-GIS" />
-  </header>
   <main>
-    <div class="card">
-      <p class="eyebrow">Backend API</p>
-      <div id="status" class="status checking">
-        <span class="dot"></span>
-        <span id="status-text">Checking API status…</span>
+    <img class="logo" src="/static/agrika-gis-logo.png" alt="AgriKA-GIS" />
+    <div class="card" id="card" data-state="checking">
+      <div class="top">
+        <p class="eyebrow">Backend API</p>
+        <div class="state" role="status" aria-live="polite">
+          <span class="dot"></span>
+          <div>
+            <p class="title" id="title">Checking…</p>
+            <p class="sub" id="sub">Contacting the API.</p>
+          </div>
+        </div>
+        <div class="bar"></div>
       </div>
-      <a id="proceed" class="btn disabled" href="{{ frontend }}" aria-disabled="true">Open AgriKA-GIS &rarr;</a>
-      <p class="hint" id="hint"></p>
+      <div class="bottom">
+        <a class="btn" id="open" href="{{ frontend }}" aria-disabled="true">
+          Open AgriKA-GIS
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <div class="row">
+          <span class="meta" id="meta"></span>
+          <button class="again" id="again" type="button">Check again</button>
+        </div>
+      </div>
     </div>
   </main>
-  <footer>Health endpoint: <a href="/api/health">/api/health</a></footer>
+  <footer>
+    <span>Health check <a href="/api/health">/api/health</a></span>
+    <span>Laguna Province rice yield monitoring</span>
+  </footer>
   <script>
-    const statusEl = document.getElementById("status");
-    const textEl = document.getElementById("status-text");
-    const btn = document.getElementById("proceed");
-    const hint = document.getElementById("hint");
+    const $ = (id) => document.getElementById(id);
+    const COPY = {
+      checking: ["Checking…", "Contacting the API."],
+      waking: ["Waking up the server", "It sleeps when no one has used it for a while. This usually takes under a minute."],
+      ok: ["Running", "The API is up and ready."],
+      down: ["Not responding", "The API didn't answer. It may be restarting or under maintenance."],
+    };
+    let timer = null, countdown = null, attempts = 0;
+
+    function set(state, meta) {
+      $("card").dataset.state = state;
+      $("title").textContent = COPY[state][0];
+      $("sub").textContent = COPY[state][1];
+      $("meta").textContent = meta || "";
+      $("open").setAttribute("aria-disabled", state === "ok" ? "false" : "true");
+    }
+
+    function retryIn(seconds, state) {
+      clearInterval(countdown);
+      let left = seconds;
+      const tick = () => set(state, "Trying again in " + left + " s");
+      tick();
+      countdown = setInterval(() => { left -= 1; if (left <= 0) { clearInterval(countdown); check(); } else tick(); }, 1000);
+    }
+
     async function check() {
+      clearInterval(countdown);
+      clearTimeout(timer);
+      attempts += 1;
+      if (attempts === 1) set("checking");
+      // After 3 s with no answer, assume a cold start rather than an outage.
+      timer = setTimeout(() => set("waking", "Still trying…"), 3000);
+      const started = performance.now();
       try {
-        const r = await fetch("/api/health", { cache: "no-store" });
+        const ctrl = new AbortController();
+        const abort = setTimeout(() => ctrl.abort(), 70000);
+        const r = await fetch("/api/health", { cache: "no-store", signal: ctrl.signal });
+        clearTimeout(abort);
         const d = await r.json();
-        if (r.ok && d.status === "ok") {
-          statusEl.className = "status ok";
-          textEl.textContent = "API is running";
-          btn.classList.remove("disabled");
-          btn.removeAttribute("aria-disabled");
-          hint.textContent = "You can proceed to the web app.";
-          return;
-        }
-        throw new Error("bad status");
+        clearTimeout(timer);
+        if (!r.ok || d.status !== "ok") throw new Error("bad status");
+        const ms = Math.round(performance.now() - started);
+        const at = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+        attempts = 0;
+        set("ok", "Responded in " + ms + " ms · " + at);
       } catch (e) {
-        statusEl.className = "status bad";
-        textEl.textContent = "API is not responding";
-        hint.textContent = "Try refreshing in a moment.";
+        clearTimeout(timer);
+        // The first few failures are usually the server booting; keep calling it "waking".
+        if (attempts < 4) retryIn(5, "waking");
+        else retryIn(15, "down");
       }
     }
+
+    $("again").addEventListener("click", () => { attempts = 0; check(); });
     check();
   </script>
 </body>
