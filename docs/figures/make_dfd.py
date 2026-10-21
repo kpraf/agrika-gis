@@ -168,9 +168,9 @@ def context():
 
 
 # ============================================================== level 1
-def level1():
+def level1(lbl=7.4, name=8.6, out="fig_dfd_level1.png"):
     global LBL, NAME
-    LBL, NAME = 7.4, 8.6
+    LBL, NAME = lbl, name
     d = DFD(18.4, 10.2)
     PW, PH = 2.3, 1.0
     SW, SH = 2.45, 0.56
@@ -244,7 +244,7 @@ def level1():
     # --- 6.0 Load boundaries
     path(d, [(e5l, YB), (p6r, YB)], "boundary\nfiles", ((e5l + p6r) / 2, YB + 0.38))
     path(d, [(p6l, YB - 0.15), (10.75 + SW / 2, YB - 0.15)], "municipality and\nbarangay boundaries", ((p6l + 10.75 + SW / 2) / 2 + 0.1, YB - 0.62))
-    d.save("fig_dfd_level1.png")
+    d.save(out)
 
 
 def combined():
@@ -273,3 +273,4 @@ if __name__ == "__main__":
     context()
     level1()
     combined()
+    level1(lbl=9.6, name=10.6, out="fig_dfd_level1_slide.png")   # larger text for the defense slide
