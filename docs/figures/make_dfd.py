@@ -41,7 +41,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Rectangle
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-plt.rcParams.update({"font.family": ["Arial", "DejaVu Sans"]})
+plt.rcParams.update({"font.family": ["Arial", "DejaVu Sans"],
+                     "svg.fonttype": "none"})  # SVG keeps real, editable text (for Figma)
 INK = "black"
 LBL = 6.6     # flow label font size
 NAME = 7.6    # node name font size
@@ -119,7 +120,9 @@ class DFD:
     def save(self, name):
         out = os.path.join(HERE, name)
         self.fig.savefig(out, dpi=300, facecolor="white", bbox_inches="tight", pad_inches=0.12)
-        print("wrote", out)
+        svg = os.path.splitext(out)[0] + ".svg"
+        self.fig.savefig(svg, facecolor="white", bbox_inches="tight", pad_inches=0.12)
+        print("wrote", out, "and", svg)
 
 
 def path(d, pts, label=None, lpos=None, ha="center", double=False, lw=0.85):
