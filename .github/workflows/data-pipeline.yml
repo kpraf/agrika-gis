@@ -3,8 +3,9 @@
 # Every Monday at 02:00 Philippine time this fetches the recent months of weather
 # (Open-Meteo) and Sentinel-1 / Sentinel-2 statistics (Copernicus) for the 30
 # municipalities and for every barangay with a reported yield, loads them into the
-# production database, checks them, and predicts the latest season once its six
-# months are complete. Every run adds one row to the pipeline_runs table.
+# production database, and checks them. Every run adds one row to the pipeline_runs
+# table. The prediction stage is off on scheduled runs: the app shows the faithful
+# model's predictions, which this monthly-model stage would otherwise overwrite.
 #
 # It can also be started by hand: Actions tab -> Data pipeline -> Run workflow.
 #
@@ -34,10 +35,10 @@ on:
         type: boolean
         default: false
       skip_predict:
-        description: "Skip the prediction stage"
+        description: "Skip the prediction stage (untick only to predict with the monthly model)"
         required: false
         type: boolean
-        default: false
+        default: true
 
 # The job only reads the repository; it cannot push, comment or change settings.
 permissions:
@@ -105,5 +106,9 @@ jobs:
           if [ -n "$FROM_MONTH" ]; then args+=(--from-month "$FROM_MONTH"); fi
           if [ -n "$TO_MONTH" ]; then args+=(--to-month "$TO_MONTH"); fi
           if [ "$SKIP_FETCH" = "true" ]; then args+=(--skip-fetch); fi
-          if [ "$SKIP_PREDICT" = "true" ]; then args+=(--skip-predict); fi
+          # The deployed app shows the faithful model's predictions, loaded by
+          # push_faithful_to_prod.py; the monthly model must not overwrite them. So the
+          # scheduled run (no inputs) never predicts, and a manual run predicts only
+          # when skip_predict is unticked.
+          if [ "$SKIP_PREDICT" != "false" ]; then args+=(--skip-predict); fi
           python backend/scripts/run_pipeline.py "${args[@]}"
