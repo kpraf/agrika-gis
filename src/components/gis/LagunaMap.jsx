@@ -44,11 +44,14 @@ const BASEMAPS = {
  * Props:
  *   boundariesVisible  - show/hide the boundary layer (default true)
  *   lockedMunicipalityId - when set, the map is pinned to that municipality: it
- *       opens drilled into it, only that city can be searched, and there is no way
- *       back to the province (used for the roles limited to their assigned city)
+ *       opens on the whole city as one shape, a click shows its barangays, only
+ *       that city can be searched, and there is no way back to the province (used
+ *       for the roles limited to their assigned city)
+ *   lockedBarangays    - on a locked map, lets the parent show (true) or hide
+ *       (false) the barangays; null leaves it to the map
  *   onSelectionChange  - called with the current selection whenever it changes:
  *       { level: "province", municipalityCount }  |
- *       { level: "municipality", id, name, barangayCount }
+ *       { level: "municipality", id, name, barangayCount, barangaysShown }
  */
 // Sequential green ramp for the yield heatmap: light (low yield) -> dark (high).
 export const YIELD_RAMP = ["#EDF8E9", "#C7E9C0", "#A1D99B", "#74C476", "#41AB5D", "#238B45", "#005A32"];
@@ -86,6 +89,7 @@ export default function LagunaMap({
   onSelectionChange,
   focusMunicipalityId = null,
   lockedMunicipalityId = null,
+  lockedBarangays = null,
   clearBrgyToken = 0, // bump to clear the clicked-barangay selection from the parent
   onMunicipalitiesLoaded,
   heatmap = false,
@@ -128,6 +132,13 @@ export default function LagunaMap({
   // at its final scale — never mid-animation, where Leaflet's zoom-stretch would
   // balloon its stroke into a thick border.
   const [highlightReady, setHighlightReady] = useState(false);
+  // A locked map first shows its city as one shape (the city total); a click on
+  // it, or the parent, reveals the barangays.
+  const [cityOverview, setCityOverview] = useState(true);
+  const overview = lockedMunicipalityId != null && cityOverview;
+  useEffect(() => {
+    if (lockedBarangays != null) setCityOverview(!lockedBarangays);
+  }, [lockedBarangays]);
 
   // Search: query + barangay index (names only) + a pending barangay to zoom to
   // once its municipality's boundaries finish loading.
@@ -228,11 +239,12 @@ export default function LagunaMap({
         id: selectedMuni.id,
         name: selectedMuni.name,
         barangayCount: barangayGeo?.features?.length ?? null,
+        barangaysShown: !overview,
       });
     } else {
       cbRef.current({ level: "province", municipalityCount: muniGeo?.features?.length ?? null });
     }
-  }, [selectedMuni, selectedBrgy, barangayGeo, muniGeo]);
+  }, [selectedMuni, selectedBrgy, barangayGeo, muniGeo, overview]);
 
   // Parent asked to deselect the barangay (e.g. the panel's back button):
   // restore all barangays and zoom back out to the whole municipality.
@@ -264,8 +276,8 @@ export default function LagunaMap({
     : { color: "#1B6D24", weight: 0.8, fillColor: "#3B9E1C", fillOpacity: 0.06 };
 
   // The "back to ..." pill: shown when drilled into a municipality; on a locked map
-  // only to step back from a barangay to the pinned city.
-  const backPillShown = !!selectedMuni && (lockedMunicipalityId == null || !!selectedBrgy);
+  // only to step back from the barangays to the whole pinned city.
+  const backPillShown = !!selectedMuni && !overview;
 
   // Predicted layer: dash the outline of every area that has a value, so a
   // forecast never looks like reported data even though it shares the green ramp.
@@ -339,8 +351,9 @@ export default function LagunaMap({
   // The colour-scale legend follows what the map is showing: the municipality
   // choropleth at the province view, or the barangay choropleth (its own local
   // scale) once drilled into a municipality.
+  // The one-city overview of a locked map needs no scale (the panel shows its value).
   const legendScale = selectedMuni ? barangayColorScale : colorScale;
-  const legendVisible = (selectedMuni ? brgyHeatmapActive : heatmapActive) && legendScale?.min != null;
+  const legendVisible = !overview && (selectedMuni ? brgyHeatmapActive : heatmapActive) && legendScale?.min != null;
 
   // react-leaflet applies `style`/`onEachFeature` (incl. bound tooltips) only at
   // mount, so the layer must remount whenever the yield data itself changes —
@@ -467,6 +480,9 @@ export default function LagunaMap({
       } catch {
         /* ignore */
       }
+    } else if (lockedMunicipalityId != null) {
+      setCityOverview(true); // pinned city: back to the whole city as one shape
+      if (cityFeature) fitAndSignal(L.geoJSON(cityFeature).getBounds());
     } else {
       backToProvince();
     }
@@ -571,6 +587,7 @@ export default function LagunaMap({
       if (selectedMuni?.id !== r.municipality_id) {
         focusMunicipality(r.municipality_id);
       }
+      setCityOverview(false);
       setPendingBarangay(r.id);
     }
   };
@@ -579,6 +596,22 @@ export default function LagunaMap({
     const base = muniStyleFor(feature);
     layer.on({
       click: () => drillInto(feature, layer),
+      mouseover: () => layer.setStyle({ weight: base.weight + 1.5, fillOpacity: Math.min(1, base.fillOpacity + 0.2) }),
+      mouseout: () => layer.setStyle(base),
+    });
+    layer.bindTooltip(muniTooltip(feature), { sticky: true });
+  };
+
+  // The pinned city's own polygon, for the one-shape overview of a locked map.
+  const cityFeature =
+    lockedMunicipalityId != null
+      ? muniGeo?.features.find((f) => f.properties.municipality_id === lockedMunicipalityId) ?? null
+      : null;
+
+  const onEachCity = (feature, layer) => {
+    const base = muniStyleFor(feature);
+    layer.on({
+      click: () => setCityOverview(false), // already framed on the city; show its barangays
       mouseover: () => layer.setStyle({ weight: base.weight + 1.5, fillOpacity: Math.min(1, base.fillOpacity + 0.2) }),
       mouseout: () => layer.setStyle(base),
     });
@@ -636,7 +669,15 @@ export default function LagunaMap({
             onEachFeature={onEachMunicipality}
           />
         )}
-        {boundariesVisible && selectedMuni && barangayGeo && (
+        {boundariesVisible && overview && cityFeature && (
+          <GeoJSON
+            key={`city-${lockedMunicipalityId}-${basemap}-${yieldSig}`}
+            data={cityFeature}
+            style={muniStyleFor}
+            onEachFeature={onEachCity}
+          />
+        )}
+        {boundariesVisible && selectedMuni && barangayGeo && !overview && (
           <GeoJSON
             key={`barangays-${selectedMuni.id}-${basemap}-${barangayKey}-${selectedBrgy?.id ?? "none"}`}
             data={barangayGeo}
@@ -647,7 +688,7 @@ export default function LagunaMap({
         {/* Steady "loading" highlight of the clicked municipality, shown only while
             its barangays are being fetched — and only after the drill-in zoom has
             settled, so its stroke is never caught in the zoom-stretch. */}
-        {selectedMuni && barangaysLoading && loadingFeature && highlightReady && (
+        {selectedMuni && barangaysLoading && loadingFeature && highlightReady && !overview && (
           <GeoJSON
             key={`loading-${selectedMuni.id}`}
             data={loadingFeature}
@@ -688,7 +729,7 @@ export default function LagunaMap({
       {/* Barangay loading indicator — a spinner + label centered over the map. Since
           drilling in fits the map to the clicked municipality, this sits on that
           municipality (whose polygon is highlighted underneath). Non-blocking. */}
-      {selectedMuni && barangaysLoading && (
+      {selectedMuni && barangaysLoading && !overview && (
         <div className="absolute inset-0 z-[600] flex items-center justify-center pointer-events-none">
           <div className="flex items-center gap-2.5 rounded-full bg-white/95 px-4 py-2.5 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1)] backdrop-blur-sm">
             <span className="inline-flex h-4 w-4 rounded-full border-2 border-transparent border-t-[#1F6306] border-r-[#1F6306] animate-spin" />
@@ -720,7 +761,9 @@ export default function LagunaMap({
                 <button
                   type="button"
                   onClick={backOneLevel}
-                  aria-label={selectedBrgy ? `Back to ${selectedMuni.name}` : "Back to all of Laguna"}
+                  aria-label={
+                    selectedBrgy || lockedMunicipalityId != null ? `Back to ${selectedMuni.name}` : "Back to all of Laguna"
+                  }
                   className="shrink-0 flex items-center justify-center w-12 h-12 border-r border-[#E5E7EB] text-[#1F6306] rounded-l-lg hover:bg-[#F0FDF4]"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">

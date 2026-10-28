@@ -206,10 +206,12 @@ export default function YieldMonitoring() {
     lockedId != null || selection?.level === "municipality" || selection?.level === "barangay";
 
   // Default the panel scope to barangays on drill-in, back to municipalities when
-  // returning to the province view.
+  // returning to the province view. A locked account's tabs follow its map: City
+  // total while the city shows as one shape, barangays once they are shown.
   useEffect(() => {
-    setScope(drilled ? "barangay" : "municipality");
-  }, [drilled, selection?.id]);
+    if (lockedId != null) setScope(selection?.barangaysShown ? "barangay" : "municipality");
+    else setScope(drilled ? "barangay" : "municipality");
+  }, [drilled, selection?.id, selection?.barangaysShown, lockedId]);
 
   // Whichever level the panel is showing (charts, stat cards, table).
   const onBarangay = drilled && scope === "barangay";
@@ -557,6 +559,7 @@ export default function YieldMonitoring() {
             barangayHeatmap={drilled}
             barangayKey={`brgy-${activeCityId}-${year}-${season}-${barangayStats?.count ?? 0}`}
             lockedMunicipalityId={lockedId}
+            lockedBarangays={lockedId != null ? scope === "barangay" : null}
             overlayLoading={busy}
             overlayLabel="Loading yield data…"
             onSelectionChange={setSelection}

@@ -404,7 +404,9 @@ export default function SpatialGIS() {
   // pipeline predicts a season as soon as its six months are complete). Say so on
   // the map: point from the empty Observed layer to the forecast, and mark the
   // forecast as one that cannot be checked yet.
-  const drilledIn = !!activeCityId;
+  // A locked city shown as one shape counts its city record, not its barangays.
+  const cityShape = lockedId != null && selection?.barangaysShown === false;
+  const drilledIn = !!activeCityId && !cityShape;
   const observedCount = drilledIn ? barangayResp?.records?.length ?? 0 : Object.keys(yieldByMuni).length;
   const forecastCount = drilledIn ? Object.keys(predByBarangay).length : Object.keys(predByMuni).length;
   const forecastOnly =
@@ -500,7 +502,8 @@ export default function SpatialGIS() {
   // scale once drilled in.
   const legendDrilled = !!activeCityId;
   const legendScale = legendDrilled ? mapBarangayScale : mapColorScale;
-  const legendVisible = legendDrilled ? barangayYieldMode : heatmapOn;
+  // A locked city shown as one shape gets no scale (it would be the province's).
+  const legendVisible = !cityShape && (legendDrilled ? barangayYieldMode : heatmapOn);
   const legendBadge = showingEnvironment
     ? `Environment · ${envConfig.label}`
     : showingResidual
