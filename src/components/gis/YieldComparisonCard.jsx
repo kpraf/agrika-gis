@@ -101,12 +101,14 @@ export default function YieldComparisonCard({
   // on a barangay it still gets the MAE across its city's barangays.
   const showMae = !ownCityOnly || compareResp?.stats?.mae != null;
 
-  // Axis: province range, snapped out to 0.5 mt/ha
+  // Axis: a fixed 0 to 7 mt/ha ruler (all recorded yields fall inside it), so every
+  // card uses the same scale and a small gap is not stretched across the bar.
+  // Widened only if a value ever goes past 7.
   const vals = [stats?.min, stats?.max, observed, predicted].filter((v) => v != null);
-  const lo = Math.floor(Math.min(...vals) * 2) / 2;
-  const hi = Math.ceil(Math.max(...vals) * 2) / 2 || lo + 0.5;
+  const lo = 0;
+  const hi = Math.max(7, Math.ceil(Math.max(...vals)));
   const ticks = [];
-  for (let t = lo; t <= hi + 1e-9; t += 0.5) ticks.push(+t.toFixed(1));
+  for (let t = lo; t <= hi; t += 1) ticks.push(t);
 
   const left = Math.min(observed, predicted ?? observed);
   const right = Math.max(observed, predicted ?? observed);
@@ -177,15 +179,13 @@ export default function YieldComparisonCard({
                 : { left: pct(t, lo, hi), transform: "translateX(-50%)" }
               }
             >
-              {t.toFixed(1)}
+              {t}
             </span>
           ))}
         </div>
-        {stats?.min != null && (
-          <span className="text-[11px] text-[#6B7280]">
-            mt/ha · Shaded: province range, {stats.min} to {stats.max}
-          </span>
-        )}
+        <span className="text-[11px] text-[#6B7280]">
+          mt/ha{stats?.min != null && <> · Shaded: province range, {stats.min} to {stats.max}</>}
+        </span>
       </div>
 
       {/* Summary sentence */}
