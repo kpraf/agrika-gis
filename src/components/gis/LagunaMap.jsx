@@ -158,7 +158,14 @@ export default function LagunaMap({
   const muniListCbRef = useRef(onMunicipalitiesLoaded);
   muniListCbRef.current = onMunicipalitiesLoaded;
 
-  // Fetch municipality boundaries once, and frame the whole province.
+  // The city the map opens on, if any (pinned account or City filter). Read by the
+  // one-time boundary fetch below.
+  const openCityRef = useRef(null);
+  openCityRef.current = lockedMunicipalityId ?? focusMunicipalityId;
+
+  // Fetch municipality boundaries once, and frame the whole province (unless a
+  // city is wanted: its own fit follows right after, and Leaflet ignores a fit
+  // that starts while another zoom is still animating).
   useEffect(() => {
     let active = true;
     boundariesApi
@@ -175,7 +182,7 @@ export default function LagunaMap({
           const b = L.geoJSON(fc).getBounds();
           if (b.isValid()) {
             setProvinceBounds(b);
-            mapRef.current?.fitBounds(b, { padding: [20, 20] });
+            if (openCityRef.current == null) mapRef.current?.fitBounds(b, { padding: [20, 20] });
           }
         } catch {
           /* ignore */
@@ -405,6 +412,11 @@ export default function LagunaMap({
       setHighlightReady(true);
       return;
     }
+    // Leaflet drops a fit requested mid-zoom-animation, so wait for it to end.
+    if (map._animatingZoom) {
+      map.once("zoomend", () => fitAndSignal(bounds));
+      return;
+    }
     setHighlightReady(false);
     const token = ++fitTokenRef.current;
     const finish = () => {
@@ -604,6 +616,7 @@ export default function LagunaMap({
         ref={mapRef}
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
+        zoomSnap={0.25} // lets a fit fill the panel instead of stopping a whole level short
         zoomControl={false}
         style={{ height: "100%", width: "100%" }}
       >
