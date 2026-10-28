@@ -104,6 +104,24 @@ function topByAverage(seriesById, ids, n) {
   return [...ids].sort((a, b) => avg(b) - avg(a)).slice(0, n);
 }
 
+// Up / down arrow with the change in mt/ha from the year before (green up, red down).
+function ChangeBadge({ v, prevYear, small = false }) {
+  if (v == null) return <span className="text-[#9CA3AF]">N/A</span>;
+  const dir = v > 0.0005 ? "up" : v < -0.0005 ? "down" : "same";
+  const color = dir === "up" ? "text-[#15803D]" : dir === "down" ? "text-[#DC2626]" : "text-[#6B7280]";
+  return (
+    <span
+      className={`inline-flex items-center justify-end gap-1 font-semibold tabular-nums ${color} ${small ? "text-[11px]" : ""}`}
+      title={`${dir === "same" ? "No change" : dir === "up" ? "Up" : "Down"} from ${prevYear}`}
+    >
+      <span aria-hidden="true">{dir === "up" ? "▲" : dir === "down" ? "▼" : "="}</span>
+      {v > 0 ? "+" : ""}
+      {v.toFixed(2)}
+      <span className="sr-only">{dir === "same" ? "no change" : dir} from {prevYear}</span>
+    </span>
+  );
+}
+
 export default function RiceYieldAnalytics() {
   const { city } = useParams();
   // An agriculturist is limited to their assigned city: only that city (and its
@@ -433,16 +451,23 @@ export default function RiceYieldAnalytics() {
   }, [compareResp, selectedMuni, isBarangay]);
 
   const hoverEntity = hoverActive ? selectedEntities.find((e) => e.id === hoverId) : null;
+  // The newest year shown and the one before it, for the "latest" value and its change.
+  const lastYear = years[years.length - 1];
+  const prevYear = years[years.length - 2];
   const statsFor = (id) => {
     const vals = years.map((y) => seriesById[id]?.[y]).filter((v) => v != null);
     if (!vals.length) return null;
+    const latest = seriesById[id]?.[lastYear];
+    const prev = seriesById[id]?.[prevYear];
     return {
       avg: vals.reduce((a, b) => a + b, 0) / vals.length,
       min: Math.min(...vals),
       max: Math.max(...vals),
-      latest: seriesById[id]?.[years[years.length - 1]],
+      latest,
+      change: latest != null && prev != null ? latest - prev : null,
     };
   };
+  const latestLabel = `${season ?? ""} ${lastYear ?? ""}`.trim();
   const hoverStats = hoverEntity ? statsFor(hoverEntity.id) : null;
 
   return (
@@ -822,13 +847,14 @@ export default function RiceYieldAnalytics() {
                             </span>
                             <span className="grid grid-cols-3 gap-2 w-full">
                               {[
-                                { label: "Min", value: s.min.toFixed(2) },
-                                { label: "Max", value: s.max.toFixed(2) },
-                                { label: "Latest", value: s.latest != null ? Number(s.latest).toFixed(2) : "N/A" },
+                                { label: "Lowest", value: s.min.toFixed(2) },
+                                { label: "Highest", value: s.max.toFixed(2) },
+                                { label: latestLabel, value: s.latest != null ? Number(s.latest).toFixed(2) : "N/A", change: s.change },
                               ].map((m) => (
                                 <span key={m.label} className="flex flex-col px-2 py-1.5 rounded-lg bg-[#F9FAFB]">
                                   <span className="text-[10px] font-semibold uppercase tracking-[0.4px] text-[#9CA3AF]">{m.label}</span>
                                   <span className="text-sm font-semibold text-[#374151] tabular-nums">{m.value}</span>
+                                  {m.change !== undefined && <ChangeBadge v={m.change} prevYear={prevYear} small />}
                                 </span>
                               ))}
                             </span>
@@ -843,10 +869,12 @@ export default function RiceYieldAnalytics() {
                     <thead className="bg-[#F9FAFB] text-[#6B7280]">
                       <tr>
                         <th className="text-left font-semibold px-4 py-2 capitalize">{entityWord}</th>
-                        <th className="text-right font-semibold px-4 py-2">Avg</th>
-                        <th className="text-right font-semibold px-4 py-2">Min</th>
-                        <th className="text-right font-semibold px-4 py-2">Max</th>
-                        <th className="text-right font-semibold px-4 py-2">Latest</th>
+                        {["Average", "Lowest", "Highest", latestLabel, prevYear != null ? `Change vs ${prevYear}` : "Change"].map((h) => (
+                          <th key={h} className="text-right font-semibold px-4 py-2 align-bottom">
+                            {h}
+                            <span className="block text-[10px] font-medium text-[#9CA3AF]">mt/ha</span>
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
@@ -857,7 +885,7 @@ export default function RiceYieldAnalytics() {
                               <span className="inline-block w-2.5 h-2.5 rounded-full mr-2 align-middle bg-[#E5E7EB]" />
                               <span className="inline-block h-3 w-28 rounded bg-[#E5E7EB] align-middle" />
                             </td>
-                            {Array.from({ length: 4 }).map((__, j) => (
+                            {Array.from({ length: 5 }).map((__, j) => (
                               <td key={j} className="px-4 py-2 text-right">
                                 <span className="inline-block h-3 w-10 rounded bg-[#F3F4F6]" />
                               </td>
@@ -883,12 +911,21 @@ export default function RiceYieldAnalytics() {
                             <td className="px-4 py-2 text-right font-semibold text-[#1B3315]">{s.avg.toFixed(3)}</td>
                             <td className="px-4 py-2 text-right text-[#6B7280]">{s.min.toFixed(3)}</td>
                             <td className="px-4 py-2 text-right text-[#6B7280]">{s.max.toFixed(3)}</td>
-                            <td className="px-4 py-2 text-right text-[#374151]">{s.latest != null ? s.latest : "N/A"}</td>
+                            <td className="px-4 py-2 text-right text-[#374151]">{s.latest != null ? Number(s.latest).toFixed(3) : "N/A"}</td>
+                            <td className="px-4 py-2 text-right">
+                              <ChangeBadge v={s.change} prevYear={prevYear} />
+                            </td>
                           </tr>
                         ))}
                     </tbody>
                   </table>
                 </div>
+                {!chartLoading && selected.length > 0 && years.length > 0 && (
+                  <p className="text-[11px] leading-4 text-[#6B7280]">
+                    Observed (reported) yield in mt/ha, metric tons of palay per hectare, {season} season. Average,
+                    lowest and highest are across {years[0]} to {lastYear}; the arrow compares {lastYear} with {prevYear}.
+                  </p>
+                )}
               </div>
             </div>
 
