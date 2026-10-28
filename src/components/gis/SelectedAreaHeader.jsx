@@ -38,7 +38,7 @@ export default function SelectedAreaHeader({
         <span className="text-xs font-semibold tracking-[0.7px] text-[#434840] uppercase">Selected Area</span>
         <h3 className="text-2xl font-bold text-[#061E04] tracking-[-0.6px]">Laguna Province</h3>
         <span className="text-[13px] text-[#6B7280]">
-          {muniCount != null ? `${muniCount} municipalities` : "Loading boundaries…"}
+          {muniCount != null ? `${muniCount} cities and municipalities` : "Loading boundaries…"}
           {withData != null && ` · ${withData} with yield data`}
         </span>
       </div>

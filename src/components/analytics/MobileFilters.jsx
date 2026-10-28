@@ -25,7 +25,7 @@ export default function MobileFilters({
     <div className="sm:hidden flex flex-col gap-2.5">
       <div className="grid grid-cols-2 gap-1 p-1 bg-[#F3F4F6] rounded-[10px]" role="group" aria-label="Compare by">
         <button type="button" onClick={() => setLevel("municipality")} aria-pressed={level === "municipality"} className={levelBtn(level === "municipality")}>
-          Municipality
+          City/Municipality
         </button>
         <button
           type="button"
@@ -44,7 +44,7 @@ export default function MobileFilters({
           <select
             value={brgyMuniId ?? ""}
             onChange={(e) => setBrgyMuniId(e.target.value ? Number(e.target.value) : null)}
-            aria-label="Municipality"
+            aria-label="City or municipality"
             className="w-full h-11 pl-[34px] pr-9 appearance-none bg-white border border-[#C3C8BD] rounded-[10px] text-sm font-semibold text-[#191C1A] outline-none focus:border-[#3B9E1C]"
           >
             {brgyMunis.map((m) => (

@@ -800,7 +800,7 @@ export default function LagunaMap({
                   placeholder={
                     backPillShown || lockedMunicipalityId != null
                       ? "Search a barangay..."
-                      : "Search a municipality or barangay..."
+                      : "Search a city, municipality or barangay..."
                   }
                   className={`w-full h-full ${backPillShown ? "pl-3 pr-10" : "pl-11 pr-4"} text-sm text-[#374151] bg-transparent outline-none placeholder:text-[#6B7280]`}
                 />
@@ -857,7 +857,7 @@ export default function LagunaMap({
                         r.type === "municipality" ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#EFF6FF] text-[#1D4ED8]"
                       }`}
                     >
-                      {r.type === "municipality" ? "City" : "Brgy"}
+                      {r.type === "municipality" ? (/^City of /.test(r.name) ? "City" : "Mun.") : "Brgy"}
                     </span>
                     <span className="flex flex-col">
                       <span className="text-sm text-[#191C1A]">{r.name}</span>

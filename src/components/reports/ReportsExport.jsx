@@ -264,10 +264,10 @@ export default function ReportsExport() {
   );
 
   const isBarangay = viewLevel === "barangay";
-  const areaLabel = isBarangay ? "barangays" : "municipalities";
-  const areaColLabel = isBarangay ? "Barangay" : "Municipality";
+  const areaLabel = isBarangay ? "barangays" : "cities/municipalities";
+  const areaColLabel = isBarangay ? "Barangay" : "City/Municipality";
   const areaCountLabel = (n) =>
-    `${n} ${n === 1 ? (isBarangay ? "barangay" : "municipality") : areaLabel}`;
+    `${n} ${n === 1 ? (isBarangay ? "barangay" : "city/municipality") : areaLabel}`;
 
   // Base rows for the current scope, each carrying a generic `name` (municipality
   // name, or barangay name at barangay level).
@@ -366,7 +366,7 @@ export default function ReportsExport() {
     }
     const imported = filtered.filter((r) => !/^ricelytics/i.test(r.source || "Ricelytics")).length;
     return [
-      "Source: PRiSM / Ricelytics (PhilRice), observed municipality palay yields, compiled in AgriKA-GIS.",
+      "Source: PRiSM / Ricelytics (PhilRice), observed city and municipality palay yields, compiled in AgriKA-GIS.",
       ...(imported ? [`${n(imported)} ${imported === 1 ? "was" : "were"} imported manually through AgriKA-GIS.`] : []),
     ];
   };
@@ -581,7 +581,7 @@ export default function ReportsExport() {
                     {/* Level toggle — decides the target table + template */}
                     <div className="flex p-0.5 bg-[#F3F4F6] rounded-lg text-xs font-medium">
                       {[
-                        { key: "municipality", label: "Municipality" },
+                        { key: "municipality", label: "City/Municipality" },
                         { key: "barangay", label: "Barangay" },
                       ].map((lvl) => (
                         <button
@@ -634,7 +634,7 @@ export default function ReportsExport() {
                   </span>
                   <h3 className="text-base font-semibold text-[#1F2937]">Drag & drop your CSV here</h3>
                   <p className="max-w-[340px] text-center text-sm text-[#6B7280]">
-                    Importing <b>{importLevel === "barangay" ? "barangay" : "municipality"}</b> yields.
+                    Importing <b>{importLevel === "barangay" ? "barangay" : "city/municipality"}</b> yields.
                     Columns:{" "}
                     <span className="font-mono text-xs">
                       {importLevel === "barangay"
@@ -688,7 +688,7 @@ export default function ReportsExport() {
                         <table className="w-full text-xs">
                           <thead className="text-[#6B7280]">
                             <tr>
-                              <th className="sticky top-0 z-10 bg-[#F9FAFB] text-left font-semibold px-3 py-1.5">Municipality</th>
+                              <th className="sticky top-0 z-10 bg-[#F9FAFB] text-left font-semibold px-3 py-1.5">City/Municipality</th>
                               {pendingImport.level === "barangay" && (
                                 <th className="sticky top-0 z-10 bg-[#F9FAFB] text-left font-semibold px-3 py-1.5">Barangay</th>
                               )}
@@ -954,7 +954,7 @@ export default function ReportsExport() {
                 <h3 className="text-xs font-semibold tracking-wide uppercase text-[#9CA3AF]">Scope</h3>
                 <div className="flex p-1 gap-1 bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg">
                   {[
-                    { key: "municipality", label: "Municipality" },
+                    { key: "municipality", label: "City/Municipality" },
                     { key: "barangay", label: "Barangay" },
                   ].map((l) => (
                     <button
@@ -978,7 +978,7 @@ export default function ReportsExport() {
                     onChange={(e) => setViewMuni(e.target.value)}
                     className="px-3 py-2 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
                   >
-                    {!cityScope.locked && <option value="">All municipalities</option>}
+                    {!cityScope.locked && <option value="">All cities/municipalities</option>}
                     {muniOptions.map((n) => (
                       <option key={n} value={n}>
                         {n}
@@ -998,7 +998,7 @@ export default function ReportsExport() {
                     ))}
                   </select>
                 ) : (
-                  <p className="text-xs text-[#9CA3AF]">No municipalities have barangay yield data yet.</p>
+                  <p className="text-xs text-[#9CA3AF]">No city or municipality has barangay yield data yet.</p>
                 )}
               </div>
 

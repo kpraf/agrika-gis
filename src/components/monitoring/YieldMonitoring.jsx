@@ -254,7 +254,7 @@ export default function YieldMonitoring() {
   const trendLabel = activeCityName || "Laguna Province";
   // Short municipality name for the scope tab (drop the "City of " prefix).
   const shortCity = drilled ? activeCityName.replace(/^City of\s+/i, "") : "";
-  const unitLabel = onBarangay ? "Barangay" : "Municipality";
+  const unitLabel = onBarangay ? "Barangay" : "City/Municipality";
 
   return (
     <div className="flex w-full h-screen bg-[#F8FAF5] font-sans pb-14 md:pb-0" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
@@ -347,7 +347,7 @@ export default function YieldMonitoring() {
                         scope === "municipality" ? "bg-[#3B9E1C] text-white shadow-sm" : "text-[#4B5563]"
                       }`}
                     >
-                      {lockedId != null ? "City total" : "Municipalities"}
+                      {lockedId != null ? "City total" : "Cities/Municipalities"}
                     </button>
                     <button
                       type="button"
@@ -472,7 +472,7 @@ export default function YieldMonitoring() {
                           <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={30} outerRadius={58} paddingAngle={2}>
                             {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
                           </Pie>
-                          <Tooltip formatter={(v, n) => [`${v} ${onBarangay ? "barangays" : "municipalities"}`, n]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                          <Tooltip formatter={(v, n) => [`${v} ${onBarangay ? "barangays" : "cities/municipalities"}`, n]} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="flex flex-col gap-1.5 flex-1">
@@ -504,7 +504,7 @@ export default function YieldMonitoring() {
               {/* Table — ranked */}
               {tab === "table" && (
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-[#6B7280] uppercase">Ranked {unitLabel === "Barangay" ? "Barangays" : "Municipalities"}</label>
+                <label className="text-xs font-semibold text-[#6B7280] uppercase">Ranked {unitLabel === "Barangay" ? "Barangays" : "Cities/Municipalities"}</label>
                 <div className="border border-[#F3F4F6] rounded-lg overflow-hidden">
                   <table className={`w-full text-sm ${loadingDim(busy)}`}>
                     <thead className="bg-[#F3F4F6] text-[#6B7280]">
@@ -611,7 +611,7 @@ export default function YieldMonitoring() {
                   ? ""
                   : drilled
                   ? " Click “back to all” on the map for the province view."
-                  : " Click a municipality on the map to focus its trend."}
+                  : " Click a city or municipality on the map to focus its trend."}
               </p>
 
               <div className="flex flex-col gap-2">
@@ -678,7 +678,7 @@ export default function YieldMonitoring() {
               )}
 
               <p className="text-[11px] leading-4 text-[#9CA3AF]">
-                Source: PRiSM / Ricelytics observed municipality yields (2018 – 2026 Sem 1). Values marked
+                Source: PRiSM / Ricelytics observed city and municipality yields (2018 – 2026 Sem 1). Values marked
                 “est.” are source proxy figures for low-rice cities. San Pedro has no palay data.
               </p>
             </div>

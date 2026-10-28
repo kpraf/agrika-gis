@@ -14,11 +14,11 @@ const FAQS = [
   },
   {
     q: "Who can use AgriKA-GIS?",
-    a: "AgriKA-GIS has three account roles: administrators, who have province-wide access and manage user accounts; agriculturists, who can use monitoring, analytics and comparison, and reporting for their assigned municipality; and rice technicians, who can use monitoring, the yield map, and reports for their assigned municipality. Accounts are created by an administrator. The public can view the Laguna yield map without logging in.",
+    a: "AgriKA-GIS has three account roles: administrators, who have province-wide access and manage user accounts; agriculturists, who can use monitoring, analytics and comparison, and reporting for their assigned city or municipality; and rice technicians, who can use monitoring, the yield map, and reports for their assigned city or municipality. Accounts are created by an administrator. The public can view the Laguna yield map without logging in.",
   },
   {
     q: "What kind of data does the system display?",
-    a: "The platform displays observed yields from 2018 onward, predicted yields, boundary layers, weather and vegetation indicators, municipality comparisons, and downloadable reports, all mapped across Laguna's municipalities.",
+    a: "The platform displays observed yields from 2018 onward, predicted yields, boundary layers, weather and vegetation indicators, city and municipality comparisons, and downloadable reports, all mapped across Laguna's cities and municipalities.",
   },
   {
     q: "Does the system use satellite imagery?",
@@ -26,11 +26,11 @@ const FAQS = [
   },
   {
     q: "Can users compare rice productivity between cities or municipalities?",
-    a: "Yes. The Rice Yield Analytics & Comparison module lets agriculturists and administrators compare yield trends across municipalities side by side, filtered by year and season.",
+    a: "Yes. The Rice Yield Analytics & Comparison module lets agriculturists and administrators compare yield trends across cities and municipalities side by side, filtered by year and season.",
   },
   {
     q: "How accurate are the predictions?",
-    a: "Our optimized CNN-LSTM model has demonstrated a significant reduction in prediction error compared to traditional estimation methods, though accuracy can vary by municipality and data availability.",
+    a: "Our optimized CNN-LSTM model has demonstrated a significant reduction in prediction error compared to traditional estimation methods, though accuracy can vary by city or municipality and data availability.",
   },
   {
     q: "Is AgriKA-GIS accessible on mobile devices?",

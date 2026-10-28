@@ -355,8 +355,8 @@ export default function RiceYieldAnalytics() {
   const setSelected = isBarangay ? setSelectedBrgy : setSelectedMuni;
   const seriesById = isBarangay ? brgySeries : seriesByMuni;
   const years = isBarangay ? brgyYears : meta.years;
-  const entityWord = isBarangay ? "barangay" : "municipality";
-  const entityWordPlural = isBarangay ? "barangays" : "municipalities";
+  const entityWord = isBarangay ? "barangay" : "city or municipality";
+  const entityWordPlural = isBarangay ? "barangays" : "cities/municipalities";
 
   const colorFor = useMemo(() => {
     const map = {};
@@ -525,13 +525,13 @@ export default function RiceYieldAnalytics() {
                       level === "municipality" ? "bg-white text-[#1B3315] shadow-sm" : "text-[#4B5563]"
                     }`}
                   >
-                    Municipality
+                    City/Municipality
                   </button>
                   <button
                     type="button"
                     onClick={() => barangayAvailable && setLevel("barangay")}
                     disabled={!barangayAvailable}
-                    title={barangayAvailable ? "Compare barangays within one municipality" : "Barangay-level yield data not available yet"}
+                    title={barangayAvailable ? "Compare barangays within one city or municipality" : "Barangay-level yield data not available yet"}
                     className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                       level === "barangay" ? "bg-white text-[#1B3315] shadow-sm" : "text-[#4B5563]"
                     } ${!barangayAvailable ? "opacity-40 cursor-not-allowed" : ""}`}
@@ -544,7 +544,7 @@ export default function RiceYieldAnalytics() {
 
               {isBarangay && (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#374151]">Municipality</span>
+                  <span className="text-sm font-medium text-[#374151]">City/Municipality</span>
                   <div className="relative">
                     <select
                       value={brgyMuniId ?? ""}
@@ -868,7 +868,7 @@ export default function RiceYieldAnalytics() {
                   <table className="w-full text-sm">
                     <thead className="bg-[#F9FAFB] text-[#6B7280]">
                       <tr>
-                        <th className="text-left font-semibold px-4 py-2 capitalize">{entityWord}</th>
+                        <th className="text-left font-semibold px-4 py-2">{isBarangay ? "Barangay" : "City/Municipality"}</th>
                         {["Average", "Lowest", "Highest", latestLabel, prevYear != null ? `Change vs ${prevYear}` : "Change"].map((h) => (
                           <th key={h} className="text-right font-semibold px-4 py-2 align-bottom">
                             {h}
@@ -952,7 +952,7 @@ export default function RiceYieldAnalytics() {
 
                 {compareChartData.length === 0 ? (
                   <div className="text-sm text-[#9CA3AF] px-4 py-6 text-center bg-[#F9FAFB] rounded-lg">
-                    No predictions for the selected municipalities in {compareYear} {season}.
+                    No predictions for the selected cities/municipalities in {compareYear} {season}.
                   </div>
                 ) : (
                   <>
@@ -990,12 +990,12 @@ export default function RiceYieldAnalytics() {
               {isBarangay ? (
                 <>
                   Year-over-year observed average yield (mt/ha) per barangay in {activeBrgyMuniName}, {season} season. Source: City
-                  Agriculture Office harvest reports. Barangays are compared only within their own municipality.
+                  Agriculture Office harvest reports. Barangays are compared only within their own city or municipality.
                 </>
               ) : (
                 <>
-                  Year-over-year observed average yield (mt/ha) per municipality, {season} season. Source: PRiSM / Ricelytics
-                  (2018 – 2026 Sem 1). Some municipalities have gaps in a few semesters.
+                  Year-over-year observed average yield (mt/ha) per city or municipality, {season} season. Source: PRiSM / Ricelytics
+                  (2018 – 2026 Sem 1). Some cities and municipalities have gaps in a few semesters.
                 </>
               )}
             </p>

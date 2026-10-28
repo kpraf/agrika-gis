@@ -719,7 +719,7 @@ export default function SpatialGIS() {
                     ))}
                   </div>
                   <p className="text-[11px] text-[#9CA3AF]">
-                    Seasonal average per municipality — the model's inputs (Sentinel + Open-Meteo).
+                    Seasonal average per city or municipality — the model's inputs (Sentinel + Open-Meteo).
                     SAR VV / VH are Sentinel-1 radar, which sees through cloud.
                   </p>
                 </div>
@@ -768,7 +768,7 @@ export default function SpatialGIS() {
                           <option value={lockedId}>{cityScope.municipalityName}</option>
                         ) : (
                           <>
-                            <option value="">All Cities</option>
+                            <option value="">All cities/municipalities</option>
                             {municipalities.map((m) => (
                               <option key={m.id} value={m.id}>
                                 {m.name}
@@ -788,7 +788,7 @@ export default function SpatialGIS() {
                       </svg>
                     </div>
                     {lockedId == null && municipalities.length === 0 && (
-                      <span className="text-[11px] text-[#9CA3AF]">Loading municipalities…</span>
+                      <span className="text-[11px] text-[#9CA3AF]">Loading cities and municipalities…</span>
                     )}
                   </div>
 

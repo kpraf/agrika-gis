@@ -73,7 +73,7 @@ export default function PrivacyPolicy() {
           <Section title="2. How We Use Information">
             <ul className="list-disc pl-5 flex flex-col gap-1.5">
               <li>To operate the platform and display rice yield, boundary, and environmental data.</li>
-              <li>To authenticate portal users and apply the correct role and municipality scope.</li>
+              <li>To authenticate portal users and apply the correct role and city or municipality scope.</li>
               <li>To respond to inquiries submitted through the Contact page.</li>
               <li>To maintain the security, reliability, and academic goals of the research project.</li>
             </ul>

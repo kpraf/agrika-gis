@@ -228,14 +228,14 @@ export default function YieldComparisonCard({
           {isMuni ? (
             <Tile value={`${errPct}%`} label="Error" />
           ) : (
-            <Tile value={compareResp?.stats?.count_predicted ?? stats?.count} label="Municipalities" />
+            <Tile value={compareResp?.stats?.count_predicted ?? stats?.count} label="Cities/Municipalities" />
           )}
         </div>
       )}
 
       {!ownCityOnly && (
         <p className="text-xs text-[#9CA3AF]">
-          {isMuni ? "Click “back to all” on the map for the province view." : "Switch to the Predicted layer or click a municipality."}
+          {isMuni ? "Click “back to all” on the map for the province view." : "Switch to the Predicted layer or click a city or municipality."}
         </p>
       )}
     </Shell>

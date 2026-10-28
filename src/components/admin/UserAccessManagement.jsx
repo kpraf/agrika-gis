@@ -151,7 +151,7 @@ function SuccessToast({ message, onClose }) {
 
 const ROLE_META = {
   administrator: { label: "Administrator", scope: "Province-wide Access" },
-  agriculturist: { label: "Agriculturist", scope: "Municipality Access" },
+  agriculturist: { label: "Agriculturist", scope: "City/Municipality Access" },
   rice_technician: { label: "Rice Technician", scope: "Field Operations" },
 };
 
@@ -291,7 +291,7 @@ function UserForm({ initial, roles, municipalities, onCancel, onSave }) {
 
         {role !== "administrator" && (
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-[#4B5563]">Municipality / LGU</span>
+            <span className="font-medium text-[#4B5563]">City/Municipality (LGU)</span>
             <select
               value={municipalityId}
               onChange={(e) => setMunicipalityId(e.target.value)}
@@ -754,7 +754,7 @@ export default function UserAccessManagement() {
                         Role <SortIcon direction={sort.field === "role" ? sort.direction : null} />
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]">Municipality</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]">City/Municipality</th>
                     <th className="px-4 py-3 text-left">
                       <button onClick={() => toggleSort("status")} className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-[#6B7280]">
                         Status <SortIcon direction={sort.field === "status" ? sort.direction : null} />
@@ -796,7 +796,7 @@ export default function UserAccessManagement() {
                             >
                               {u.municipality ? u.municipality.replace(/^City of /, "").slice(0, 2).toUpperCase() : "ALL"}
                             </span>
-                            <span className="text-[#1F2937] font-medium">{u.municipality || "All Municipalities"}</span>
+                            <span className="text-[#1F2937] font-medium">{u.municipality || "All Cities/Municipalities"}</span>
                           </div>
                         </td>
                         <td className="px-4 py-4">
