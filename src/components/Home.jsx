@@ -5,6 +5,7 @@ import Footer from "./layout/Footer";
 import ContactCTA from "./layout/ContactCTA";
 import ServicesSection from "./layout/ServicesSection";
 import Pill from "./layout/Pill";
+import CollaborateSection from "./layout/CollaborateSection";
 
 const STEPS = [
   {
@@ -192,6 +193,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Collaborate Section */}
+      <CollaborateSection />
 
       <ContactCTA />
       <Footer />
