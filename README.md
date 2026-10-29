@@ -272,6 +272,24 @@ Then start the two servers as in [Step 9](#step-9--run-it-every-time-you-work-on
 `git pull` ever brings a database schema change, re-run `backend\db\setup_db.ps1` and
 `scripts\import_boundaries.py` first, then `load_all_data.py`.
 
+### Shortcut: restore the database snapshot (same data as the live system)
+
+`backend/db/snapshot/` holds a copy of the full working database from 2026-10-29: boundaries,
+yields, weather and satellite features, and the faithful-model predictions the live system shows
+(these can't be rebuilt with `load_all_data.py`, which loads the older predictions). It replaces
+Steps 3, 5 and 6. You still need Steps 1, 2, 4, 7, 8 and 9.
+
+```bash
+# from the project root (needs PostgreSQL 18 + PostGIS; replaces your local agrika_gis database)
+powershell -ExecutionPolicy Bypass -File .\backend\db\restore_snapshot.ps1
+
+# the snapshot has no user accounts, so create your login
+cd backend
+.\venv\Scripts\python.exe scripts\create_user.py
+```
+
+Don't run `load_all_data.py` after restoring, or the older predictions overwrite the faithful ones.
+
 ---
 
 ## Troubleshooting

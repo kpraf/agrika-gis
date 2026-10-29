@@ -622,9 +622,10 @@ export default function YieldMonitoring() {
                   <LoadingPill active={busy && trend.length > 0} label="Loading trend…" />
                   {trend.length ? (
                     <ResponsiveContainer width="100%" height={220} className={loadingDim(busy)}>
-                      <LineChart data={trend} margin={{ left: 4, right: 8, top: 8, bottom: 4 }}>
+                      <LineChart data={trend} margin={{ left: 4, right: 12, top: 14, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
-                        <XAxis dataKey="year" tick={{ fontSize: 10, fill: "#9CA3AF" }} />
+                        {/* padding keeps the first and last year labels inside the card */}
+                        <XAxis dataKey="year" tick={{ fontSize: 10, fill: "#9CA3AF" }} padding={{ left: 10, right: 12 }} />
                         <YAxis
                           width={58}
                           tick={{ fontSize: 10, fill: "#9CA3AF" }}
