@@ -274,7 +274,7 @@ Then start the two servers as in [Step 9](#step-9--run-it-every-time-you-work-on
 
 ### Shortcut: restore the database snapshot (same data as the live system)
 
-`backend/db/snapshot/` holds a copy of the full working database from 2026-10-29: boundaries,
+`backend/db/snapshot/` holds a copy of the live system's data (Supabase) from 2026-10-29: boundaries,
 yields, weather and satellite features, and the faithful-model predictions the live system shows
 (these can't be rebuilt with `load_all_data.py`, which loads the older predictions). It replaces
 Steps 3, 5 and 6. You still need Steps 1, 2, 4, 7, 8 and 9.
