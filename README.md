@@ -290,6 +290,13 @@ cd backend
 
 Don't run `load_all_data.py` after restoring, or the older predictions overwrite the faithful ones.
 
+- **Map boundaries** are inside the snapshot (all 30 cities/municipalities and 682 barangays), so
+  you don't need `import_boundaries.py`. Your PostgreSQL just needs PostGIS installed.
+- **JWT key**: the backend won't start without `JWT_SECRET_KEY` in `backend/.env` (it signs login
+  tokens). It's never in the repo or the snapshot, since the repo is public; each machine makes its
+  own. The restore script adds a random one if your `.env` is missing it or still has a placeholder.
+  A login token from the live site won't work locally (different key), so sign in again locally.
+
 ---
 
 ## Troubleshooting
