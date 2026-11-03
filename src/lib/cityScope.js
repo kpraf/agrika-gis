@@ -8,7 +8,8 @@ export const slugify = (name) => (name || "").toLowerCase().trim().replace(/\s+/
 export function landingPathFor(user) {
   if (user.role === "administrator") return "/monitoring";
   const city = slugify(user.municipality);
-  return city ? `/monitoring/${city}` : "/yield-map";
+  // A scoped account with no city assigned has no module it can open.
+  return city ? `/monitoring/${city}` : "/unauthorized";
 }
 
 /**

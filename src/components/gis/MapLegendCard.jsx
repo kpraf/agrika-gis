@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { YIELD_RAMP, RESIDUAL_RAMP, RAMPS } from "./LagunaMap"; // add `export` to those 3 consts (see README)
+import { YIELD_RAMP, RESIDUAL_RAMP, RESIDUAL_CLASSES, RAMPS } from "./LagunaMap"; // add `export` to those consts (see README)
 
 // Option 4c. Replaces the "Active Layers" card in SpatialGIS.jsx's right panel.
 // Class boundaries match LagunaMap exactly: colours are picked with
@@ -87,6 +87,24 @@ export default function MapLegendCard({
             <span className="h-2.5 w-10 rounded bg-[#ECEFEA]" />
           </div>
         </div>
+      ) : hasScale && isResidual ? (
+        /* Residuals: the three fixed classes of the paper (±0.20 mt/ha), not a stretched scale. */
+        <>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-sm font-semibold text-[#191C1A]">Residual (observed − predicted), mt/ha</span>
+            {subtitle && <span className="text-xs text-[#6B7280] shrink-0">{subtitle}</span>}
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {RESIDUAL_CLASSES.map((c) => (
+              <div key={c.key} className="flex items-start gap-2.5 text-[13px] text-[#191C1A]">
+                <span className="mt-[3px] w-3 h-3 shrink-0 rounded-[3px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]" style={{ background: c.color }} />
+                <span className="flex-1">
+                  <b className="font-semibold">{c.label}</b> ({c.range}): {c.note}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
       ) : hasScale ? (
         <>
           <div className="flex items-baseline justify-between gap-2">

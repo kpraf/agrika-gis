@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { residualClass } from "../../lib/mapInsights";
+import { yieldApi } from "../../lib/api";
 
 // Option 2c. Replaces the "Rice Yield" and "CNN-LSTM Prediction" <Card>s in SpatialGIS.jsx.
 // Props come straight from existing SpatialGIS state:
@@ -26,6 +28,47 @@ function Shell({ season, year, showBadge, children }) {
   );
 }
 
+// Under a predicted value: the ± typical error and the range it gives.
+function PredictedRange({ predicted, ctx }) {
+  const mae = ctx?.typical_error?.mae;
+  if (predicted == null || mae == null) return null;
+  return (
+    <span className="text-xs font-semibold text-[#92400E]">
+      ± {mae.toFixed(2)} · {(predicted - mae).toFixed(2)} to {(predicted + mae).toFixed(2)} mt/ha
+    </span>
+  );
+}
+
+// The area's usual yield for this season, and how the forecast (and the reported
+// yield, if any) compares with it; plus what the ± means.
+function UsualYield({ ctx, season, predicted, observed, place }) {
+  const u = ctx?.usual;
+  const err = ctx?.typical_error;
+  if (!u && !err) return null;
+  const vs = (v) => {
+    const d = v - u.avg;
+    return Math.abs(d) < 0.005 ? "the same as usual" : `${Math.abs(d).toFixed(2)} mt/ha ${d > 0 ? "above" : "below"} usual`;
+  };
+  return (
+    <div className="flex flex-col gap-1.5 px-3.5 py-3 bg-white border border-[#E1E3DE] rounded-[10px] text-[13px] leading-5 text-[#434840]">
+      {u && (
+        <span>
+          Usual {season} yield{place ? ` for ${place}` : ""}: <b className="text-[#1B3315]">{u.avg.toFixed(2)} mt/ha</b>{" "}
+          <span className="text-[#6B7280]">({u.from === u.to ? u.from : `${u.from} to ${u.to}`} average)</span>
+        </span>
+      )}
+      {u && predicted != null && <span>The forecast is {vs(predicted)}.</span>}
+      {u && observed != null && <span>The reported yield is {vs(observed)}.</span>}
+      {err && (
+        <span className="text-[11px] leading-4 text-[#6B7280]">
+          ± is the model's average error on past seasons ({err.n.toLocaleString("en-US")}{" "}
+          {ctx.level === "barangay" ? "barangay" : "city"}-seasons): the actual yield usually falls within this range.
+        </span>
+      )}
+    </div>
+  );
+}
+
 function Tile({ value, label, tone }) {
   return (
     <div className="flex flex-col items-center justify-center gap-0.5 h-[72px] bg-white border border-[#E1E3DE] rounded-lg">
@@ -44,6 +87,28 @@ export default function YieldComparisonCard({
   // province averages). `isMuni` is the design component's original name for it.
   const isMuni = selection?.level === "municipality" || selection?.level === "barangay";
   const stats = yieldResp?.stats;
+
+  // Typical error and usual yield for the area in view (province, city or barangay).
+  const [ctx, setCtx] = useState(null);
+  const ctxLevel = selection?.level === "barangay" ? "b" : selection?.level === "municipality" ? "m" : "p";
+  const ctxId = ctxLevel === "p" ? null : selection?.id;
+  useEffect(() => {
+    if (!season || !year) return;
+    let active = true;
+    yieldApi
+      .forecastContext({
+        season,
+        year,
+        municipalityId: ctxLevel === "m" ? ctxId : null,
+        barangayId: ctxLevel === "b" ? ctxId : null,
+      })
+      .then((r) => active && setCtx(r))
+      .catch(() => active && setCtx(null));
+    return () => {
+      active = false;
+    };
+  }, [season, year, ctxLevel, ctxId]);
+  const place = isMuni ? selection.name : "";
 
   if (yieldLoading) {
     return <Shell season={season} year={year}><p className="text-sm text-[#6B7280]">Loading yield…</p></Shell>;
@@ -76,8 +141,10 @@ export default function YieldComparisonCard({
             <span className="text-[26px] font-bold text-[#1B3315]">
               {predicted} <span className="text-sm font-semibold text-[#6B7280]">mt/ha</span>
             </span>
+            <PredictedRange predicted={predicted} ctx={ctx} />
           </div>
         )}
+        {forecast && <UsualYield ctx={ctx} season={season} predicted={predicted} place={place} />}
         <p className="text-sm text-[#6B7280]">
           {forecast
             ? `No yield has been reported ${isMuni ? `for ${selection.name} ` : ""}in ${season} ${year} yet, so this forecast cannot be compared.`
@@ -136,8 +203,16 @@ export default function YieldComparisonCard({
             {isMuni ? "Predicted" : "Predicted avg"}
           </span>
           <span className="text-[26px] font-bold text-[#1B3315]">{hasPred ? predicted : "N/A"}</span>
+          {hasPred && <PredictedRange predicted={predicted} ctx={ctx} />}
         </div>
       </div>
+      <UsualYield
+        ctx={ctx}
+        season={season}
+        predicted={hasPred ? predicted : null}
+        observed={isEstimated ? null : observed}
+        place={place}
+      />
 
       {/* Dumbbell scale */}
       <div className="flex flex-col gap-1.5">
@@ -198,8 +273,13 @@ export default function YieldComparisonCard({
         <span className="text-sm leading-5 text-[#434840]">
           The model{" "}
           <b className="text-[#191C1A]">
-            {residual < 0 ? "over-predicts" : residual > 0 ? "under-predicts" : "matches"}
-            {residual !== 0 && ` by ${Math.abs(residual)} mt/ha`}
+            {residualClass(residual) === "over"
+              ? "overestimates"
+              : residualClass(residual) === "under"
+              ? "underestimates"
+              : "is close"}
+            {residual !== 0 &&
+              `${residualClass(residual) === "close" ? ", off by" : " by"} ${Math.abs(residual)} mt/ha (${Math.round(Math.abs(residual) * 1000).toLocaleString("en-US")} kg/ha)`}
           </b>{" "}
           ({errPct}%) {isMuni ? `for ${selection.name}` : "at the province level"}.
         </span>

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 
 const LINKS = [
   { label: "About AgriKA-GIS", to: "/about" },
-  { label: "Yield Map", to: "/yield-map" },
   { label: "FAQs", to: "/faq" },
   { label: "Contact", to: "/contact" },
 ];

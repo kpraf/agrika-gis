@@ -5,9 +5,11 @@ import StatusPage from "./StatusPage";
 
 export default function Unauthorized() {
   const { user } = useAuth();
-  // Signed-in users go back to the dashboard their role can open; guests go home.
-  const primary = user
-    ? { label: "Back to Dashboard", to: landingPathFor(user) }
+  // Signed-in users go back to the dashboard their role can open; guests, and accounts
+  // with no city assigned (nothing to open), go home.
+  const landing = user ? landingPathFor(user) : "/unauthorized";
+  const primary = landing !== "/unauthorized"
+    ? { label: "Back to Dashboard", to: landing }
     : { label: "Back to Home", to: "/" };
 
   return (
@@ -16,7 +18,7 @@ export default function Unauthorized() {
       title="This field is fenced off."
       body="Your account doesn't have permission to view this page. If you think you should have access, ask your administrator."
       primary={primary}
-      secondary={{ label: "Open Yield Map", to: "/yield-map" }}
+      secondary={{ label: "About AgriKA-GIS", to: "/about" }}
       footerLink={{ label: "Request access", to: "/contact" }}
     />
   );

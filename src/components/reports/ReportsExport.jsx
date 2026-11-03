@@ -22,6 +22,7 @@ function rampColor(value, min, max) {
   return REPORT_RAMP[Math.round(t * (REPORT_RAMP.length - 1))];
 }
 import { yieldApi } from "../../lib/api";
+import { openOverallReport, municipalityIdFor } from "../../lib/overallReport";
 import { useCityScope } from "../../lib/cityScope";
 
 function deriveStatus(yieldValue) {
@@ -37,6 +38,7 @@ const STATUS_STYLES = {
 };
 
 const REPORT_TYPES = [
+  { key: "overall", label: "Overall Report (PDF)" },
   { key: "summary", label: "Yield Summary" },
   { key: "comparison", label: "Comparison Report" },
   { key: "importLog", label: "Data Import History" },
@@ -416,7 +418,43 @@ export default function ReportsExport() {
     };
   };
 
+  // Overall Report: the province, the chosen city, or (barangay level) that city.
+  // Always a PDF. Uses the city and municipality yields within the page's years and
+  // season; a locked account only ever gets its own city.
+  const generateOverall = async () => {
+    let name = null;
+    let id = null;
+    if (lockedId != null) {
+      name = lockedName;
+      id = lockedId;
+    } else if (isBarangay && viewBrgyMuni != null) {
+      id = viewBrgyMuni;
+      name = barangayMunis.find((m) => m.municipality_id === viewBrgyMuni)?.name ?? null;
+    } else if (viewMuni) {
+      name = viewMuni;
+      id = await municipalityIdFor(viewMuni);
+    }
+    const rows = records.filter(
+      (r) =>
+        (!name || r.municipality === name) &&
+        (season === "All" || r.season === season) &&
+        (fromYear == null || r.year >= fromYear) &&
+        (toYear == null || r.year <= toYear)
+    );
+    const ys = rows.map((r) => r.year);
+    openOverallReport({
+      scope: { name: name || "Laguna Province", municipalityId: id },
+      records: rows,
+      season,
+      years: [fromYear ?? Math.min(...ys), toYear ?? Math.max(...ys)],
+    });
+  };
+
   const handleGenerate = () => {
+    if (reportType === "overall") {
+      generateOverall();
+      return;
+    }
     const { rows, columns, title, footer } = buildExportRows();
     if (!rows.length) return;
     if (exportFormat === "pdf") {
@@ -1098,6 +1136,12 @@ export default function ReportsExport() {
                     </button>
                   ))}
                 </div>
+                {reportType === "overall" && (
+                  <p className="m-0 text-xs leading-5 text-[#6B7280]">
+                    The Overall Report is always a PDF: summary, RPI and SPI, historical and predicted yields
+                    with charts. It opens in a new window; choose Save as PDF there.
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={handleGenerate}

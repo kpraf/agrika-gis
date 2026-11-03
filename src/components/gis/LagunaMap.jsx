@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import MapControls from "../layout/MapControls";
 import { boundariesApi, onServerSlow } from "../../lib/api";
 import { foldText, matchesQuery } from "../../lib/text";
+import { residualClass } from "../../lib/mapInsights";
 
 const DEFAULT_CENTER = [14.2117, 121.1653];
 const DEFAULT_ZOOM = 11;
@@ -75,10 +76,17 @@ export const RAMPS = {
   purple: ["#FCFBFD", "#EFEDF5", "#DADAEB", "#BCBDDC", "#9E9AC8", "#756BB1", "#54278F"], // radar backscatter
 };
 
-function residualColor(value, absMax) {
-  if (value == null || !absMax) return RESIDUAL_RAMP[3];
-  const t = Math.max(-1, Math.min(1, value / absMax)); // [-1, 1]
-  return RESIDUAL_RAMP[Math.round(((t + 1) / 2) * (RESIDUAL_RAMP.length - 1))];
+// The residual map uses the paper's three fixed classes (±0.20 mt/ha), not a scale
+// stretched to the largest residual on screen, so a colour means the same in every view.
+export const RESIDUAL_CLASSES = [
+  { key: "over", color: "#D6604D", label: "Overestimated", range: "below −0.20", note: "harvest lower than forecast" },
+  { key: "close", color: "#F2EFDC", label: "Close", range: "−0.20 to +0.20", note: "within 200 kg/ha" },
+  { key: "under", color: "#4393C3", label: "Underestimated", range: "above +0.20", note: "harvest higher than forecast" },
+];
+
+function residualColor(value) {
+  const cls = residualClass(value);
+  return cls ? RESIDUAL_CLASSES.find((c) => c.key === cls).color : RESIDUAL_RAMP[3];
 }
 
 export default function LagunaMap({
@@ -290,7 +298,7 @@ export default function LagunaMap({
   const brgyHeatmapActive = barangayHeatmap;
   const brgyFill = (v) =>
     colorMode === "residual"
-      ? residualColor(v, barangayColorScale?.max)
+      ? residualColor(v)
       : yieldColor(v, barangayColorScale?.min, barangayColorScale?.max, RAMPS[rampKey] || YIELD_RAMP);
   const brgyBaseStyleFor = (feature) => {
     if (!brgyHeatmapActive) return brgyStyle;
@@ -377,7 +385,7 @@ export default function LagunaMap({
       weight: forecastOutline ? 1.8 : 1,
       fillColor:
         colorMode === "residual"
-          ? residualColor(rec.yield, colorScale?.max)
+          ? residualColor(rec.yield)
           : yieldColor(rec.yield, colorScale?.min, colorScale?.max, RAMPS[rampKey] || YIELD_RAMP),
       fillOpacity: sat ? 0.6 : 0.85,
       ...dash,
@@ -956,17 +964,24 @@ export default function LagunaMap({
               {colorMode === "residual" ? "Residual (obs − pred), mt/ha" : legendLabel}
             </span>
             <div className="flex items-center gap-1.5 min-[1770px]:gap-2">
-              <span className="text-[10px] min-[1770px]:text-xs text-[#6B7280]">
-                {colorMode === "residual" ? "over-predicts" : legendScale.min}
-              </span>
-              <div className="flex h-3 min-[1770px]:h-3.5 w-24 min-[1770px]:w-52 rounded-full overflow-hidden">
-                {(colorMode === "residual" ? RESIDUAL_RAMP : RAMPS[rampKey] || YIELD_RAMP).map((c) => (
-                  <span key={c} className="flex-1" style={{ background: c }} />
-                ))}
-              </div>
-              <span className="text-[10px] min-[1770px]:text-xs text-[#6B7280]">
-                {colorMode === "residual" ? "under-predicts" : legendScale.max}
-              </span>
+              {colorMode === "residual" ? (
+                RESIDUAL_CLASSES.map((c) => (
+                  <span key={c.key} className="flex items-center gap-1 text-[10px] min-[1770px]:text-xs text-[#374151] whitespace-nowrap">
+                    <span className="w-3 h-3 rounded-sm shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)]" style={{ background: c.color }} />
+                    {c.label}
+                  </span>
+                ))
+              ) : (
+                <>
+                  <span className="text-[10px] min-[1770px]:text-xs text-[#6B7280]">{legendScale.min}</span>
+                  <div className="flex h-3 min-[1770px]:h-3.5 w-24 min-[1770px]:w-52 rounded-full overflow-hidden">
+                    {(RAMPS[rampKey] || YIELD_RAMP).map((c) => (
+                      <span key={c} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </div>
+                  <span className="text-[10px] min-[1770px]:text-xs text-[#6B7280]">{legendScale.max}</span>
+                </>
+              )}
             </div>
             {/* "No data" key hidden below 1770px to keep the legend from colliding with
                 the basemap toggle / zoom; the grey polygons read clearly enough. */}

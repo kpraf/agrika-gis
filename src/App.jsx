@@ -50,17 +50,17 @@ function RequireRole({ allowedRoles, children }) {
 }
 
 // Keeps a scoped role (agriculturist / rice technician) on their assigned city.
-// `base` is the module path, e.g. "/monitoring". Any other city in the address —
-// or none, on the public map — is replaced with their own. Administrators and
-// guests pass straight through.
+// `base` is the module path, e.g. "/monitoring". Any other city in the address,
+// or none, is replaced with their own. Administrators and guests pass straight
+// through (guests are then stopped by RequireRole).
 function OwnCityOnly({ base, children }) {
   const { city } = useParams();
   const { loading } = useAuth();
   const scope = useCityScope();
   if (loading || !scope.locked) return children;
   if (!scope.slug) {
-    // No city on the account: nothing to scope to. The public map stays viewable.
-    return base === "/yield-map" && !city ? children : <Navigate to="/unauthorized" replace />;
+    // No city on the account: nothing to scope to.
+    return <Navigate to="/unauthorized" replace />;
   }
   if (city !== scope.slug) return <Navigate to={`${base}/${scope.slug}`} replace />;
   return children;
@@ -107,12 +107,15 @@ export default function App() {
         />
 
         {/* Module 3 — Spatial GIS Visualization and Analysis */}
-        {/* Yield map. SpatialGIS itself decides chrome by auth state: logged in = side nav, public = top nav. */}
+        {/* Yield map, signed-in users only. Province-wide view is administrator only; a scoped
+            role is sent to its own city by OwnCityOnly, as on Module 2. */}
         <Route
           path="/yield-map"
           element={
             <OwnCityOnly base="/yield-map">
-              <SpatialGIS />
+              <RequireRole allowedRoles={[]}>
+                <SpatialGIS />
+              </RequireRole>
             </OwnCityOnly>
           }
         />

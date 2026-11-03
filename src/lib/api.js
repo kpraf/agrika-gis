@@ -185,6 +185,18 @@ export const yieldApi = {
   predictionsMeta: () => request("/yield/predictions/meta"),
   compare: (year, season) =>
     request(`/yield/compare?year=${year}&season=${encodeURIComponent(season)}`),
+  // Rice Productivity Index and Spatial Productivity Index (one city, or all).
+  // Actual and predicted yield season by season (one city, or the mean over cities).
+  actualVsPredicted: (municipalityId) =>
+    request(`/yield/actual-vs-predicted${municipalityId ? `?municipality_id=${municipalityId}` : ""}`),
+  // Typical error of a forecast (±) and the area's usual yield for the season.
+  forecastContext: ({ season, year, municipalityId, barangayId }) =>
+    request(
+      `/yield/forecast-context?season=${encodeURIComponent(season)}&year=${year}` +
+        (barangayId ? `&barangay_id=${barangayId}` : municipalityId ? `&municipality_id=${municipalityId}` : "")
+    ),
+  productivity: (municipalityId) =>
+    request(`/yield/productivity${municipalityId ? `?municipality_id=${municipalityId}` : ""}`),
 };
 
 // Remote-sensing / meteorological features (NDVI, rainfall, etc.) for the map's

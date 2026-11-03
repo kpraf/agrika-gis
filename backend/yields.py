@@ -427,11 +427,21 @@ def predictions_meta():
             text("SELECT DISTINCT model_version FROM municipality_predictions ORDER BY model_version")
         )
     ]
+    # The newest season with a forecast (Wet after Dry in a year), and whether any
+    # yield has been reported for it yet; the map opens on it while it is unreported.
+    latest = db.session.execute(text(
+        "SELECT s.year, s.season_type, EXISTS (SELECT 1 FROM municipality_yield_records r "
+        "WHERE r.season_id = s.season_id) AS reported "
+        "FROM seasons s WHERE EXISTS (SELECT 1 FROM municipality_predictions p WHERE p.season_id = s.season_id) "
+        "ORDER BY s.year DESC, CASE s.season_type WHEN 'Wet' THEN 1 ELSE 0 END DESC LIMIT 1"
+    )).first()
     return jsonify({
         "has_predictions": len(years) > 0,
         "years": years,
         "seasons": seasons,
         "model_versions": models,
+        "latest": {"year": latest.year, "season": latest.season_type, "reported": bool(latest.reported)}
+        if latest else None,
     })
 
 
@@ -575,6 +585,223 @@ def trend():
         for row in db.session.execute(text(sql), params)
     ]
     return jsonify({"season": season, "municipality_id": mid, "series": series})
+
+
+@yields_bp.get("/actual-vs-predicted")
+def actual_vs_predicted():
+    """Actual and predicted yield season by season (no averaging of years together).
+
+    Query params:
+        municipality_id (int) optional — one city; omit for the mean over cities.
+
+    One point per season that has a prediction, in date order (Dry before Wet):
+    { year, season, actual, predicted, n }. For the province, actual and predicted
+    are means over the cities that have BOTH values that season (n of them), so the
+    two lines describe the same cities; a season with a forecast but no reported
+    yield yet keeps its predicted mean (over all forecast cities) and actual = null.
+    Latest model run per city and season, as in /compare.
+    """
+    mid = request.args.get("municipality_id", type=int)
+    scope = " AND p.municipality_id = :mid" if mid else ""
+    rows = db.session.execute(
+        text(
+            "WITH pred AS ("
+            "  SELECT DISTINCT ON (p.municipality_id, p.season_id) p.municipality_id, p.season_id, p.predicted_yield "
+            "  FROM municipality_predictions p WHERE TRUE" + scope + " "
+            "  ORDER BY p.municipality_id, p.season_id, p.generated_at DESC"
+            ") "
+            "SELECT s.year, s.season_type, pred.predicted_yield AS predicted, r.observed_yield AS actual "
+            "FROM pred "
+            "JOIN seasons s ON s.season_id = pred.season_id "
+            "LEFT JOIN municipality_yield_records r "
+            "  ON r.municipality_id = pred.municipality_id AND r.season_id = pred.season_id"
+        ),
+        {"mid": mid} if mid else {},
+    )
+    by_season = {}
+    for r in rows:
+        by_season.setdefault((r.year, r.season_type), []).append((r.actual, r.predicted))
+
+    order = {"Dry": 0, "Wet": 1}
+    series = []
+    for (year, season), pairs in sorted(by_season.items(), key=lambda kv: (kv[0][0], order.get(kv[0][1], 2))):
+        both = [(a, p) for a, p in pairs if a is not None]
+        use = both or pairs  # forecast-only season: predicted over every forecast city
+        series.append({
+            "year": year,
+            "season": season,
+            "actual": round(sum(a for a, _ in both) / len(both), 3) if both else None,
+            "predicted": round(sum(p for _, p in use) / len(use), 3),
+            "n": len(use),
+        })
+    return jsonify({"municipality_id": mid, "series": series})
+
+
+@yields_bp.get("/forecast-context")
+def forecast_context():
+    """How far to trust a forecast, and what is normal for the area.
+
+    Query params:
+        season          (str) required — 'Dry' or 'Wet'
+        year            (int) required — the season being looked at
+        municipality_id (int) optional — a city (omit for the province)
+        barangay_id     (int) optional — a barangay (takes precedence)
+
+    typical_error: mean absolute error of the model over every past season where both a
+        forecast and a reported yield exist, at the same level (all city-seasons for a
+        city or the province, all barangay-seasons for a barangay; estimated barangay
+        yields excluded). Shown as the ± of a forecast.
+    usual: the area's average reported yield for the same season type in the years
+        before `year` (the province uses the yearly mean over its cities).
+    """
+    season = request.args.get("season", type=str)
+    year = request.args.get("year", type=int)
+    mid = request.args.get("municipality_id", type=int)
+    bid = request.args.get("barangay_id", type=int)
+    if not season or not year:
+        return jsonify({"error": "season and year are required"}), 400
+
+    if bid:
+        err = db.session.execute(text(
+            "SELECT AVG(ABS(y.yield_mt_ha - p.predicted_yield)) AS mae, COUNT(*) AS n "
+            "FROM barangay_predictions p "
+            "JOIN barangay_yield y ON y.barangay_id = p.barangay_id AND y.season_id = p.season_id "
+            "WHERE y.yield_mt_ha IS NOT NULL AND NOT COALESCE(y.source ILIKE 'estimated%', FALSE)"
+        )).one()
+        usual_rows = db.session.execute(text(
+            "SELECT s.year, y.yield_mt_ha AS v FROM barangay_yield y "
+            "JOIN seasons s ON s.season_id = y.season_id "
+            "WHERE y.barangay_id = :b AND s.season_type = :sea AND s.year < :y "
+            "AND y.yield_mt_ha IS NOT NULL AND NOT COALESCE(y.source ILIKE 'estimated%', FALSE)"
+        ), {"b": bid, "sea": season, "y": year}).all()
+        level = "barangay"
+    else:
+        err = db.session.execute(text(
+            "WITH pred AS ("
+            "  SELECT DISTINCT ON (p.municipality_id, p.season_id) p.municipality_id, p.season_id, p.predicted_yield "
+            "  FROM municipality_predictions p ORDER BY p.municipality_id, p.season_id, p.generated_at DESC"
+            ") "
+            "SELECT AVG(ABS(r.observed_yield - pred.predicted_yield)) AS mae, COUNT(*) AS n "
+            "FROM pred JOIN municipality_yield_records r "
+            "  ON r.municipality_id = pred.municipality_id AND r.season_id = pred.season_id"
+        )).one()
+        scope = "AND r.municipality_id = :m " if mid else ""
+        usual_rows = db.session.execute(text(
+            "SELECT s.year, AVG(r.observed_yield) AS v FROM municipality_yield_records r "
+            "JOIN seasons s ON s.season_id = r.season_id "
+            "WHERE s.season_type = :sea AND s.year < :y " + scope + "GROUP BY s.year"
+        ), {"m": mid, "sea": season, "y": year}).all()
+        level = "municipality" if mid else "province"
+
+    usual = None
+    if usual_rows:
+        years = sorted(r.year for r in usual_rows)
+        usual = {
+            "avg": round(sum(r.v for r in usual_rows) / len(usual_rows), 3),
+            "from": years[0],
+            "to": years[-1],
+            "n": len(usual_rows),
+        }
+    return jsonify({
+        "level": level,
+        "season": season,
+        "year": year,
+        "typical_error": {"mae": round(err.mae, 3), "n": err.n} if err.mae is not None else None,
+        "usual": usual,
+    })
+
+
+def _cv(values):
+    """Sample coefficient of variation (standard deviation / mean)."""
+    if len(values) < 2:
+        return None
+    mean = sum(values) / len(values)
+    sd = (sum((v - mean) ** 2 for v in values) / (len(values) - 1)) ** 0.5
+    return sd / mean if mean else None
+
+
+@yields_bp.get("/productivity")
+def productivity():
+    """Rice Productivity Index (RPI) and Spatial Productivity Index (SPI) per city.
+
+    Query params:
+        municipality_id (int) optional — one city; omit for every city with data.
+
+    RPI (paper, Chapter 3): RPI_y = Y_dry,y * W_dry + Y_wet,y * W_wet, where
+    W_dry = CV_dry / (CV_dry + CV_wet) and CV is the coefficient of variation of all
+    of that season's observed yields (municipality_yield_records). Given for each
+    year that has both seasons.
+
+    SPI: harvested rice area (sum of barangay_yield.area_ha for the season, as
+    reported by the City Agriculture Office) / city land area (from the PostGIS
+    boundary) * 100. Only cities with barangay records have an SPI.
+    """
+    mid = request.args.get("municipality_id", type=int)
+    scope = " AND m.municipality_id = :mid" if mid else ""
+    params = {"mid": mid} if mid else {}
+
+    yields = {}  # municipality_id -> {"name", "Dry": {year: y}, "Wet": {year: y}}
+    for row in db.session.execute(
+        text(
+            "SELECT m.municipality_id, m.municipality_name, s.year, s.season_type, r.observed_yield "
+            "FROM municipality_yield_records r "
+            "JOIN municipalities m ON m.municipality_id = r.municipality_id "
+            "JOIN seasons s ON s.season_id = r.season_id "
+            "WHERE s.season_type IN ('Dry', 'Wet')" + scope
+        ),
+        params,
+    ):
+        city = yields.setdefault(row.municipality_id, {"name": row.municipality_name, "Dry": {}, "Wet": {}})
+        city[row.season_type][row.year] = row.observed_yield
+
+    areas = {}  # municipality_id -> {"land_ha", "series": [...]}
+    for row in db.session.execute(
+        text(
+            "SELECT m.municipality_id, s.year, s.season_type, SUM(y.area_ha) AS rice_ha, "
+            "ST_Area(m.boundary_geometry::geography) / 10000.0 AS land_ha "
+            "FROM barangay_yield y "
+            "JOIN barangays b ON b.barangay_id = y.barangay_id "
+            "JOIN municipalities m ON m.municipality_id = b.municipality_id "
+            "JOIN seasons s ON s.season_id = y.season_id "
+            "WHERE y.area_ha IS NOT NULL AND m.boundary_geometry IS NOT NULL" + scope + " "
+            "GROUP BY m.municipality_id, s.year, s.season_type, m.boundary_geometry "
+            "ORDER BY s.year, s.season_type"
+        ),
+        params,
+    ):
+        city = areas.setdefault(row.municipality_id, {"land_ha": round(row.land_ha, 1), "series": []})
+        city["series"].append({
+            "year": row.year,
+            "season": row.season_type,
+            "rice_ha": round(row.rice_ha, 1),
+            "spi": round(row.rice_ha / row.land_ha * 100, 2),
+        })
+
+    records = []
+    for muni_id, city in sorted(yields.items(), key=lambda kv: kv[1]["name"]):
+        cv_dry, cv_wet = _cv(list(city["Dry"].values())), _cv(list(city["Wet"].values()))
+        rpi = None
+        if cv_dry is not None and cv_wet is not None and cv_dry + cv_wet > 0:
+            w_dry = cv_dry / (cv_dry + cv_wet)
+            w_wet = 1 - w_dry
+            years = sorted(set(city["Dry"]) & set(city["Wet"]))
+            rpi = {
+                "cv_dry": round(cv_dry, 4),
+                "cv_wet": round(cv_wet, 4),
+                "w_dry": round(w_dry, 3),
+                "w_wet": round(w_wet, 3),
+                "series": [
+                    {
+                        "year": y,
+                        "dry": round(city["Dry"][y], 3),
+                        "wet": round(city["Wet"][y], 3),
+                        "rpi": round(city["Dry"][y] * w_dry + city["Wet"][y] * w_wet, 3),
+                    }
+                    for y in years
+                ],
+            }
+        records.append({"municipality_id": muni_id, "name": city["name"], "rpi": rpi, "spi": areas.get(muni_id)})
+    return jsonify({"records": records})
 
 
 # --- CSV import -------------------------------------------------------------

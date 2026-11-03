@@ -12,6 +12,7 @@ import {
   Tooltip,
   Brush,
   LabelList,
+  Legend,
 } from "recharts";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import ViewMenu from "./ViewMenu";
@@ -170,10 +171,14 @@ export default function RiceYieldAnalytics() {
   const [selectedMuni, setSelectedMuni] = useState([]); // ordered ids (order = colour)
   const [seriesByMuni, setSeriesByMuni] = useState({}); // { id: { year: yield } }
 
-  // Predicted vs Recorded (municipality-level only).
+  // Prediction availability (gates the actual vs predicted chart).
   const [predMeta, setPredMeta] = useState({ has_predictions: false, years: [] });
-  const [compareYear, setCompareYear] = useState(null);
-  const [compareRaw, setCompareResp] = useState(null);
+
+  // Actual vs predicted, season by season: "all" (mean over cities) or one city id.
+  // A locked account only ever sees its own city.
+  const [avpPick, setAvpPick] = useState("all");
+  const avpCity = lockedId ?? (avpPick === "all" ? null : Number(avpPick));
+  const [avpSeries, setAvpSeries] = useState([]);
 
   // Barangay comparison, always scoped to ONE municipality.
   const [brgyMunis, setBrgyMunis] = useState([]);
@@ -224,7 +229,6 @@ export default function RiceYieldAnalytics() {
       .then((m) => {
         if (!active) return;
         setPredMeta(m);
-        if (m.years?.length) setCompareYear(m.years[m.years.length - 1]);
       })
       .catch(() => {});
     return () => {
@@ -257,40 +261,31 @@ export default function RiceYieldAnalytics() {
     };
   }, [latestYear, season, lockedId]);
 
-  // Observed vs predicted (+ MAE) for the chosen comparison year + season.
+  // Actual vs predicted by season for the chosen scope.
   useEffect(() => {
-    if (!compareYear || !season) {
-      setCompareResp(null);
-      return;
-    }
     let active = true;
-    track(yieldApi.compare(compareYear, season))
-      .then((r) => active && setCompareResp(r))
-      .catch(() => active && setCompareResp(null));
+    track(yieldApi.actualVsPredicted(avpCity))
+      .then((r) => active && setAvpSeries(r.series || []))
+      .catch(() => active && setAvpSeries([]));
     return () => {
       active = false;
     };
-  }, [compareYear, season]);
-
-  // Predicted vs recorded as this account may see it: everything for an
-  // administrator; a locked account gets its own city's row, with the averages and
-  // the error recomputed from that row instead of the province figures.
-  const compareResp = useMemo(() => {
-    if (!compareRaw || lockedId == null) return compareRaw;
-    const records = (compareRaw.records || []).filter((r) => r.municipality_id === lockedId);
-    const own = records[0];
-    const scored = own?.observed != null && own?.predicted != null;
-    return {
-      ...compareRaw,
-      records,
-      stats: {
-        ...compareRaw.stats,
-        observed_avg: own?.observed ?? null,
-        predicted_avg: own?.predicted ?? null,
-        mae: scored ? Number(Math.abs(own.observed - own.predicted).toFixed(3)) : null,
-      },
-    };
-  }, [compareRaw, lockedId]);
+  }, [avpCity]);
+  const avpData = avpSeries.map((p) => ({ ...p, label: `${p.season} ${p.year}` }));
+  const avpScored = avpSeries.filter((p) => p.actual != null);
+  const avpOver = avpScored.filter((p) => p.predicted > p.actual).length;
+  const avpMad = avpScored.length
+    ? avpScored.reduce((a, p) => a + Math.abs(p.actual - p.predicted), 0) / avpScored.length
+    : null;
+  const avpForecast = avpSeries.filter((p) => p.actual == null).map((p) => `${p.season} ${p.year}`);
+  // Y axis in clean 0.5 mt/ha steps around the data.
+  const avpTicks = useMemo(() => {
+    const vals = avpSeries.flatMap((p) => [p.actual, p.predicted]).filter((v) => v != null);
+    if (!vals.length) return undefined;
+    const lo = Math.floor((Math.min(...vals) - 0.2) * 2) / 2;
+    const hi = Math.ceil((Math.max(...vals) + 0.2) * 2) / 2;
+    return Array.from({ length: Math.round((hi - lo) / 0.5) + 1 }, (_, i) => lo + i * 0.5);
+  }, [avpSeries]);
 
   // Municipality series for each selected municipality.
   useEffect(() => {
@@ -443,12 +438,6 @@ export default function RiceYieldAnalytics() {
   // a "loading" pill (the skeleton above only covers the nothing-to-show case).
   const updating = busy && !chartLoading;
 
-  const compareChartData = useMemo(() => {
-    if (isBarangay || !compareResp) return [];
-    return (compareResp.records || [])
-      .filter((r) => selectedMuni.includes(r.municipality_id))
-      .map((r) => ({ name: r.name, observed: r.observed, predicted: r.predicted, residual: r.residual }));
-  }, [compareResp, selectedMuni, isBarangay]);
 
   const hoverEntity = hoverActive ? selectedEntities.find((e) => e.id === hoverId) : null;
   // The newest year shown and the one before it, for the "latest" value and its change.
@@ -484,7 +473,7 @@ export default function RiceYieldAnalytics() {
           <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">{cityLabel}</span>
         </header>
 
-        <div className="flex-1 overflow-y-auto sm:p-6 md:p-10">
+        <div className="flex-1 overflow-y-auto sm:p-6 md:p-10 space-y-6">
           <div className="flex flex-col gap-6 p-4 sm:p-6 bg-white sm:border sm:border-[#F3F4F6] sm:shadow-sm sm:rounded-2xl">
             {/* Phone (<640px): label-free, full-width filters */}
             <MobileFilters
@@ -929,63 +918,6 @@ export default function RiceYieldAnalytics() {
               </div>
             </div>
 
-            {/* Predicted vs Recorded Yield (unchanged, full width below) */}
-            {!isBarangay && predMeta.has_predictions && (
-              <div className="flex flex-col gap-3 pt-2 border-t border-[#F3F4F6]">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-medium text-[#374151]">
-                    Predicted vs Recorded Yield <span className="text-[#9CA3AF]">({season} season)</span>
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-[#6B7280]">Year</span>
-                    <select
-                      value={compareYear ?? ""}
-                      onChange={(e) => setCompareYear(Number(e.target.value))}
-                      className="px-2 py-1 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
-                    >
-                      {(predMeta.years || []).map((y) => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {compareChartData.length === 0 ? (
-                  <div className="text-sm text-[#9CA3AF] px-4 py-6 text-center bg-[#F9FAFB] rounded-lg">
-                    No predictions for the selected cities/municipalities in {compareYear} {season}.
-                  </div>
-                ) : (
-                  <>
-                    <div className={`w-full h-[280px] ${loadingDim(updating)}`}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={compareChartData} margin={isPhone ? { top: 8, right: 8, left: 0, bottom: 40 } : { top: 8, right: 16, left: 8, bottom: 40 }}>
-                          <CartesianGrid stroke="#F3F4F6" vertical={false} />
-                          <XAxis
-                            dataKey="name"
-                            tick={{ fontSize: isPhone ? 10 : 11, fill: "#6B7280" }}
-                            interval={0}
-                            angle={-35}
-                            textAnchor="end"
-                            height={56}
-                            tickFormatter={(n) => (isPhone ? String(n).replace(/^City of /, "") : n)}
-                          />
-                          <YAxis tick={{ fontSize: isPhone ? 11 : 12, fill: "#6B7280" }} width={isPhone ? 30 : 70} tickFormatter={(v) => `${Number(v).toFixed(1)}`} />
-                          <Tooltip formatter={(v) => (v == null ? "N/A" : `${v} mt/ha`)} />
-                          <Bar dataKey="observed" name="Recorded" fill="#74C476" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="predicted" name="Predicted" fill="#F2C94C" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex flex-wrap gap-x-6 gap-y-2 px-4 py-3 bg-[#F9FAFB] rounded-lg text-sm">
-                      <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm bg-[#74C476]" />Recorded avg: <b className="text-[#1B3315]">{compareResp?.stats?.observed_avg ?? "N/A"} mt/ha</b></span>
-                      <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm bg-[#F2C94C]" />Predicted avg: <b className="text-[#1B3315]">{compareResp?.stats?.predicted_avg ?? "N/A"} mt/ha</b></span>
-                      <span>Model MAE: <b className="text-[#1B3315]">{compareResp?.stats?.mae ?? "N/A"} mt/ha</b></span>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
             <p className="text-[11px] leading-4 text-[#9CA3AF]">
               {isBarangay ? (
                 <>
@@ -1000,6 +932,83 @@ export default function RiceYieldAnalytics() {
               )}
             </p>
           </div>
+
+            {/* Actual vs predicted, one point per season (years are not averaged together). */}
+            {!isBarangay && predMeta.has_predictions && (
+              <div className="flex flex-col gap-3 p-4 sm:p-6 bg-white sm:border sm:border-[#F3F4F6] sm:shadow-sm sm:rounded-2xl">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-base font-semibold text-[#1F2937]">
+                    Actual vs Predicted Yield by Season <span className="text-[#9CA3AF]">(year by year)</span>
+                  </h3>
+                  {lockedId == null && (
+                    <select
+                      value={avpPick}
+                      onChange={(e) => setAvpPick(e.target.value)}
+                      className="px-2 py-1 text-sm text-[#1F2937] bg-white border border-[#E5E7EB] rounded-lg outline-none"
+                    >
+                      <option value="all">All cities and municipalities (mean)</option>
+                      {munis.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {avpData.length === 0 ? (
+                  <div className="text-sm text-[#9CA3AF] px-4 py-6 text-center bg-[#F9FAFB] rounded-lg">
+                    No predictions for this city or municipality yet.
+                  </div>
+                ) : (
+                  <>
+                    <div className={`w-full h-[300px] ${loadingDim(updating)}`}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={avpData} margin={isPhone ? { top: 8, right: 8, left: 0, bottom: 8 } : { top: 8, right: 16, left: 8, bottom: 8 }}>
+                          <CartesianGrid stroke="#F3F4F6" vertical={false} />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: isPhone ? 10 : 11, fill: "#6B7280" }}
+                            interval={0}
+                            angle={-40}
+                            textAnchor="end"
+                            height={60}
+                          />
+                          <YAxis
+                            tick={{ fontSize: isPhone ? 11 : 12, fill: "#6B7280" }}
+                            width={isPhone ? 30 : 70}
+                            domain={avpTicks ? [avpTicks[0], avpTicks[avpTicks.length - 1]] : ["auto", "auto"]}
+                            ticks={avpTicks}
+                            tickFormatter={(v) => (isPhone ? Number(v).toFixed(1) : `${Number(v).toFixed(1)} mt/ha`)}
+                          />
+                          <Tooltip
+                            formatter={(v, n) => [v == null ? "not reported yet" : `${v} mt/ha`, n]}
+                            labelFormatter={(l, items) => {
+                              const p = items?.[0]?.payload;
+                              return p && avpCity == null ? `${l} (${p.n} cities)` : l;
+                            }}
+                          />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Line type="linear" dataKey="actual" name="Actual" stroke="#1F6306" strokeWidth={2.5} dot={{ r: 3, fill: "#1F6306" }} connectNulls={false} />
+                          <Line type="linear" dataKey="predicted" name="Predicted" stroke="#EAB308" strokeWidth={2.5} strokeDasharray="5 4" dot={{ r: 3, fill: "#EAB308" }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {avpScored.length > 0 && (
+                      <div className="flex flex-wrap gap-x-6 gap-y-2 px-4 py-3 bg-[#F9FAFB] rounded-lg text-sm">
+                        <span>Predicted higher than actual in <b className="text-[#1B3315]">{avpOver} of {avpScored.length}</b> reported seasons</span>
+                        <span>Mean difference: <b className="text-[#1B3315]">{avpMad.toFixed(2)} mt/ha</b></span>
+                      </div>
+                    )}
+                    <p className="text-[11px] leading-4 text-[#6B7280]">
+                      Each point is one season, dry and wet in date order; years are not averaged together.
+                      {avpCity == null
+                        ? " Province line: mean over the cities and municipalities with both an actual and a predicted yield that season."
+                        : ""}
+                      {avpForecast.length > 0 ? ` ${avpForecast.join(", ")}: forecast only, no yield reported yet.` : ""}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
         </div>
       </div>
     </div>

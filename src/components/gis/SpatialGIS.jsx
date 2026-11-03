@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import DashboardSidebar from "../layout/DashboardSidebar";
 import Navbar from "../layout/Navbar";
@@ -11,6 +11,9 @@ import { yieldApi, featuresApi } from "../../lib/api";
 import { useCityScope } from "../../lib/cityScope";
 import { usePending, useDelayedFlag } from "../../lib/usePending";
 import { LoadingBar } from "../layout/LoadingIndicators";
+import MapInsightsCard from "./MapInsightsCard";
+import PhasePicturesCard from "./PhasePicturesCard";
+import { mapInsights } from "../../lib/mapInsights";
 
 // Environment (remote-sensing) layers the map can visualise — the model's inputs.
 // rampKey maps to a colour family defined in LagunaMap.
@@ -154,7 +157,13 @@ export default function SpatialGIS() {
   // choropleth (municipality data back to 2018).
   // Drilled into a city: the years with barangay yields or barangay forecasts.
   const barangayYears = meta.barangay_map_years?.length ? meta.barangay_map_years : meta.barangay_years;
-  const yearOptions = activeCityId && barangayYears?.length ? barangayYears : meta.years;
+  // Province view: years with reported yields, plus years that so far only have a
+  // forecast (a new season is forecast before its yields are reported).
+  const provinceYears = useMemo(
+    () => [...new Set([...(meta.years ?? []), ...(predMeta.years ?? [])])].sort((a, b) => a - b),
+    [meta.years, predMeta.years]
+  );
+  const yearOptions = activeCityId && barangayYears?.length ? barangayYears : provinceYears;
   // If the current year isn't offered for this scope, clamp to the nearest one.
   useEffect(() => {
     if (!year || !yearOptions?.length || yearOptions.includes(year)) return;
@@ -200,6 +209,18 @@ export default function SpatialGIS() {
       .catch(() => {})
       .finally(() => setPredMetaLoading(false));
   }, []);
+
+  // Open on the newest forecast while its yields are not reported yet: the map moves to
+  // the next season as soon as the season-forecast workflow has predicted it. Once only.
+  const openedOnForecast = useRef(false);
+  useEffect(() => {
+    const latest = predMeta.latest;
+    if (openedOnForecast.current || !latest || latest.reported || !meta.years?.length) return;
+    openedOnForecast.current = true;
+    setYear(latest.year);
+    setSeason(latest.season);
+    setDataSource("predicted");
+  }, [predMeta.latest, meta.years]);
 
   // Observed vs predicted (+ residual) for the current year/season.
   useEffect(() => {
@@ -522,15 +543,35 @@ export default function SpatialGIS() {
       ? compareResp?.stats?.predicted_avg
       : yieldResp?.stats?.avg;
 
-  // Option 1b: name the Data Source on the map; dash the forecast.
+  // Option 1b: name the Data Source and the season on the map; dash the forecast.
+  const chipPeriod = noticePeriod ? `, ${noticePeriod}` : "";
   const layerChip =
     showingEnvironment || !legendVisible
       ? null
       : showingResidual
-      ? { kind: "residual", label: "Residual", sub: "Observed − predicted" }
+      ? { kind: "residual", label: `Residual${chipPeriod}`, sub: "Observed − predicted" }
       : showingPredicted
-      ? { kind: "predicted", label: "Predicted yield", sub: "CNN-LSTM forecast" }
-      : { kind: "observed", label: "Observed yield", sub: "Reported harvest" };
+      ? { kind: "predicted", label: `Predicted yield${chipPeriod}`, sub: "CNN-LSTM forecast" }
+      : { kind: "observed", label: `Observed yield${chipPeriod}`, sub: "Reported harvest" };
+
+  // Plain-language insights for the layer on screen (fixed templates, lib/mapInsights).
+  // A locked account only ever sees its own city's rows.
+  const insights =
+    showingEnvironment || !legendVisible
+      ? []
+      : mapInsights({
+          mode: showingResidual ? "residual" : showingPredicted ? "predicted" : "observed",
+          records: drilledIn
+            ? showingResidual || showingPredicted
+              ? barangayCompareResp?.records
+              : barangayResp?.records
+            : showingResidual || showingPredicted
+            ? cardCompareResp?.records
+            : cardYieldResp?.records,
+          period: noticePeriod,
+          place: noticePlace,
+          unit: drilledIn ? ["barangay", "barangays"] : ["city or municipality", "cities and municipalities"],
+        });
 
   // When the map's drill state changes (e.g. the user clicked a municipality),
   // mirror it into the City filter so the two never disagree.
@@ -580,7 +621,18 @@ export default function SpatialGIS() {
               <span className="md:hidden">Spatial GIS</span>
               <span className="hidden md:inline">Spatial GIS Visualization and Analysis</span>
             </h1>
-            <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">{cityLabel}</span>
+            <span className="text-xs md:text-sm font-medium text-[#6B7280] shrink-0">
+              {cityLabel}
+              {!showingEnvironment && noticePeriod && (
+                <>
+                  {" · "}
+                  <b className="font-semibold text-[#1F2937]">
+                    {noticePeriod}
+                    {showingPredicted ? " forecast" : ""}
+                  </b>
+                </>
+              )}
+            </span>
           </header>
         )}
 
@@ -979,6 +1031,7 @@ export default function SpatialGIS() {
                 boundariesOn={layers.boundaries}
                 forecast={showingPredicted}
               />
+              <MapInsightsCard insights={insights} disclaimer={showingPredicted || showingResidual} />
               {/* Observed vs predicted only makes sense for a clicked area —
                   hidden at the province level until you drill into a city or barangay. */}
               {selection?.level === "municipality" && (
@@ -1017,6 +1070,7 @@ export default function SpatialGIS() {
                   ownCityOnly={lockedId != null}
                 />
               )}
+              <PhasePicturesCard selection={selection} year={year} season={season} />
             </div>
           </section>
         </div>

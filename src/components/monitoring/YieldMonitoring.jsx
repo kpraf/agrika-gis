@@ -18,6 +18,7 @@ import {
 import DashboardSidebar from "../layout/DashboardSidebar";
 import LagunaMap from "../gis/LagunaMap";
 import { yieldApi } from "../../lib/api";
+import ProductivityCards from "./ProductivityCards";
 import { useCityScope } from "../../lib/cityScope";
 import { usePending, useDelayedFlag } from "../../lib/usePending";
 import { LoadingBar, LoadingPill, loadingDim } from "../layout/LoadingIndicators";
@@ -676,6 +677,9 @@ export default function YieldMonitoring() {
                   />
                 </div>
               )}
+
+              <SectionHeading title="Productivity Indices" />
+              <ProductivityCards municipalityId={activeCityId} cityName={activeCityName} />
 
               <p className="text-[11px] leading-4 text-[#9CA3AF]">
                 Source: PRiSM / Ricelytics observed city and municipality yields (2018 – 2026 Sem 1). Values marked

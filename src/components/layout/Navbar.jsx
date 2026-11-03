@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 const NAV_LINKS = [
   { label: "Home", to: "/" },
   { label: "About", to: "/about" },
-  // The public yield map (/yield-map) is left out of the menu on purpose; it still opens by URL.
+  // The yield map is for signed-in users only (/yield-map is behind the login), so it is not in this menu.
   { label: "FAQs", to: "/faq" },
   { label: "Contact", to: "/contact" },
 ];

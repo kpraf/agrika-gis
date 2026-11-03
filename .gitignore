@@ -21,3 +21,12 @@ backend/db/pipeline_reliability_report.txt
 .env.prod
 backend/db/_run/
 backend/db/security_test_report.txt
+
+# Growth-phase pictures and their features: rebuilt on the runner from the database
+# (phase_pictures_stage.py --export / --fetch); only the outlines and temperature are kept.
+backend/db/previous_study/**/images/
+backend/db/previous_study/**/images_s1/
+backend/db/previous_study/**/*.npz
+backend/db/previous_study/**/image_index*.csv
+backend/db/previous_study/**/logs/
+backend/db/experiments/
