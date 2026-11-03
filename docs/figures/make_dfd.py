@@ -145,6 +145,13 @@ def path(d, pts, label=None, lpos=None, ha="center", double=False, lw=0.85):
                 bbox=dict(fc="white", ec="none", pad=0.8))
 
 
+def trim(d, y0):
+    """Drop the empty strip below y0 (the Public Visitor used to sit there), same scale."""
+    w, h = d.fig.get_size_inches()
+    d.ax.set_ylim(y0, h)
+    d.fig.set_size_inches(w, h - y0)
+
+
 # ============================================================== context diagram
 def context():
     global LBL, NAME
@@ -167,6 +174,7 @@ def context():
     path(d, [(R, cy - 0.5), (er, cy - 0.5)], "area and month requests", ((R + er) / 2, cy - 0.28))
     path(d, [(er, cy - 0.8), (R, cy - 0.8)], "monthly weather", ((R + er) / 2, cy - 1.02))
     path(d, [(er, 1.35), (R - 0.25, 1.35), (R - 0.25, B)], "municipality and barangay boundaries", ((er + R - 0.25) / 2, 1.6))
+    trim(d, 0.85)
     d.save("fig_dfd_context.png")
 
 
@@ -244,6 +252,7 @@ def level1(lbl=7.4, name=8.6, out="fig_dfd_level1.png"):
     # --- 6.0 Load boundaries
     path(d, [(e5l, YB), (p6r, YB)], "boundary\nfiles", ((e5l + p6r) / 2, YB + 0.38))
     path(d, [(p6l, YB - 0.15), (10.75 + SW / 2, YB - 0.15)], "municipality and\nbarangay boundaries", ((p6l + 10.75 + SW / 2) / 2 + 0.1, YB - 0.62))
+    trim(d, 1.55)
     d.save(out)
 
 
