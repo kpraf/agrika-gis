@@ -18,8 +18,11 @@ Drawn from the code, not from the proposal:
     backend/scripts/predict_season.py    CNN-LSTM forecast of a completed season -> predictions
     backend/yields.py, features.py,
     boundaries.py (GET)                  maps, residuals (observed - predicted, computed on request),
-                                         trends, comparison; the public map needs no sign-in
+                                         trends, comparison; signed-in users only
     src/components/reports               PDF / Excel / CSV reports, incl. the data import history
+
+Post-defense revision: the yield map is no longer shown to the public, so the Public Visitor has no
+rice-data flow left and is not drawn (the home pages are static information).
 
 Rules followed (Gane & Sarson; Lucid DFD tutorial): every flow starts or ends at a process;
 no entity-to-store, store-to-store, or entity-to-entity flow; every process and store has an
@@ -151,7 +154,6 @@ def context():
     d.process("P0", cx, cy, w, h, "0", "AgriKA-GIS\nSpatial Decision-Support\nSystem")
     L, R, T, B = cx - w / 2, cx + w / 2, cy + h / 2, cy - h / 2
     d.entity("E1", 1.15, cy, 1.85, 1.6, "Authorized\nPersonnel\n\n(Administrator,\nAgriculturist,\nRice Technician)")
-    d.entity("E2", cx, 0.55, 1.9, 0.5, "Public Visitor")
     d.entity("E3", 10.25, cy + 0.65, 1.85, 0.8, "Copernicus Data\nSpace (Sentinel\nHub API)")
     d.entity("E4", 10.25, cy - 0.65, 1.85, 0.5, "Open-Meteo API")
     d.entity("E5", 10.25, 1.35, 1.85, 0.6, "PSA Boundary\nData")
@@ -160,8 +162,6 @@ def context():
          "login credentials, account details,\nyield record files, map selections,\nreport requests", ((e1r + L) / 2, cy + 0.85))
     path(d, [(L, cy - 0.25), (e1r, cy - 0.25)],
          "signed token, account list,\nimport summaries, maps, residuals,\ncharts, PDF / Excel / CSV reports", ((e1r + L) / 2, cy - 0.85))
-    path(d, [(cx - 0.45, 0.8), (cx - 0.45, B)], "map\nselections", (cx - 1.0, 1.75))
-    path(d, [(cx + 0.1, B), (cx + 0.1, 0.8)], "public\nyield map", (cx + 0.6, 1.75))
     path(d, [(R, cy + 0.8), (er, cy + 0.8)], "area and month requests", ((R + er) / 2, cy + 1.02))
     path(d, [(er, cy + 0.5), (R, cy + 0.5)], "Sentinel-1/2 monthly statistics", ((R + er) / 2, cy + 0.28))
     path(d, [(R, cy - 0.5), (er, cy - 0.5)], "area and month requests", ((R + er) / 2, cy - 0.28))
@@ -180,7 +180,6 @@ def level1(lbl=7.4, name=8.6, out="fig_dfd_level1.png"):
     YT, YM, YB = 7.9, 5.3, 2.4          # top, middle, bottom rows
     # external entities
     d.entity("E1", 0.95, 5.15, 1.55, 6.6, "Authorized\nPersonnel\n\n(Administrator,\nAgriculturist,\nRice Technician)")
-    d.entity("E2", 5.25, 0.55, 1.9, 0.5, "Public Visitor")
     d.entity("E3", 17.35, 8.45, 1.8, 0.8, "Copernicus Data\nSpace (Sentinel\nHub API)")
     d.entity("E4", 17.35, 7.15, 1.8, 0.5, "Open-Meteo API")
     d.entity("E5", 17.35, YB, 1.8, 0.65, "PSA Boundary\nData")
@@ -239,8 +238,6 @@ def level1(lbl=7.4, name=8.6, out="fig_dfd_level1.png"):
     # --- 5.0 Present maps, analytics, and reports
     path(d, [(e1r, YB + 0.2), (p5l, YB + 0.2)], "map selections,\nreport requests", ((e1r + p5l) / 2, YB + 0.55))
     path(d, [(p5l, YB - 0.2), (e1r, YB - 0.2)], "maps, residuals,\ncharts, reports", ((e1r + p5l) / 2, YB - 0.55))
-    path(d, [(4.95, 0.8), (4.95, bot(YB))], "map\nselections", (4.45, 1.36))
-    path(d, [(5.55, bot(YB)), (5.55, 0.8)], "public\nyield map", (6.08, 1.36))
     path(d, [(6.3, s_bot), (6.3, top(YB))], "observed and\npredicted yields", (6.3 - 0.75, (s_bot + top(YB)) / 2))
     path(d, [(10.75 - SW / 2, YB), (p5r, YB)], "boundaries", ((10.75 - SW / 2 + p5r) / 2, YB + 0.22))
     path(d, [(13.85, s_bot), (13.85, 3.6), (7.0, 3.6), (7.0, top(YB))], "environment layers", (9.6, 3.6))

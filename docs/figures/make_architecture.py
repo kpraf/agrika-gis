@@ -165,7 +165,7 @@ for k, m in enumerate(mods):
     ax.text(mx + 0.14, yy - 0.2, m, va="center", fontsize=9.1, color=INK)
 label(x + PAD, my - 1.5 - 0.15, "USERS")
 roles = [("Administrator", "whole province"), ("Agriculturist", "assigned city"),
-         ("Rice Technician", "assigned city"), ("Public Visitor", "public map")]
+         ("Rice Technician", "assigned city"), ("Public Visitor", "home pages only")]
 rw = (TW - 2 * PAD) / 4
 ry = my - 1.5 - 0.62
 for k, (role, scope) in enumerate(roles):
